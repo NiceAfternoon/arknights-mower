@@ -329,6 +329,12 @@
     "description": "造成物理或法术伤害时，根据目标防御力和法术抗性变更伤害类型",
     "buffer": []
   },
+  "ba_dmgresistance": {
+    "termId": "ba.dmgresistance",
+    "termName": "伤害减免",
+    "description": "受到的伤害降低一定数值（同名效果取最高）",
+    "buffer": []
+  },
   "cc_bd_A_1": {
     "termId": "cc.bd_A_1",
     "termName": "念力",
@@ -599,7 +605,7 @@
   "cc_g_siracusa": {
     "termId": "cc.g.siracusa",
     "termName": "叙拉古",
-    "description": "包含以下干员\n安洁莉娜、拉普兰德、普罗旺斯、红云、布洛卡、巫恋、铃兰、贾维、奥斯塔、斥罪、子月、伺夜、阿罗玛、忍冬、裁度、荒芜拉普兰德",
+    "description": "包含以下干员\n安洁莉娜、拉普兰德、普罗旺斯、红云、布洛卡、巫恋、铃兰、贾维、奥斯塔、斥罪、子月、伺夜、阿罗玛、忍冬、裁度、荒芜拉普兰德、贝洛内、复奏",
     "buffer": []
   },
   "cc_g_laterano": {

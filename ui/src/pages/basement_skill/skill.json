@@ -1,5 +1,89 @@
 [
   {
+    "key": 407,
+    "name": "复奏",
+    "span": 2,
+    "child_skill": [
+      {
+        "skill_key": 0,
+        "skill_level": 0,
+        "phase_level": "精0 1级",
+        "skillname": "专业经理·α",
+        "buffer": false,
+        "buffer_des": [],
+        "des": "进驻会客室时，如果会客室内只有自身处于工作状态时，线索搜集速度提升<@cc.vup>15%</>，心情每小时消耗<@cc.vdown>+1</>",
+        "roomType": "会客室",
+        "buffCategory": "FUNCTION",
+        "skillIcon": "bskill_meet_spd&cost_condChargoat",
+        "buffColor": "#dd653f",
+        "textColor": "#ffffff"
+      },
+      {
+        "skill_key": 0,
+        "skill_level": 1,
+        "phase_level": "精2 1级",
+        "skillname": "专业经理·β",
+        "buffer": false,
+        "buffer_des": [],
+        "des": "进驻会客室时，如果会客室内只有自身处于工作状态时，线索搜集速度提升<@cc.vup>35%</>，心情每小时消耗<@cc.vdown>+1</>",
+        "roomType": "会客室",
+        "buffCategory": "FUNCTION",
+        "skillIcon": "bskill_meet_spd&cost_condChargoat2",
+        "buffColor": "#dd653f",
+        "textColor": "#ffffff"
+      }
+    ]
+  },
+  {
+    "key": 406,
+    "name": "贝洛内",
+    "span": 3,
+    "child_skill": [
+      {
+        "skill_key": 0,
+        "skill_level": 0,
+        "phase_level": "精0 1级",
+        "skillname": "家族经营·α",
+        "buffer": false,
+        "buffer_des": [],
+        "des": "进驻贸易站时，订单获取效率<@cc.vup>+25%</>；当<@cc.kw>伺夜</>在基建内时（不包含副手及活动室使用者），订单获取效率额外<@cc.vup>+5%</>",
+        "roomType": "贸易站",
+        "buffCategory": "OUTPUT",
+        "skillIcon": "bskill_tra_ord_spd_ext2",
+        "buffColor": "#0075a9",
+        "textColor": "#ffffff"
+      },
+      {
+        "skill_key": 0,
+        "skill_level": 1,
+        "phase_level": "精2 1级",
+        "skillname": "家族经营·β",
+        "buffer": false,
+        "buffer_des": [],
+        "des": "进驻贸易站时，订单获取效率<@cc.vup>+30%</>；当<@cc.kw>伺夜</>在基建内时（不包含副手及活动室使用者），订单获取效率额外<@cc.vup>+10%</>",
+        "roomType": "贸易站",
+        "buffCategory": "OUTPUT",
+        "skillIcon": "bskill_tra_ord_spd_ext3",
+        "buffColor": "#0075a9",
+        "textColor": "#ffffff"
+      },
+      {
+        "skill_key": 1,
+        "skill_level": 0,
+        "phase_level": "精0 1级",
+        "skillname": "未偿还的债务",
+        "buffer": false,
+        "buffer_des": [],
+        "des": "当与<@cc.kw>伺夜</>在同一个贸易站时，心情每小时消耗<@cc.vup>-0.1</>，订单上限<@cc.vup>+2</>",
+        "roomType": "贸易站",
+        "buffCategory": "OUTPUT",
+        "skillIcon": "bskill_tra_demetr",
+        "buffColor": "#0075a9",
+        "textColor": "#ffffff"
+      }
+    ]
+  },
+  {
     "key": 405,
     "name": "矩",
     "span": 2,

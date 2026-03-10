@@ -1,5 +1,977 @@
 [
   {
+    "id": "CG-1",
+    "name": "掌声之外",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30061",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 2
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30011",
+        "dropType": 2
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-1 突袭",
+    "name": "掌声之外",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-2",
+    "name": "高脚杯中的泡影",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30061",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 2
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30011",
+        "dropType": 2
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-2 突袭",
+    "name": "高脚杯中的泡影",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-3",
+    "name": "立约的艺术",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30061",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 2
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 2
+      },
+      {
+        "occPercent": 1,
+        "type": "MATERIAL",
+        "id": "30011",
+        "dropType": 2
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-3 突袭",
+    "name": "立约的艺术",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-4",
+    "name": "醒酒之后",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30061",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 2
+      },
+      {
+        "occPercent": 2,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 2
+      },
+      {
+        "occPercent": 1,
+        "type": "MATERIAL",
+        "id": "30011",
+        "dropType": 2
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-4 突袭",
+    "name": "醒酒之后",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-5",
+    "name": "种豆得豆",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 0,
+        "type": "MATERIAL",
+        "id": "30032",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30011",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30061",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "3003",
+        "dropType": 4
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30012",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30032",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30062",
+        "dropType": 4
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-5 突袭",
+    "name": "种豆得豆",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-6",
+    "name": "定价",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 1,
+        "type": "MATERIAL",
+        "id": "30062",
+        "dropType": 2
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "CARD_EXP",
+        "id": "2001",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30022",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30042",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30052",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "CARD_EXP",
+        "id": "2002",
+        "dropType": 4
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-6 突袭",
+    "name": "定价",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-7",
+    "name": "轻便的行李",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30103",
+        "dropType": 2
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30031",
+        "dropType": 4
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30051",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30032",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30052",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30033",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30053",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30093",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31033",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30103",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31053",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31043",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31083",
+        "dropType": 4
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-7 突袭",
+    "name": "轻便的行李",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-8",
+    "name": "准入许可",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 8
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 3
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "31053",
+        "dropType": 2
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30021",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30041",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "CARD_EXP",
+        "id": "2001",
+        "dropType": 4
+      },
+      {
+        "occPercent": 3,
+        "type": "MATERIAL",
+        "id": "30022",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30042",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "CARD_EXP",
+        "id": "2002",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30023",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30043",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "30083",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31023",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31063",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "MATERIAL",
+        "id": "31093",
+        "dropType": 4
+      },
+      {
+        "occPercent": 4,
+        "type": "CARD_EXP",
+        "id": "2003",
+        "dropType": 4
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-8 突袭",
+    "name": "准入许可",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "FURN",
+        "id": "furni_terracommericials_FowlbeastLiverPate_01",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "ACTIVITY_ITEM",
+        "id": "act20mini_token_cork",
+        "dropType": 1
+      },
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-S-1",
+    "name": "新风向",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
+    "id": "CG-S-2",
+    "name": "授信之人",
+    "drop": [
+      {
+        "occPercent": 0,
+        "type": "DIAMOND",
+        "id": "4002",
+        "dropType": 8
+      }
+    ],
+    "zoneId": "act20mini_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1773097200,
+      "endTs": 1773691199
+    }
+  },
+  {
     "id": "0-1",
     "name": "坍塌",
     "drop": null,

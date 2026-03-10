@@ -392,6 +392,7 @@ class Arknights数据处理器:
                 值["zoneId"] in zoneToActivity
                 and zoneToActivity[值["zoneId"]] in ssData
             ):
+                print(值["zoneId"], zoneToActivity[值["zoneId"]], ssData[zoneToActivity[值["zoneId"]]])
                 所有关卡.append(
                     {
                         "id": 关卡代码,
@@ -401,7 +402,7 @@ class Arknights数据处理器:
                         "apCost": 关卡AP,
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": ssData[zoneToActivity[值["zoneId"]]]["name"],
+                        "zoneNameSecond": ssData[zoneToActivity[值["zoneId"]]]["name"] if 'name' in ssData[zoneToActivity[值["zoneId"]]] else "",
                         "subTitle": zones[关卡ZONE]["zoneNameSecond"]
                         if 关卡ZONE in zones
                         else "",

@@ -743,7 +743,7 @@ class Recognizer:
             "loading2": (630, 240),
             "loading7": (106, 635),
             "login_account": (622, 703),
-            "login_awake": (888, 743),
+            # "login_awake": (888, 743),
             "login_connecting": (760, 881),
             "login_loading": (920, 388),
             "login_logo": (601, 332),
