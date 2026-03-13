@@ -1,6 +1,6 @@
 <div align="center" markdown>
 
-![Mower](./assets/logo/logo.png)
+![Mower](./docs/assets/logo/logo.png)
 
 ***Arknights-Mower***
 
