@@ -10,8 +10,6 @@ theme:
   name: material
   logo: assets/logo/logo.ico
   favicon: assets/logo/logo.png
-  hide:
-    - metadata
   palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
@@ -64,7 +62,6 @@ markdown_extensions:
       permalink: true
       toc_depth: 3
       anchorlink: true
-  - md_in_html
   - admonition
   - attr_list
   - md_in_html
