@@ -17,7 +17,7 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 
 初次使用，建议阅读
 
-[《Mower入门一条龙》](./docs/manual/README.md)
+[《Mower入门一条龙》](https://arkmowers.github.io/arknights-mower/docs/manual/README.html)
 
 提出建议、反馈 Bug 或交流基建知识，欢迎加入 QQ 频道 [ArkMower（频道号：2r118jwue4）](https://pd.qq.com/s/5t91c3gx9)
 
@@ -25,7 +25,7 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 
 ## 功能介绍
 
-- [基建](./former-manual/start/riic.md)：跑单、按心情动态换班、自动合成材料；
+- 基建：跑单、按心情动态换班、自动合成材料；
 - 森空岛：签到、仓库读取；
 - 日常：公招、邮件、线索、清理智；
 - 大型任务：生息演算、隐秘战线；
