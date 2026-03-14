@@ -1,23 +1,31 @@
-# arknights-mower
+<div align="center" markdown>
+
+![Mower](./docs/assets/logo/logo.png)
+
+***Arknights-Mower***
+
+---
+
+Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows、MacOS 与 Linux 平台
 
 [![GitHub License](https://img.shields.io/github/license/ArkMowers/arknights-mower)](https://github.com/ArkMowers/arknights-mower/blob/master/LICENSE)
-[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/ArkMowers/arknights-mower/dev_shawn)](https://github.com/ArkMowers/arknights-mower/commits/dev_shawn/)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ArkMowers/arknights-mower/pyinstaller-win-shawn.yml?branch=dev_shawn&)](https://github.com/ArkMowers/arknights-mower/actions/workflows/pyinstaller-win-shawn.yml)
+[![GitHub last commit (branch)](https://img.shields.io/github/last-commit/ArkMowers/arknights-mower/4.1.3)](https://github.com/ArkMowers/arknights-mower/commits/4.1.3/)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ArkMowers/arknights-mower/pyinstaller-win-shawn.yml?branch=4.1.3&)](https://github.com/ArkMowers/arknights-mower/actions/workflows/pyinstaller-win-shawn.yml)
 [![download](https://img.shields.io/website?url=https%3A%2F%2Fmower.zhaozuohong.vip&label=Mower%E4%B8%8B%E8%BD%BD%E7%AB%99)](https://mower.zhaozuohong.vip/)
 [![qq_guild](https://img.shields.io/badge/QQ%E9%A2%91%E9%81%93-2r118jwue4-blue)](https://pd.qq.com/s/5t91c3gx9)
 [![QQ群](https://img.shields.io/badge/QQ群-521857729(mower用户交流群)-green)](https://qm.qq.com/q/uALU6yjUuk)
 
-Mower 是为长期运行设计的、开源的明日方舟脚本。
+初次使用，建议阅读
 
-初次使用，建议阅读q群文件《Mower入门一条龙》；提出建议、反馈 Bug 或交流基建知识，欢迎加入 QQ 频道 [ArkMower（频道号：2r118jwue4）](https://pd.qq.com/s/5t91c3gx9)。
+[《Mower入门一条龙》](./docs/manual/README.md)
 
-## [安装](./start/download)
+提出建议、反馈 Bug 或交流基建知识，欢迎加入 QQ 频道 [ArkMower（频道号：2r118jwue4）](https://pd.qq.com/s/5t91c3gx9)
 
-Mower 支持 Windows、macOS 与 Linux 平台。Windows 用户推荐使用下载器下载运行；macOS 与 Linux 用户请参考群文件《mower入门一条龙》内容运行。
+</div>
 
 ## 功能介绍
 
-- [基建](./start/riic)：跑单、按心情动态换班、自动合成材料；
+- [基建](./former-manual/start/riic.md)：跑单、按心情动态换班、自动合成材料；
 - 森空岛：签到、仓库读取；
 - 日常：公招、邮件、线索、清理智；
 - 大型任务：生息演算、隐秘战线；
@@ -26,7 +34,10 @@ Mower 支持 Windows、macOS 与 Linux 平台。Windows 用户推荐使用下载
 
 ## 界面截图
 
-![log](./img/log.png)
-![settings](./img/settings.png)
-![plan-editor](./img/plan-editor.png)
-![riic-report](./img/riic-report.png)
+![log](./docs/assets/img/log.png)
+
+![settings](./docs/assets/img/settings.png)
+
+![plan-editor](./docs/assets/img/plan-editor.png)
+
+![riic-report](./docs/assets/img/riic-report.png)
