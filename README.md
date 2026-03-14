@@ -6,7 +6,7 @@
 
 ---
 
-Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows、macOS 与 Linux 平台
+Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows、MacOS 与 Linux 平台
 
 [![GitHub License](https://img.shields.io/github/license/ArkMowers/arknights-mower)](https://github.com/ArkMowers/arknights-mower/blob/master/LICENSE)
 [![GitHub last commit (branch)](https://img.shields.io/github/last-commit/ArkMowers/arknights-mower/4.1.3)](https://github.com/ArkMowers/arknights-mower/commits/4.1.3/)
@@ -15,9 +15,9 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 [![qq_guild](https://img.shields.io/badge/QQ%E9%A2%91%E9%81%93-2r118jwue4-blue)](https://pd.qq.com/s/5t91c3gx9)
 [![QQ群](https://img.shields.io/badge/QQ群-521857729(mower用户交流群)-green)](https://qm.qq.com/q/uALU6yjUuk)
 
+初次使用，建议阅读
 
-
-初次使用，建议阅读q群文件《Mower入门一条龙》或[《Mower入门指北》](./manual/intro.md)
+[《Mower入门一条龙》](./manual/README.md)
 
 提出建议、反馈 Bug 或交流基建知识，欢迎加入 QQ 频道 [ArkMower（频道号：2r118jwue4）](https://pd.qq.com/s/5t91c3gx9)
 

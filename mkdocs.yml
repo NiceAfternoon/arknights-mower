@@ -29,6 +29,8 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  icon:
+    annotation: material/comma-circle-outline
   features:
     - content.action.edit
     - content.code.copy
@@ -42,6 +44,8 @@ theme:
     - navigation.path
     - navigation.indexes
     - navigation.top
+    - navigation.footer
+    - navigation.prune
     - toc.follow
     - search.highlight
 markdown_extensions:
@@ -60,7 +64,7 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
   - toc:
       permalink: true
-      toc_depth: 3
+      toc_depth: 5
       anchorlink: true
   - admonition
   - attr_list
@@ -106,35 +110,44 @@ plugins:
 
 nav: 
   - 简介: ./README.md
-  - 入门指北: 
+  - Mower入门一条龙:
     - manual/README.md
     - 前言: manual/intro.md
-    - 下载、运行及更新: manual/install.md
-    - Mower设置: manual/mower-settings.md
-    - MAA设置: manual/maa-settings.md
+    - 下载及更新: manual/install.md
+    - Mower使用: manual/mower-settings.md
     - 排班教学: manual/schedule.md
+    - 数据图表: manual/chart.md
     - 常见问题: manual/qa.md
-    - 用户须知: manual/notice.md
-    - 致谢: manual/appreciate.md
   - 旧版手册:
-    - 快速开始: 
-      - former-manual/start/README.md
-      - 安装与更新: former-manual/start/download.md
-      - 基建功能介绍: former-manual/start/riic.md
-    - 配置指南: 
-      - former-manual/conf/README.md
-      - 设置: former-manual/conf/1.setting.md
-      - 高级设置: former-manual/conf/2.advancedSettings.md
-      - 外部调用: former-manual/conf/3.externalCall.md
-      - 排班表输入规则: former-manual/conf/4.planValidation.md
-      - 内置设定: former-manual/conf/5.buildinSettings.md
-      - 副表（beta）: former-manual/conf/6.customConditionPlan.md
-    - 常见问题: 
-      - former-manual/qa/README.md
-    - 其他说明: 
-      - former-manual/noun/README.md
-      - 名词释义: former-manual/noun/1.explanation.md
-      - 使用小技巧: former-manual/noun/2.tips.md
+    - former-manual/README.md
+    - 入门指北: 
+      - former-manual/manualV2/README.md
+      - 前言: former-manual/manualV2/intro.md
+      - 下载、运行及更新: former-manual/manualV2/install.md
+      - Mower设置: former-manual/manualV2/mower-settings.md
+      - MAA设置: former-manual/manualV2/maa-settings.md
+      - 排班教学: former-manual/manualV2/schedule.md
+      - 常见问题: former-manual/manualV2/qa.md
+      - 用户须知: former-manual/manualV2/notice.md
+      - 致谢: former-manual/manualV2/appreciate.md
+    - 更早的手册:
+      - former-manual/manualV1/start/README.md
+      - 安装与更新: former-manual/manualV1/start/download.md
+      - 基建功能介绍: former-manual/manualV1/start/riic.md
+      - 配置指南: 
+        - former-manual/manualV1/conf/README.md
+        - 设置: former-manual/manualV1/conf/1.setting.md
+        - 高级设置: former-manual/manualV1/conf/2.advancedSettings.md
+        - 外部调用: former-manual/manualV1/conf/3.externalCall.md
+        - 排班表输入规则: former-manual/manualV1/conf/4.planValidation.md
+        - 内置设定: former-manual/manualV1/conf/5.buildinSettings.md
+        - 副表（beta）: former-manual/manualV1/conf/6.customConditionPlan.md
+      - 常见问题: 
+        - former-manual/manualV1/qa/README.md
+      - 其他说明: 
+        - former-manual/manualV1/noun/README.md
+        - 名词释义: former-manual/manualV1/noun/1.explanation.md
+        - 使用小技巧: former-manual/manualV1/noun/2.tips.md
   - 开发文档: 
     - dev/README.md
     - 开发环境: dev/environment.md

@@ -1,9 +1,27 @@
-# Mower入门指北
+---
+hide: 
+    - toc
+---
+# Mower入门一条龙
 
-1. [前言](./intro.md)
-2. [下载、运行及更新](./install.md)
-3. [Mower设置](./mower-settings.md)
-4. [MAA设置](./maa-settings.md)
-5. [排班教学](./schedule.md)
-6. [常见问题](./qa.md)
-7. [用户须知](./notice.md)
+<div class="grid cards" markdown>
+
+-   ### 📌 前言
+    [查看🔗 →](./intro.md)
+
+-   ### 📦 下载与更新
+    [查看🔗 →](./install.md)
+
+-   ### ![Mower](../assets/logo/logo.png){ width="30px" } Mower使用
+    [查看🔗 →](./mower-settings.md)
+
+-   ### 📋 排班教学
+    [查看🔗 →](./schedule.md)
+
+-   ### 📊 数据图表
+    [查看🔗 →](./chart.md)
+
+-   ### 💭 常见问题
+    [查看🔗 →](./qa.md)
+
+</div>
