@@ -34,10 +34,10 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 
 ## 界面截图
 
-![log](./docs/assets/img/log.png){ width="1000" }
+![log](./docs/assets/img/log.png)
 
-![settings](./docs/assets/img/settings.png){ width="1000" }
+![settings](./docs/assets/img/settings.png)
 
-![plan-editor](./docs/assets/img/plan-editor.png){ width="1000" }
+![plan-editor](./docs/assets/img/plan-editor.png)
 
-![riic-report](./docs/assets/img/riic-report.png){ width="1000" }
+![riic-report](./docs/assets/img/riic-report.png)
