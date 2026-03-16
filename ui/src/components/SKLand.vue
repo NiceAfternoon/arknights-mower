@@ -27,7 +27,7 @@ const maa_msg = ref('')
 async function test_maa() {
   maa_msg.value = '正在测试……'
   const response = await axios.get(`${import.meta.env.VITE_HTTP_URL}/check-skland`)
-  maa_msg.value = response.data
+  maa_msg.value = response.data.join('\n')
 }
 </script>
 
@@ -65,7 +65,14 @@ async function test_maa() {
     </n-dynamic-input>
     <div class="misc-container">
       <n-button @click="test_maa">测试设置</n-button>
-      <div>{{ maa_msg }}</div>
+      <n-card
+      content-scrollable
+      style="max-height: 80px"
+      segmented
+      :content-style="{ whiteSpace: 'pre-line', overflow: 'auto' }"
+      >
+        <div>{{ maa_msg }}</div>
+      </n-card>
     </div>
   </n-card>
 </template>

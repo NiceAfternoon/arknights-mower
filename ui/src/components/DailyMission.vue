@@ -46,6 +46,14 @@ const SyncStatus = (item, game) => {
     <n-flex vertical>
       <n-checkbox v-model:checked="skland_enable">
         <div class="item">森空岛签到</div>
+        <help-text>
+          <div>签到失败时，请尝试：</div>
+          <ol style="margin: 0">
+            <li>检查森空岛连接是否正常；</li>
+            <li>检查是否勾选了未绑定的区服/游戏</li>
+        </ol>
+          <div>Tips: 可以在根目录下的tmp/skland.csv中查看签到详情</div>
+        </help-text>
       </n-checkbox>
         <n-tabs type="line" animated>
           <n-tab-pane name="arknights" tab="明日方舟">
