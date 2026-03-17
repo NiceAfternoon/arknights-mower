@@ -45,7 +45,7 @@ class SKLand:
             # 明日方舟森空岛签到
             for i in get_binding_list(self.sign_token):
                 if i["gameId"] == 1 and item.arknights_isCheck:
-                    if not i.get["uid"]:
+                    if not i.get("uid"):
                         continue
                     if not(item.sign_in_bilibili) and i["channelName"] == "bilibili服":
                         continue
@@ -84,8 +84,8 @@ class SKLand:
                         )
                 # 终末地森空岛签到
                 if i["gameId"] == 3 and item.endfield_isCheck:
-                    for j in i.get["roles"]:
-                        if not j.get["roleId"]:
+                    for j in i.get("roles"):
+                        if not j.get("roleId"):
                             continue
                         if not(item.sign_in_endfield_bilibili) and i["channelName"] == "bilibili服":
                             continue
