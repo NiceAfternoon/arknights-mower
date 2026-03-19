@@ -66,10 +66,10 @@ async function test_maa() {
     <div class="misc-container">
       <n-button @click="test_maa">测试设置</n-button>
       <n-card
-      content-scrollable
-      style="max-height: 80px"
-      segmented
-      :content-style="{ whiteSpace: 'pre-line', overflow: 'auto' }"
+        content-scrollable
+        style="max-height: 80px"
+        segmented
+        :content-style="{ whiteSpace: 'pre-line', overflow: 'auto' }"
       >
         <div>{{ maa_msg }}</div>
       </n-card>

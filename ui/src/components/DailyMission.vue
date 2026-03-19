@@ -20,11 +20,11 @@ async function test_sign() {
 // 复选框逻辑
 // 账号勾选时相当于全选
 const AllCheck = (item, status, game) => {
-  if (game == "arknights") {
+  if (game == 'arknights') {
     item.arknights_isCheck = status
     item.sign_in_official = status
     item.sign_in_bilibili = status
-  } else if (game == "endfield") {
+  } else if (game == 'endfield') {
     item.endfield_isCheck = status
     item.sign_in_endfield_official = status
     item.sign_in_endfield_bilibili = status
@@ -32,13 +32,12 @@ const AllCheck = (item, status, game) => {
 }
 // 区服为空时同步账号为空
 const SyncStatus = (item, game) => {
-  if (game == "arknights") {
-    item.arknights_isCheck = (item.sign_in_official || item.sign_in_bilibili)
-  } else if (game == "endfield") {
-    item.endfield_isCheck = (item.sign_in_endfield_official || item.sign_in_endfield_bilibili)
+  if (game == 'arknights') {
+    item.arknights_isCheck = item.sign_in_official || item.sign_in_bilibili
+  } else if (game == 'endfield') {
+    item.endfield_isCheck = item.sign_in_endfield_official || item.sign_in_endfield_bilibili
   }
 }
-
 </script>
 
 <template>
@@ -51,50 +50,74 @@ const SyncStatus = (item, game) => {
           <ol style="margin: 0">
             <li>检查森空岛连接是否正常；</li>
             <li>检查是否勾选了未绑定的区服/游戏</li>
-        </ol>
+          </ol>
           <div>Tips: 可以在根目录下的tmp/skland.csv中查看签到详情</div>
         </help-text>
       </n-checkbox>
-        <n-tabs type="line" animated>
-          <n-tab-pane name="arknights" tab="明日方舟">
-            <div v-for="account_info in skland_info" :key="account_info.account">
-              <n-flex>
-                <n-checkbox v-model:checked="account_info.arknights_isCheck" @update:checked="(status) => AllCheck(account_info, status, 'arknights')" style="margin-right: 12px">
-                  森空岛账号：{{ account_info.account }}
+      <n-tabs type="line" animated>
+        <n-tab-pane name="arknights" tab="明日方舟">
+          <div v-for="account_info in skland_info" :key="account_info.account">
+            <n-flex>
+              <n-checkbox
+                v-model:checked="account_info.arknights_isCheck"
+                @update:checked="(status) => AllCheck(account_info, status, 'arknights')"
+                style="margin-right: 12px"
+              >
+                森空岛账号：{{ account_info.account }}
+              </n-checkbox>
+              <div style="margin-left: auto">
+                <n-checkbox
+                  v-model:checked="account_info.sign_in_official"
+                  @update:checked="() => SyncStatus(account_info, 'arknights')"
+                  style="margin-right: 12px"
+                >
+                  官服签到
                 </n-checkbox>
-                <div style="margin-left: auto;">
-                  <n-checkbox v-model:checked="account_info.sign_in_official" @update:checked="() => SyncStatus(account_info, 'arknights')" style="margin-right: 12px">
-                    官服签到
-                  </n-checkbox>
-                  <n-checkbox v-model:checked="account_info.sign_in_bilibili" @update:checked="() => SyncStatus(account_info, 'arknights')" style="margin-right: 12px">
-                    B服签到
-                  </n-checkbox>
-                </div>
-              </n-flex>
-            </div>
-          </n-tab-pane>
-          <n-tab-pane name="endfield" tab="明日方舟终末地">
-            <div v-for="account_info in skland_info" :key="account_info.account">
-              <n-flex>
-                <n-checkbox v-model:checked="account_info.endfield_isCheck" @update:checked="(status) => AllCheck(account_info, status, 'endfield')" style="margin-right: 12px">
-                  森空岛账号：{{ account_info.account }}
+                <n-checkbox
+                  v-model:checked="account_info.sign_in_bilibili"
+                  @update:checked="() => SyncStatus(account_info, 'arknights')"
+                  style="margin-right: 12px"
+                >
+                  B服签到
                 </n-checkbox>
-                <div style="margin-left: auto;">
-                  <n-checkbox v-model:checked="account_info.sign_in_endfield_official" @update:checked="() => SyncStatus(account_info, 'endfield')" style="margin-right: 12px">
-                    官服签到
-                  </n-checkbox>
-                  <n-checkbox v-model:checked="account_info.sign_in_endfield_bilibili" @update:checked="() => SyncStatus(account_info, 'endfield')" style="margin-right: 12px">
-                    B服签到
-                  </n-checkbox>
-                </div>
-              </n-flex>
-            </div>           
-          </n-tab-pane>
-        </n-tabs>
-        <n-flex style="misc-container" align="center">
-          <n-button @click="test_sign">测试签到</n-button>
-          <div>{{ sign_msg }}</div>
-        </n-flex>        
+              </div>
+            </n-flex>
+          </div>
+        </n-tab-pane>
+        <n-tab-pane name="endfield" tab="明日方舟终末地">
+          <div v-for="account_info in skland_info" :key="account_info.account">
+            <n-flex>
+              <n-checkbox
+                v-model:checked="account_info.endfield_isCheck"
+                @update:checked="(status) => AllCheck(account_info, status, 'endfield')"
+                style="margin-right: 12px"
+              >
+                森空岛账号：{{ account_info.account }}
+              </n-checkbox>
+              <div style="margin-left: auto">
+                <n-checkbox
+                  v-model:checked="account_info.sign_in_endfield_official"
+                  @update:checked="() => SyncStatus(account_info, 'endfield')"
+                  style="margin-right: 12px"
+                >
+                  官服签到
+                </n-checkbox>
+                <n-checkbox
+                  v-model:checked="account_info.sign_in_endfield_bilibili"
+                  @update:checked="() => SyncStatus(account_info, 'endfield')"
+                  style="margin-right: 12px"
+                >
+                  B服签到
+                </n-checkbox>
+              </div>
+            </n-flex>
+          </div>
+        </n-tab-pane>
+      </n-tabs>
+      <n-flex style="misc-container" align="center">
+        <n-button @click="test_sign">测试签到</n-button>
+        <div>{{ sign_msg }}</div>
+      </n-flex>
       <n-divider />
       <n-checkbox v-model:checked="check_mail_enable">
         <div class="item">领取邮件</div>
