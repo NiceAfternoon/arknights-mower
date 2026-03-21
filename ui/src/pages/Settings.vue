@@ -188,7 +188,7 @@ const workshop_setting_close = () => {
 }
 function createNewItem() {
   return {
-    item_names: [''],
+    item_names: [],
     children_lower_limit: 20,
     self_upper_limit: 20
   }
@@ -283,7 +283,7 @@ if (return_home_when_idle.value) {
                 <span>模拟器文件夹</span>
                 <help-text>
                   <div>夜神：写到bin文件夹</div>
-                  <div>MuMu12: 写到shell文件夹</div>
+                  <div>MuMu12: 写到nx_main文件夹</div>
                 </help-text>
               </template>
               <n-input
@@ -744,8 +744,8 @@ if (return_home_when_idle.value) {
                         </li>
                       </ul>
                     </div>
-                    <n-button text @click="openEdit(idx)">编辑</n-button>
-                    <n-button text type="error" @click="workshop_settings.splice(idx, 1)"
+                    <n-button @click="openEdit(idx)" style="margin-right: 10px;">编辑</n-button>
+                    <n-button type="error" @click="workshop_settings.splice(idx, 1)"
                       >删除</n-button
                     >
                   </div>
