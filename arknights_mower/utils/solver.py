@@ -607,6 +607,9 @@ class BaseSolver:
             retry_times -= 1
 
     def back_to_infrastructure(self):
+        if hasattr(self, "scene_graph_navigation"):
+            self.scene_graph_navigation(Scene.INFRA_MAIN)
+            return
         self.back_to_index()
         self.tap_index_element("infrastructure")
 
@@ -739,3 +742,64 @@ class BaseSolver:
         csleep(3)
         self.check_current_focus()
         return False
+
+    def wait_for_scene_stable(
+        self,
+        target_scene: Scene | None = None,
+        max_checks: int = 10,
+        interval: float = 0.3,
+        timeout_seconds: float = 8.0,
+        interval_seconds: float = 0.2,
+        min_stable_frames: int = 3,
+        diff_threshold: float = 0.012,
+    ) -> bool:
+        if target_scene is not None:
+            for _ in range(max_checks):
+                if (scene := self.scene()) == target_scene:
+                    return True
+                if scene in self.waiting_scene:
+                    self.waiting_solver()
+                else:
+                    self.sleep(interval)
+            return False
+
+        start = datetime.now()
+        stable_frames = 0
+        last_gray = None
+        while (datetime.now() - start).total_seconds() < timeout_seconds:
+            self.recog.update()
+            if self.find("connecting"):
+                stable_frames = 0
+                self.sleep(interval_seconds)
+                continue
+            current_gray = cv2.resize(self.recog.gray, (480, 270))
+            if last_gray is not None:
+                diff = np.mean(cv2.absdiff(current_gray, last_gray)) / 255.0
+                if diff <= diff_threshold:
+                    stable_frames += 1
+                else:
+                    stable_frames = 0
+            last_gray = current_gray
+            if stable_frames >= min_stable_frames:
+                return True
+            self.sleep(interval_seconds)
+        return False
+
+    def tap_and_detect_page_move(self, pos, text="", record_step=True) -> bool:
+        before_scene = self.scene()
+        before_gray = cv2.resize(self.recog.gray, (320, 180))
+        self.tap(pos, interval=0.2)
+        if record_step and hasattr(self, "record_nav_step"):
+            try:
+                self.record_nav_step("tap", pos=pos, text=text)
+            except Exception:
+                pass
+        self.wait_for_scene_stable(timeout_seconds=5, interval_seconds=0.2)
+        after_scene = self.scene()
+        after_gray = cv2.resize(self.recog.gray, (320, 180))
+        diff_ratio = float(np.mean(cv2.absdiff(after_gray, before_gray)) / 255.0)
+        moved = after_scene != before_scene or diff_ratio > 0.02
+        logger.info(
+            f"tap detect moved={moved} diff={diff_ratio:.4f} scene:{before_scene}->{after_scene}"
+        )
+        return moved

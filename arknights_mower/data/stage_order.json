@@ -75,12 +75,12 @@
         "sortWithinYear": 11
     },
     {
-        "name": "",
+        "name": "离解复合",
         "sortByYear": 6,
         "sortWithinYear": 10
     },
     {
-        "name": "",
+        "name": "反常光谱",
         "sortByYear": 7,
         "sortWithinYear": 4
     },
@@ -155,6 +155,11 @@
         "sortWithinYear": 5
     },
     {
+        "name": "act20mini",
+        "sortByYear": 7,
+        "sortWithinYear": 9
+    },
+    {
         "name": "玛莉娅·临光",
         "sortByYear": 2,
         "sortWithinYear": 5
@@ -213,6 +218,11 @@
         "name": "镜中集",
         "sortByYear": 7,
         "sortWithinYear": 2
+    },
+    {
+        "name": "辞岁行",
+        "sortByYear": 7,
+        "sortWithinYear": 8
     },
     {
         "name": "孤岛风云",

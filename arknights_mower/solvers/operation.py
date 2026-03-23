@@ -18,6 +18,8 @@ class OperationSolver(SceneGraphSolver):
         logger.info("Start: 代理作战")
         self.stop_time = stop_time - timedelta(minutes=5)
         self.sanity_drain = False
+        self.auto_repeat = True
+        self.repeat_button_attempts = 0
         super().run()
         return self.sanity_drain
 
@@ -50,21 +52,57 @@ class OperationSolver(SceneGraphSolver):
 
         return value
 
+    def repeat_slot_scope(self, repeat_times: int) -> tp.Scope:
+        y = 291 + (6 - repeat_times) * 93
+        return (1445, y), (1555, y + 90)
+
+    def best_repeat_option(self) -> tuple[int, tp.Scope]:
+        for repeat_times in range(6, 0, -1):
+            scope = self.repeat_slot_scope(repeat_times)
+            if repeat_times > 1 and self.find("operation/+", scope=scope):
+                continue
+            img = cropimg(self.recog.gray, scope)
+            img = thres2(img, 200)
+            if repeat_times > 1 and cv2.countNonZero(img) < 60:
+                continue
+            return repeat_times, scope
+        return 1, self.repeat_slot_scope(1)
+
     def transition(self):
         if (scene := self.scene()) == Scene.OPERATOR_BEFORE:
-            if datetime.now() > self.stop_time:
-                return True
-            if self.recog.gray[65][1333] < 200:
-                self.sleep()
-                return
+            # Let the caller decide whether there is enough time before the next task.
+            # if datetime.now() > self.stop_time:
+            #     return True
             if self.recog.gray[907][1600] < 127:
                 self.tap((1776, 908))
                 return
-            repeat = self.number(((1520, 890), (1545, 930)), 28)
-            if repeat > 1:
-                self.tap((1500, 910))
-                self.tap((1500, 801))
-                return
+            if self.auto_repeat:
+                if self.repeat_button_attempts == 0:
+                    self.repeat_button_attempts += 1
+                    self.tap((1501, 891), interval=0.5)
+                    return
+                if self.find("operation/x3") or self.find("operation/x4"):
+                    repeat_times, scope = self.best_repeat_option()
+                    logger.info(f"选择连战次数：{repeat_times}次")
+                    self.tap(self.get_pos(scope), interval=0.5)
+                    self.auto_repeat = False
+                    self.repeat_button_attempts = 0
+                    return
+                repeat = self.number(((1520, 890), (1545, 930)), 28)
+                logger.debug(
+                    f"operation repeat_status: {repeat=}, {self.auto_repeat=}, {self.repeat_button_attempts=}"
+                )
+                if repeat > 1:
+                    logger.info(
+                        f"repeat panel fallback triggered, selecting legacy option: {repeat}"
+                    )
+                    self.tap((1500, 910), interval=0.5)
+                    self.tap((1500, 801), interval=0.5)
+                    self.auto_repeat = False
+                    self.repeat_button_attempts = 0
+                    return
+                self.auto_repeat = False
+                self.repeat_button_attempts = 0
             self.tap_element("ope_start", interval=2)
         elif scene == Scene.OPERATOR_SELECT:
             self.tap((1655, 781))

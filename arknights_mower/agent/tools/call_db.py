@@ -72,6 +72,7 @@ call_db_tool_def = {
             "- 任务，日志相关查询必须使用log表，不得使用trading_history表"
             "- 列名必须与用户查询语言一致"
             "- 用户查询‘漏单’时候你需要向用户确认是想查询任务记录还是查询账单/龙门币记录"
+            "- 如果用户是要分析漏单原因而不是单纯查表，应优先使用 analyze_missed_order 工具"
             "- agent_action 的 `current_time` 你必须用``包住 例子: Select `current_time` from agent_action"
             # 时间处理
             "时间处理规则:"
