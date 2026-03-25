@@ -86,15 +86,16 @@ nav = [
 ]
 
 extra_javascript = [
-    "javascripts/mathjax.js",
     "https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js",
-    "javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
-    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"
+    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
+    "https://cdn.jsdelivr.net/npm/basiclightbox@5.0.4/dist/basicLightbox.min.js",
+    "javascripts/basicLightbox-init.js"
 ]
 extra_css = [
     "https://unpkg.com/katex@0/dist/katex.min.css",
-    "stylesheets/extra.css"
+    "https://cdn.jsdelivr.net/npm/basiclightbox@5.0.4/dist/basicLightbox.min.css",
+    "stylesheets/extra.css",
 ]
 
 
@@ -103,9 +104,9 @@ language = "zh"
 logo = "assets/logo/logo.ico"
 favicon = "assets/logo/logo.png"
 features = [
-    "navigation.instant",
-    "navigation.instant.prefetch",
-    "navigation.instant.progress",
+    # "navigation.instant",
+    # "navigation.instant.prefetch",
+    # "navigation.instant.progress",
     "navigation.tracking",
     "navigation.tabs",
     "navigation.tabs.sticky",
@@ -121,7 +122,7 @@ features = [
     "content.action.edit",
     "content.action.view",
     "content.code.copy",
-    "content.code.select"
+    "content.code.select",
 ]
 
 # Palette toggle for automatic mode
@@ -159,7 +160,7 @@ link = "https://github.com/ArkMowers/arknights-mower/tree/doc-pages"
 name = "文档页面"
 
 [project.plugins.offline]
-enabled = false
+enabled = true
 
 [project.markdown_extensions.abbr]
 [project.markdown_extensions.admonition]

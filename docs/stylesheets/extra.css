@@ -1,3 +1,20 @@
 .md-typeset a {
     text-decoration: none;
 }
+
+
+/* 图片居中 */
+.md-typeset p:has(img), figure {
+    box-shadow: none !important;
+    text-align: center;
+}
+
+/* 图片阴影 */
+.md-typeset p img, figure img {
+    box-shadow: 0 2px 7px rgba(0,0,0,0.19)
+}
+
+/* 可能有某些图片不需要阴影，例如首页的图标 */
+img.no-shadow {
+  box-shadow: none !important;
+}

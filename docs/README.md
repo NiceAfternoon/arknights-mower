@@ -2,11 +2,12 @@
 hide:
   - navigation
   - toc
+  - path
 ---
 
 <div align="center" markdown>
 
-![Mower](./assets/logo/logo.png)
+![Mower](./assets/logo/logo.png){ .no-shadow .no-zoom }
 
 **_Arknights-Mower_**
 
