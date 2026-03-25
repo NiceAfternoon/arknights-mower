@@ -1,7 +1,7 @@
 [project]
 site_name = "Mower 文档"
 site_url = "https://arkmowers.github.io/arknights-mower/"
-site_description = "Mower，明日方舟长草助手"
+site_description = "Mower | 明日方舟长草助手"
 site_author = "ArkMower"
 copyright = "This Software is under the terms of MIT License."
 docs_dir = "./docs/"

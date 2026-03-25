@@ -1,4 +1,4 @@
-# 文档
+# 项目文档
 
 本项目文档使用 :fontawesome-brands-markdown:{ .lg .middle } `Markdown` 编写，由 [MkDocs](https://www.mkdocs.org/){ target="blank" } 构建，并使用 [Zensical](https://zensical.org/){ target="blank" } 主题。
 

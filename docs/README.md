@@ -5,9 +5,11 @@ hide:
   - path
 ---
 
+# 简介
+
 <div align="center" markdown>
 
-![Mower](./assets/logo/logo.png){ .no-shadow .no-zoom }
+![Mower](./assets/logo/logo.png){ .no-shadow .no-zoom style="height: 200px"}
 
 **_Arknights-Mower_**
 
@@ -24,7 +26,7 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 
 初次使用，建议阅读
 
-[《Mower入门一条龙》](./manual/README.md)
+[《Mower入门一条龙》](./manual/index.md)
 
 提出建议、反馈 Bug 或交流基建知识，欢迎加入 QQ 频道 [ArkMower（频道号：2r118jwue4）](https://pd.qq.com/s/5t91c3gx9)
 
