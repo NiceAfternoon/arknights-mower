@@ -12,7 +12,7 @@
 拐角、复杂的图案与纹理（包括文字）处可以提取到较多的特征点；在空白处很难提取到特征点。
 
 !!! note "使用示例"
-    [点击跳转至特征与特征点的示例](../assets/snippets/feature-point.md#)
+    [点击跳转至特征与特征点的示例](../../assets/snippets/feature-point.md#)
 
 ## 特征点的匹配
 
@@ -23,7 +23,7 @@
 下面的例子展示了如何利用特征匹配在终端页面定位活动入口。其中 `res` 图像来自明日方舟网站，尺寸与游戏内截图未必一致，因此对于 `res` 使用 `keypoints_scale_invariant()` 提取特征点。对于截图，使用 `keypoints()` 提取特征点，仍然可以得到很好的匹配结果。
 
 !!! note "使用示例"
-    [点击跳转至特征点的匹配的示例](../assets/snippets/feature-matching.md#)
+    [点击跳转至特征点的匹配的示例](../../assets/snippets/feature-matching.md#)
 
 ## 利用特征匹配定位目标图像
 
@@ -43,14 +43,14 @@
 如果匹配成功，`match()` 返回目标图片在截图中匹配到的区域；否则返回 `None`。
 
 !!! note "使用示例"
-    [点击跳转至利用特征匹配定位目标图像的示例](../assets/snippets/matcher.md#)
+    [点击跳转至利用特征匹配定位目标图像的示例](../../assets/snippets/matcher.md#)
 
 ## 利用特征匹配求解单应性矩阵
 
 游戏首页的界面随重力改变角度，为识别界面上的数字，可使用特征匹配求解单应性矩阵，将界面内容变换至平面，再进行进一步的识别。
 
 !!! note "使用示例"
-    [点击跳转至利用特征匹配求解单应力性矩阵的示例](../assets/snippets/feature-matching-3d.md#)
+    [点击跳转至利用特征匹配求解单应力性矩阵的示例](../../assets/snippets/feature-matching-3d.md#)
 
 ## 注意事项
 
@@ -59,7 +59,7 @@
 从截图提取特征点一般会花费数十毫秒，一次 FLANN 匹配也可能花费几毫秒到几十毫秒。大量使用特征匹配会导致脚本很慢。但是，对于不限制区域的匹配，特征匹配往往比在整个截图上进行模板匹配更快。
 
 !!! note "使用示例"
-    [点击跳转至生息演算地图匹配地点的示例](../assets/snippets/ra-map.md#)
+    [点击跳转至生息演算地图匹配地点的示例](../../assets/snippets/ra-map.md#)
 
 ### 目标图像截取
 
@@ -76,4 +76,4 @@ FLANN 和 RANSAC 算法具有一定的随机性。若结果变化较大，可考
 如果要处理目标多次出现的情况，如果能够预知出现的范围，可以指定 `scope` 参数进行限制。
 
 !!! note "使用示例"
-    [点击跳转至多目标的示例](../assets/snippets/multi-matching.md#)
+    [点击跳转至多目标的示例](../../assets/snippets/multi-matching.md#)

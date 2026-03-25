@@ -1,0 +1,191 @@
+[project]
+site_name = "Mower 文档"
+site_url = "https://arkmowers.github.io/arknights-mower/"
+site_description = "Mower，明日方舟长草助手"
+site_author = "ArkMower"
+copyright = "This Software is under the terms of MIT License."
+docs_dir = "./docs/"
+site_dir = "site"
+repo_url = "https://github.com/ArkMowers/arknights-mower"
+repo_name = "ArkMowers/arknights-mower"
+edit_uri = "edit/doc-pages/docs/"
+
+nav = [
+  { "简介" = "./" },
+
+  { "Mower入门一条龙" = [
+      "manual/README.md",
+      { "前言" = "manual/intro.md" },
+      { "下载及更新" = "manual/install.md" },
+      { "Mower使用" = "manual/mower-settings.md" },
+      { "排班教学" = "manual/schedule.md" },
+      { "数据图表" = "manual/chart.md" },
+      { "常见问题" = "manual/qa.md" }
+    ]},
+
+  { "维护&贡献" = [
+      "dev/README.md",
+      { "问题反馈" = "dev/feedback/issues.md" },
+      { "项目文档" = "dev/document/doc.md" },
+      { "开发文档" = [
+          "dev/develop/README.md",
+          { "开发环境" = "dev/develop/environment.md" },
+          { "版本与分支" = "dev/develop/branch.md" },
+          { "图像处理基础函数" = "dev/develop/image.md" },
+          { "特征匹配" = "dev/develop/feature-matching.md" },
+          { "示例" = [
+              { "图像处理示例 — 坐标与区域" = "assets/snippets/coordinate.md" },
+              { "图像处理示例 — 加载图像" = "assets/snippets/loadimg.md" },
+              { "图像处理示例 — 裁切图像" = "assets/snippets/cropimg.md" },
+              { "图像处理示例 — 二值化" = "assets/snippets/thres2.md" },
+              { "特征匹配示例 — 特征与特征点" = "assets/snippets/feature-point.md" },
+              { "特征匹配示例 — 特征点的匹配" = "assets/snippets/feature-matching.md" },
+              { "特征匹配示例 — 定位目标图像" = "assets/snippets/matcher.md" },
+              { "特征匹配示例 — 求解单应性矩阵" = "assets/snippets/feature-matching-3d.md" },
+              { "生息演算地图匹配地点" = "assets/snippets/ra-map.md" },
+              { "多目标" = "assets/snippets/multi-matching.md" }
+            ]}
+        ]}
+    ]},
+
+  { "旧版手册" = [
+      "former-manual/README.md",
+      { "入门指北" = [
+          "former-manual/manualV2/README.md",
+          { "前言" = "former-manual/manualV2/intro.md" },
+          { "下载、运行及更新" = "former-manual/manualV2/install.md" },
+          { "Mower设置" = "former-manual/manualV2/mower-settings.md" },
+          { "MAA设置" = "former-manual/manualV2/maa-settings.md" },
+          { "排班教学" = "former-manual/manualV2/schedule.md" },
+          { "常见问题" = "former-manual/manualV2/qa.md" },
+          { "用户须知" = "former-manual/manualV2/notice.md" },
+          { "致谢" = "former-manual/manualV2/appreciate.md" }
+        ]},
+
+      { "更早的手册" = [
+          "former-manual/manualV1/start/README.md",
+          { "安装与更新" = "former-manual/manualV1/start/download.md" },
+          { "基建功能介绍" = "former-manual/manualV1/start/riic.md" },
+          { "配置指南" = [
+              "former-manual/manualV1/conf/README.md",
+              { "设置" = "former-manual/manualV1/conf/1.setting.md" },
+              { "高级设置" = "former-manual/manualV1/conf/2.advancedSettings.md" },
+              { "外部调用" = "former-manual/manualV1/conf/3.externalCall.md" },
+              { "排班表输入规则" = "former-manual/manualV1/conf/4.planValidation.md" },
+              { "内置设定" = "former-manual/manualV1/conf/5.buildinSettings.md" },
+              { "副表（beta）" = "former-manual/manualV1/conf/6.customConditionPlan.md" }
+            ]},
+          { "常见问题" = "former-manual/manualV1/qa/README.md" },
+          { "其他说明" = [
+              "former-manual/manualV1/noun/README.md",
+              { "名词释义" = "former-manual/manualV1/noun/1.explanation.md" },
+              { "使用小技巧" = "former-manual/manualV1/noun/2.tips.md" }
+            ]}
+        ]}
+    ]}
+]
+
+extra_javascript = [
+    "javascripts/mathjax.js",
+    "https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js",
+    "javascripts/katex.js",
+    "https://unpkg.com/katex@0/dist/katex.min.js",
+    "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"
+]
+extra_css = [
+    "https://unpkg.com/katex@0/dist/katex.min.css",
+    "stylesheets/extra.css"
+]
+
+
+[project.theme]
+language = "zh"
+logo = "assets/logo/logo.ico"
+favicon = "assets/logo/logo.png"
+features = [
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.instant.progress",
+    "navigation.tracking",
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.sections",
+    "navigation.path",
+    "navigation.prune",
+    "navigation.indexes",
+    "toc.follow",
+    "navigation.top",
+    "search.highlight",
+    "header.autohide",
+    "navigation.footer",
+    "content.action.edit",
+    "content.action.view",
+    "content.code.copy",
+    "content.code.select"
+]
+
+# Palette toggle for automatic mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+# Palette toggle for light mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+# Palette toggle for dark mode
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[project.extra]
+homepage = "https://arkmowers.github.io/arknights-mower/"
+generator = false
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/ArkMowers/arknights-mower"
+name = "Mower的Github仓库"
+
+[[project.extra.social]]
+icon = "material/file-document"
+link = "https://github.com/ArkMowers/arknights-mower/tree/doc-pages"
+name = "文档页面"
+
+[project.plugins.offline]
+enabled = false
+
+[project.markdown_extensions.abbr]
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.footnotes]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true
+[project.markdown_extensions.pymdownx.betterem]
+smart_enable = "all"
+[project.markdown_extensions.pymdownx.caret]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.emoji]
+emoji_generator = "zensical.extensions.emoji.to_svg"
+emoji_index = "zensical.extensions.emoji.twemoji"
+[project.markdown_extensions.pymdownx.highlight]
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.keys]
+[project.markdown_extensions.pymdownx.mark]
+[project.markdown_extensions.pymdownx.smartsymbols]
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
+[project.markdown_extensions.pymdownx.tilde]

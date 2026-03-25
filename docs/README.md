@@ -8,7 +8,7 @@ hide:
 
 ![Mower](./assets/logo/logo.png)
 
-***Arknights-Mower***
+**_Arknights-Mower_**
 
 ---
 
@@ -19,7 +19,7 @@ Mower 是为长期运行设计的、开源的明日方舟脚本，支持 Windows
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ArkMowers/arknights-mower/pyinstaller-win-shawn.yml?branch=4.1.3&)](https://github.com/ArkMowers/arknights-mower/actions/workflows/pyinstaller-win-shawn.yml)
 [![download](https://img.shields.io/website?url=https%3A%2F%2Fmower.zhaozuohong.vip&label=Mower%E4%B8%8B%E8%BD%BD%E7%AB%99)](https://mower.zhaozuohong.vip/)
 [![qq_guild](https://img.shields.io/badge/QQ%E9%A2%91%E9%81%93-2r118jwue4-blue)](https://pd.qq.com/s/5t91c3gx9)
-[![QQ群](https://img.shields.io/badge/QQ群-521857729(mower用户交流群)-green)](https://qm.qq.com/q/uALU6yjUuk)
+[![QQ群](<https://img.shields.io/badge/QQ群-521857729(mower用户交流群)-green>)](https://qm.qq.com/q/uALU6yjUuk)
 
 初次使用，建议阅读
 

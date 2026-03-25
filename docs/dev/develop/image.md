@@ -27,7 +27,7 @@ Scope = Tuple[Coordinate, Coordinate]
 `arknights_mower/utils/vector.py` 提供了坐标的加减法与区域的偏移函数。`va()` 将两个坐标相加，`vs()` 将两个坐标相减，`sa()` 进行区域偏移。
 
 !!! note "使用示例"
-    [点击跳转至坐标与区域的示例](../assets/snippets/coordinate.md#)
+    [点击跳转至坐标与区域的示例](../../assets/snippets/coordinate.md#)
 
 
 ## 加载图像
@@ -58,17 +58,17 @@ Mower 用于识别的图像素材全部位于 `arknights_mower/resources` 以及
 `loadimg()` 与 `loadres()` 加载的图像，可直接用 `matplotlib` 显示。
 
 !!! note "使用示例"
-    [点击跳转至加载图像的示例](../assets/snippets/loadimg.md#)
+    [点击跳转至加载图像的示例](../../assets/snippets/loadimg.md#)
 ## 裁切图像
 
 `arknights_mower/utils/image.py` 中提供 `cropimg()` 方法，接受两个参数：第一个参数 `img` 可以是灰度或彩色图像；第二个参数 `scope` 是裁切的区域。函数返回裁切后的图像。注意 `cropimg()` 返回的图像没有经过复制，如果要修改裁切后的图像，并且不想修改原图像，需要自己复制一次。
 
 !!! note "使用示例"
-    [点击跳转至裁切图像的示例](../assets/snippets/cropimg.md#)
+    [点击跳转至裁切图像的示例](../../assets/snippets/cropimg.md#)
 
 ## 二值化
 
 `arknights_mower/utils/image.py` 中 `thres2()` 方法用于将灰度图像二值化，接受两个参数：第一个参数 `img` 为灰度图像；第二个参数 `thresh` 为阈值。函数返回二值化后的图像。
 
 !!! note "使用示例"
-    [点击跳转至二值化的示例](../assets/snippets/thres2.md#)
+    [点击跳转至二值化的示例](../../assets/snippets/thres2.md#)
