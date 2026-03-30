@@ -3,6 +3,7 @@ import lzma
 import os
 import pickle
 import re
+import time
 from datetime import datetime
 
 import cv2
@@ -177,6 +178,7 @@ class depotREC(SceneGraphSolver):
 
             for 任务 in 任务组:
                 self.tap((任务[0], 70))
+                time.sleep(0.5)
                 if not self.find("depot_empty"):
                     self.分类扫描(任务[1])
                     logger.info(
