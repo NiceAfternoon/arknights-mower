@@ -370,10 +370,7 @@ function createNewItem() {
                 </help-text>
               </template>
 
-              <n-select 
-                v-model:value="idleAction"
-                :options="idleOptions"
-              />
+              <n-select v-model:value="idleAction" :options="idleOptions" />
             </n-form-item>
             <n-form-item
               :show-label="false"

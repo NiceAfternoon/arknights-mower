@@ -3,8 +3,8 @@ import lzma
 import os
 import pickle
 import re
-import time
 from datetime import datetime
+import time
 
 import cv2
 import numpy as np
@@ -170,7 +170,7 @@ class depotREC(SceneGraphSolver):
             self.tap_index_element("warehouse")
             logger.info("仓库扫描: 从主界面点击仓库界面")
 
-            time = datetime.now()
+            starttime = datetime.now()
             任务组 = [
                 (1200, self.knn模型_CONSUME, "消耗物品"),
                 (1400, self.knn模型_NORMAL, "基础物品"),
@@ -182,7 +182,7 @@ class depotREC(SceneGraphSolver):
                 if not self.find("depot_empty"):
                     self.分类扫描(任务[1])
                     logger.info(
-                        f"仓库扫描: {任务[2]}识别，识别用时{datetime.now() - time}"
+                        f"仓库扫描: {任务[2]}识别，识别用时{datetime.now() - starttime}"
                     )
                 else:
                     logger.info("仓库扫描: 这个分类下没有物品")
