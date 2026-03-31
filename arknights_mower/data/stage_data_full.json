@@ -1,974 +1,1127 @@
 [
   {
-    "id": "CG-1",
-    "name": "掌声之外",
+    "id": "EA-1",
+    "name": "扉页所见",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30061",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30011",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-1 突袭",
-    "name": "掌声之外",
+    "id": "EA-2",
+    "name": "不过别离",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 9,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-2",
-    "name": "高脚杯中的泡影",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
-      },
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30061",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30011",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-2 突袭",
-    "name": "高脚杯中的泡影",
+    "id": "EA-3",
+    "name": "惶惑与冲动",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 2,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 9,
-    "difficulty": "FOUR_STAR",
+    "zoneId": "act41sre_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-3",
-    "name": "立约的艺术",
+    "id": "EA-4",
+    "name": "旧舞步",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
-      },
-      {
-        "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30061",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 2
-      },
-      {
-        "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 1,
-        "type": "MATERIAL",
-        "id": "30011",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 3,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-3 突袭",
-    "name": "立约的艺术",
+    "id": "EA-5",
+    "name": "溺火",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 3,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 12,
-    "difficulty": "FOUR_STAR",
+    "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-4",
-    "name": "醒酒之后",
+    "id": "EA-6",
+    "name": "失路人",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30061",
-        "dropType": 2
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-7",
+    "name": "烧灯者",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 2
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 2,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 2
-      },
-      {
-        "occPercent": 1,
-        "type": "MATERIAL",
-        "id": "30011",
-        "dropType": 2
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 12,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-4 突袭",
-    "name": "醒酒之后",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 12,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-5",
-    "name": "种豆得豆",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
-      },
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
-      },
-      {
-        "occPercent": 0,
-        "type": "MATERIAL",
-        "id": "30032",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30011",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30061",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "3003",
-        "dropType": 4
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30012",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30032",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30062",
-        "dropType": 4
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-5 突袭",
-    "name": "种豆得豆",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-6",
-    "name": "定价",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
-      },
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
-      },
-      {
-        "occPercent": 1,
-        "type": "MATERIAL",
-        "id": "30062",
-        "dropType": 2
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "CARD_EXP",
-        "id": "2001",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30022",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30042",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30052",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "CARD_EXP",
-        "id": "2002",
-        "dropType": 4
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-6 突袭",
-    "name": "定价",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-7",
-    "name": "轻便的行李",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
-      },
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30103",
-        "dropType": 2
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30031",
-        "dropType": 4
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30051",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30032",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30052",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30033",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30053",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30093",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31033",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30103",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31053",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31043",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31083",
-        "dropType": 4
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-7 突袭",
-    "name": "轻便的行李",
+    "id": "EA-8",
+    "name": "夜尽之时",
     "drop": [
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 2,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 21,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-8",
-    "name": "准入许可",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 8
-      },
-      {
-        "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 3
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "31053",
-        "dropType": 2
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30021",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30041",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "CARD_EXP",
-        "id": "2001",
-        "dropType": 4
-      },
-      {
-        "occPercent": 3,
-        "type": "MATERIAL",
-        "id": "30022",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30042",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "CARD_EXP",
-        "id": "2002",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30023",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30043",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "30083",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31023",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31063",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "MATERIAL",
-        "id": "31093",
-        "dropType": 4
-      },
-      {
-        "occPercent": 4,
-        "type": "CARD_EXP",
-        "id": "2003",
-        "dropType": 4
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-8 突袭",
-    "name": "准入许可",
+    "id": "EA-EX-1",
+    "name": "帷幕另一侧",
     "drop": [
       {
         "occPercent": 0,
-        "type": "FURN",
-        "id": "furni_terracommericials_FowlbeastLiverPate_01",
-        "dropType": 1
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       },
       {
         "occPercent": 0,
-        "type": "ACTIVITY_ITEM",
-        "id": "act20mini_token_cork",
-        "dropType": 1
-      },
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 21,
+    "zoneId": "act41sre_zone2",
+    "apCost": 10,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-1 突袭",
+    "name": "帷幕另一侧",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 10,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
-    "id": "CG-S-1",
-    "name": "新风向",
+    "id": "EA-EX-2",
+    "name": "以篝火占卜",
     "drop": [
       {
         "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
       }
     ],
-    "zoneId": "act20mini_zone1",
+    "zoneId": "act41sre_zone2",
+    "apCost": 10,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-2 突袭",
+    "name": "以篝火占卜",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 10,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-3",
+    "name": "暖春游行",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-3 突袭",
+    "name": "暖春游行",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-4",
+    "name": "窗边玩偶",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-4 突袭",
+    "name": "窗边玩偶",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-5",
+    "name": "五月树",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-5 突袭",
+    "name": "五月树",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-6",
+    "name": "歌唱时",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-6 突袭",
+    "name": "歌唱时",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-7",
+    "name": "花环",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 20,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-7 突袭",
+    "name": "花环",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 20,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-8",
+    "name": "冠冕",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 20,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-EX-8 突袭",
+    "name": "冠冕",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone2",
+    "apCost": 20,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "将熄的火",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1774598400,
+      "endTs": 1775419199
+    }
+  },
+  {
+    "id": "EA-TR-1",
+    "name": "拨雾声",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act41sre_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
+    "zoneNameSecond": "挽歌燃烧殆尽",
+    "subTitle": "摇曳的影",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
-    }
-  },
-  {
-    "id": "CG-S-2",
-    "name": "授信之人",
-    "drop": [
-      {
-        "occPercent": 0,
-        "type": "DIAMOND",
-        "id": "4002",
-        "dropType": 8
-      }
-    ],
-    "zoneId": "act20mini_zone1",
-    "apCost": 0,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "十字路口",
-    "subTitle": "暗账",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1773097200,
-      "endTs": 1773691199
+      "startTs": 1774598400,
+      "endTs": 1775419199
     }
   },
   {
@@ -7957,6 +8110,222 @@
     "stageType": "DAILY"
   },
   {
+    "id": "CG-1",
+    "name": "掌声之外",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-1",
+    "name": "掌声之外",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-2",
+    "name": "高脚杯中的泡影",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-2",
+    "name": "高脚杯中的泡影",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 9,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-3",
+    "name": "立约的艺术",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-3",
+    "name": "立约的艺术",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-4",
+    "name": "醒酒之后",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-4",
+    "name": "醒酒之后",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 12,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-5",
+    "name": "种豆得豆",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-5",
+    "name": "种豆得豆",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-6",
+    "name": "定价",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-6",
+    "name": "定价",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-7",
+    "name": "轻便的行李",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-7",
+    "name": "轻便的行李",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-8",
+    "name": "准入许可",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-8",
+    "name": "准入许可",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 21,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-S-1",
+    "name": "新风向",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": "CG-S-2",
+    "name": "授信之人",
+    "drop": null,
+    "zoneId": "act20mini_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "十字路口",
+    "subTitle": "暗账",
+    "stageType": "ACTIVITY"
+  },
+  {
     "id": "VEC-01",
     "name": "此面朝上",
     "drop": null,
@@ -14619,7 +14988,7 @@
     "id": "EA-ST-1",
     "name": "涉过寒夜",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14631,7 +15000,7 @@
     "id": "EA-1",
     "name": "扉页所见",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14643,7 +15012,7 @@
     "id": "EA-TR-1",
     "name": "拨雾声",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14655,7 +15024,7 @@
     "id": "EA-2",
     "name": "不过别离",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14667,7 +15036,7 @@
     "id": "EA-3",
     "name": "惶惑与冲动",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14679,7 +15048,7 @@
     "id": "EA-4",
     "name": "旧舞步",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14691,7 +15060,7 @@
     "id": "EA-5",
     "name": "溺火",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14703,7 +15072,7 @@
     "id": "EA-6",
     "name": "失路人",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14715,7 +15084,7 @@
     "id": "EA-ST-2",
     "name": "罗曼史已死",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14727,7 +15096,7 @@
     "id": "EA-7",
     "name": "烧灯者",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14739,7 +15108,7 @@
     "id": "EA-8",
     "name": "夜尽之时",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14751,7 +15120,7 @@
     "id": "EA-ST-3",
     "name": "封底纪事",
     "drop": null,
-    "zoneId": "act41side_zone1",
+    "zoneId": "act41sre_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14763,7 +15132,7 @@
     "id": "EA-EX-1",
     "name": "帷幕另一侧",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 10,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14775,7 +15144,7 @@
     "id": "EA-EX-1",
     "name": "帷幕另一侧",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 10,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14787,7 +15156,7 @@
     "id": "EA-EX-2",
     "name": "以篝火占卜",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 10,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14799,7 +15168,7 @@
     "id": "EA-EX-2",
     "name": "以篝火占卜",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 10,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14811,7 +15180,7 @@
     "id": "EA-EX-3",
     "name": "暖春游行",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14823,7 +15192,7 @@
     "id": "EA-EX-3",
     "name": "暖春游行",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14835,7 +15204,7 @@
     "id": "EA-EX-4",
     "name": "窗边玩偶",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14847,7 +15216,7 @@
     "id": "EA-EX-4",
     "name": "窗边玩偶",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14859,7 +15228,7 @@
     "id": "EA-EX-5",
     "name": "五月树",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14871,7 +15240,7 @@
     "id": "EA-EX-5",
     "name": "五月树",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14883,7 +15252,7 @@
     "id": "EA-EX-6",
     "name": "歌唱时",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14895,7 +15264,7 @@
     "id": "EA-EX-6",
     "name": "歌唱时",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 15,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14907,7 +15276,7 @@
     "id": "EA-EX-7",
     "name": "花环",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 20,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14919,7 +15288,7 @@
     "id": "EA-EX-7",
     "name": "花环",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 20,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -14931,7 +15300,7 @@
     "id": "EA-EX-8",
     "name": "冠冕",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 20,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
@@ -14943,7 +15312,7 @@
     "id": "EA-EX-8",
     "name": "冠冕",
     "drop": null,
-    "zoneId": "act41side_zone2",
+    "zoneId": "act41sre_zone2",
     "apCost": 20,
     "difficulty": "FOUR_STAR",
     "diffGroup": "NONE",
@@ -35097,6 +35466,54 @@
     "diffGroup": "NONE",
     "zoneNameSecond": "卫戍协议:盟约",
     "subTitle": "act1autochess_zone1",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": null,
+    "name": null,
+    "drop": null,
+    "zoneId": "act2autochess_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "卫戍协议:盟约",
+    "subTitle": "act2autochess_zone1",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": null,
+    "name": null,
+    "drop": null,
+    "zoneId": "act2autochess_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "卫戍协议:盟约",
+    "subTitle": "act2autochess_zone1",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": null,
+    "name": null,
+    "drop": null,
+    "zoneId": "act2autochess_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "卫戍协议:盟约",
+    "subTitle": "act2autochess_zone1",
+    "stageType": "ACTIVITY"
+  },
+  {
+    "id": null,
+    "name": null,
+    "drop": null,
+    "zoneId": "act2autochess_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "卫戍协议:盟约",
+    "subTitle": "act2autochess_zone1",
     "stageType": "ACTIVITY"
   }
 ]
