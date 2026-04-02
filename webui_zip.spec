@@ -7,12 +7,17 @@ import rapidocr_onnxruntime
 
 block_cipher = None
 
-# 获取 site-packages 路径
-try:
-    site_packages = site.getsitepackages()[0]
-except Exception:
+# 修复后的路径获取逻辑
+def get_site_packages():
+    # 优先寻找包含 'site-packages' 字符串的路径
+    for p in site.getsitepackages():
+        if "site-packages" in p:
+            return p
+    # 备选方案
     from distutils.sysconfig import get_python_lib
-    site_packages = get_python_lib()
+    return get_python_lib()
+
+site_packages = get_site_packages()
 
 # 参考 https://github.com/RapidAI/RapidOCR/blob/main/ocrweb/rapidocr_web/ocrweb.spec
 package_name = "rapidocr_onnxruntime"
@@ -47,11 +52,11 @@ mower_a = Analysis(
         # 显式指定 Python.Runtime.dll 到正确的子目录
         (str(pythonnet_runtime_dir / "Python.Runtime.dll"), "pythonnet/runtime"),
         (
-            f"{site_packages}/onnxruntime/capi/onnxruntime_providers_shared.dll",
+            os.path.join(site_packages, "onnxruntime", "capi", "onnxruntime_providers_shared.dll"),
             "onnxruntime/capi/",
         ),
-        (f"{site_packages}/pyzbar/libzbar-64.dll", "."),
-        (f"{site_packages}/pyzbar/libiconv.dll", "."),
+        (os.path.join(site_packages, "pyzbar", "libzbar-64.dll"), "."),
+        (os.path.join(site_packages, "pyzbar", "libiconv.dll"), "."),
         ("./ui/dist","./ui/dist"),
     ]
     + add_data,
