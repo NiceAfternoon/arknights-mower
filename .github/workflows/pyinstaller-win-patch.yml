@@ -17,7 +17,7 @@ jobs:
       - name: Cache pip
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
+          path: C:/Users/runneradmin/AppData/Local/pip/Cache
           key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             pip-${{ runner.os }}-
@@ -26,7 +26,7 @@ jobs:
       - name: Cache npm
         uses: actions/cache@v4
         with:
-          path: ui/node_modules
+          path: C:/Users/runneradmin/AppData/Roaming/npm-cache
           key: npm-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
           restore-keys: |
             npm-${{ runner.os }}-
@@ -42,6 +42,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          npm config set cache C:/Users/runneradmin/AppData/Roaming/npm-cache --global
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime pywebview pythonnet
           cd ui && npm install --legacy-peer-deps && npm run build
