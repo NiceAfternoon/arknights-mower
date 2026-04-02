@@ -13,7 +13,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ⭐ pip 缓存
+      # pip 缓存
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -22,7 +22,7 @@ jobs:
           restore-keys: |
             pip-${{ runner.os }}-
 
-      # ⭐ npm 缓存
+      # npm 缓存
       - name: Cache npm
         uses: actions/cache@v4
         with:
