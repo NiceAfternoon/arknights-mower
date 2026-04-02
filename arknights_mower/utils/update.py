@@ -50,57 +50,60 @@ class UpdateManager:
 
     def check(self) -> Dict[str, Any]:
         """检查软件和资源更新，精准定位增量 ZIP 包"""
-        # 1. 软件更新检查 (保持原逻辑)
+        # 1. 软件更新检查
         rel = self._fetch(self.github_api, as_json=True)
-        if rel and self._compare_ver(__version__, rel["tag_name"]) == 1:
-            best_asset = rel["assets"][0]
-            is_patch = False
-            patch_flag = f"from-{__version__}"
-            for asset in rel["assets"]:
-                if patch_flag in asset["name"]:
-                    best_asset = asset
-                    is_patch = True
-                    break
-            return {
-                "type": "software", 
-                "version": rel["tag_name"], 
-                "asset": best_asset,
-                "is_patch": is_patch
-            }
+        if rel:
+            remote_tag = rel["tag_name"]
+            # 改进比对逻辑：去除可能的 'v' 前缀再比对，防止因格式不一致导致判断失败
+            local_v = __version__.lstrip('v')
+            remote_v = remote_tag.lstrip('v')
+            
+            if self._compare_ver(local_v, remote_v) == 1:
+                best_asset = rel["assets"][0]
+                is_patch = False
+                patch_flag = f"from-{__version__}"
+                for asset in rel["assets"]:
+                    if patch_flag in asset["name"]:
+                        best_asset = asset
+                        is_patch = True
+                        break
+                return {
+                    "type": "software", 
+                    "version": remote_tag, 
+                    "asset": best_asset,
+                    "is_patch": is_patch
+                }
 
-        # 2. 资源更新检查
-        # 获取远端最新的 version.json
+        # 2. 资源更新检查 (只有当软件没有更新，或者获取软件更新失败时才会执行到这里)
         remote_info_url = f"{self.res_repo_url}/resource/arknights_mower/data/version.json"
         remote_info = self._fetch(remote_info_url, as_json=True)
         
-        if not remote_info:
-            return {"type": "none"}
+        if remote_info:
+            local_info = self.load_local_res()
+            local_res_full = local_info.get("last_updated", "00-00-00-00-00-00_000000")
+            remote_res_full = remote_info.get("last_updated", "")
 
-        local_info = self.load_local_res()
-        local_res_full = local_info.get("last_updated", "00-00-00-00-00-00_000000")
-        remote_res_full = remote_info.get("last_updated", "")
+            if local_res_full != remote_res_full:
+                # 执行 8 位切片逻辑
+                local_8 = local_res_full[:8]
+                remote_8 = remote_res_full[:8]
+                app_tag = rel["tag_name"] if rel else __version__
 
-        if local_res_full != remote_res_full:
-            # 执行 8 位切片逻辑
-            local_8 = local_res_full[:8]
-            remote_8 = remote_res_full[:8]
-            app_tag = rel["tag_name"] if rel else __version__
+                # 优先级 1: 尝试找资源对资源的增量包 (from-旧资源8位-to-新资源8位-软件Tag.zip)
+                res_to_res_name = f"from-{local_8}-to-{remote_8}-{app_tag}.zip"
+                patch_url = f"{self.patch_base_url}/{res_to_res_name}"
+                
+                if not self._fetch(patch_url, is_check=True):
+                    # 优先级 2: 找不到则使用软件对资源的增量包 (from-软件Tag-to-新资源8位-软件Tag.zip)
+                    app_to_res_name = f"from-{app_tag}-to-{remote_8}-{app_tag}.zip"
+                    patch_url = f"{self.patch_base_url}/{app_to_res_name}"
 
-            # 优先级 1: 尝试找资源对资源的增量包 (from-旧资源8位-to-新资源8位-软件Tag.zip)
-            res_to_res_name = f"from-{local_8}-to-{remote_8}-{app_tag}.zip"
-            patch_url = f"{self.patch_base_url}/{res_to_res_name}"
-            
-            if not self._fetch(patch_url, is_check=True):
-                # 优先级 2: 找不到则使用软件对资源的增量包 (from-软件Tag-to-新资源8位-软件Tag.zip)
-                app_to_res_name = f"from-{app_tag}-to-{remote_8}-{app_tag}.zip"
-                patch_url = f"{self.patch_base_url}/{app_to_res_name}"
-
-            return {
-                "type": "resources", 
-                "version": remote_res_full, 
-                "patch_url": patch_url,
-                "remote_info": remote_info
-            }
+                return {
+                    "type": "resources", 
+                    "version": remote_res_full, 
+                    "patch_url": patch_url,
+                    "remote_info": remote_info
+                }
         
         return {"type": "none"}
 
