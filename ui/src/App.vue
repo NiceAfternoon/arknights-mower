@@ -456,15 +456,14 @@ watch(
   }
 )
 
-import { useUpdateStore } from '@/stores/updateStore';
+import { useUpdateStore } from '@/stores/updateStore'
 
-const updateStore = useUpdateStore();
+const updateStore = useUpdateStore()
 
 onMounted(() => {
   // 每次启动应用（App初始化）时执行一次
-  updateStore.checkUpdate();
-});
-
+  updateStore.checkUpdate()
+})
 </script>
 
 <style>

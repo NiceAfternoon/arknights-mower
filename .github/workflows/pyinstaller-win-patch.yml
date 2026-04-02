@@ -13,28 +13,44 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 1. 使用最新的 Python 3.12
+      # 1. 设置 Python 3.12
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           architecture: x64
 
-      - name: Install dependencies
+      # 2. 设置 Node.js (构建前端所需)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. 安装 Python 依赖
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller rapidocr_onnxruntime onnxruntime
 
+      # 4. 构建前端 (解决 ui/dist 缺失问题)
+      - name: Build Frontend
+        run: |
+          cd ui
+          npm install
+          npm run build
+          cd ..
+
+      # 5. 构建 EXE
       - name: Build EXE
         run: pyinstaller .\webui_zip.spec
 
-      # 3. 生成全量包 (Full Zip)
+      # 6. 生成全量包 (Full Zip)
       - name: Create Full Zip
         run: |
           Compress-Archive -Path ./dist/mower/* -DestinationPath mower-full-${{ github.ref_name }}.zip
 
-      # 4. 生成增量包 (Patch Zip)
+      # 7. 生成增量包 (Patch Zip)
       - name: Generate Patches
         shell: bash
         env:
@@ -47,9 +63,13 @@ jobs:
             local OLD_TAG=$1
             echo "正在生成从 $OLD_TAG 到 $CURRENT 的增量包..."
             
-            gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip
+            # 下载旧版本的全量 zip 进行对比
+            gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip || { echo "未找到旧版本 $OLD_TAG 的全量包，跳过"; return 0; }
+            
+            # 解压旧版本
             unzip -q old.zip -d old_ver
             
+            # 使用 Python 进行二进制级别的 MD5 对比
             python -c "
             import os, hashlib, zipfile
             from pathlib import Path
@@ -68,18 +88,20 @@ jobs:
                         if f.is_dir(): continue
                         rel_path = f.relative_to(new_path)
                         old_f = Path(old_dir) / rel_path
+                        # 如果旧版不存在，或者 MD5 不一致，则加入增量包
                         if not old_f.exists() or get_md5(old_f) != get_md5(f):
                             z.write(f, rel_path)
 
-            create_patch('./old_ver', './dist/mower', 'mower-patch-from-$OLD_TAG.zip')
+            create_patch('./old_ver', './dist/mower', f'mower-patch-from-$OLD_TAG.zip')
             "
             rm -rf old_ver old.zip
           }
 
+          # 为前两个版本生成增量
           if [ ! -z "${TAGS[1]}" ]; then make_patch ${TAGS[1]}; fi
           if [ ! -z "${TAGS[2]}" ]; then make_patch ${TAGS[2]}; fi
 
-      # 5. 发布 Release
+      # 8. 发布 Release
       - name: Release
         uses: softprops/action-gh-release@v2
         with:

@@ -164,8 +164,10 @@ class UpdateManager:
         try:
             v1, v2 = n(local), n(remote)
             for a, b in zip(v1 + [0]*3, v2 + [0]*3):
-                if b > a: return 1
-                if b < a: return -1
+                if b > a:
+                    return 1
+                if b < a:
+                    return -1
         except Exception:
             return 1 if local != remote else 0
         return 0
