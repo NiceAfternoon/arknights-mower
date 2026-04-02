@@ -1,9 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
+import site
+import os
+import pythonnet
 from pathlib import Path
-
 import rapidocr_onnxruntime
 
 block_cipher = None
+
+# 获取 site-packages 路径
+try:
+    site_packages = site.getsitepackages()[0]
+except Exception:
+    from distutils.sysconfig import get_python_lib
+    site_packages = get_python_lib()
 
 # 参考 https://github.com/RapidAI/RapidOCR/blob/main/ocrweb/rapidocr_web/ocrweb.spec
 package_name = "rapidocr_onnxruntime"
@@ -25,8 +34,8 @@ for v in yaml_paths:
 
 add_data = list(set(yaml_add_data + onnx_add_data))
 
-
-site_packages = install_dir.parent
+# 获取 pythonnet 运行时路径
+pythonnet_runtime_dir = Path(pythonnet.__file__).parent / "runtime"
 
 mower_a = Analysis(
     ["webview_ui.py"],
@@ -35,6 +44,8 @@ mower_a = Analysis(
     datas=[
         ("arknights_mower", "arknights_mower"),
         ("logo.png", "."),
+        # 显式指定 Python.Runtime.dll 到正确的子目录
+        (str(pythonnet_runtime_dir / "Python.Runtime.dll"), "pythonnet/runtime"),
         (
             f"{site_packages}/onnxruntime/capi/onnxruntime_providers_shared.dll",
             "onnxruntime/capi/",
