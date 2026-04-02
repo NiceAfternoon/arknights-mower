@@ -2,7 +2,6 @@
 from pathlib import Path
 
 import rapidocr_onnxruntime
-import site
 
 block_cipher = None
 
@@ -27,8 +26,7 @@ for v in yaml_paths:
 add_data = list(set(yaml_add_data + onnx_add_data))
 
 
-# site_packages = install_dir.parent
-site_packages = site.getsitepackages()[0]
+site_packages = install_dir.parent
 
 mower_a = Analysis(
     ["webview_ui.py"],

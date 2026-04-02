@@ -16,7 +16,7 @@ jobs:
       - name: Setup Env
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           
       - uses: actions/setup-node@v4
         with:
@@ -31,7 +31,6 @@ jobs:
 
       - name: Build EXE
         run: |
-          # 确保 PyInstaller 扫描到了 webview 相关模块
           pyinstaller .\webui_zip.spec
 
       - name: Create Full Zip
