@@ -25,9 +25,13 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          # 必须安装 pywebview 和 pythonnet 以确保 PyInstaller 能识别窗口组件
           pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime pywebview pythonnet
           cd ui && npm install --legacy-peer-deps && npm run build
+
+      - name: Install WebView2 Runtime
+        run: |
+          curl -L -o MicrosoftEdgeWebView2Setup.exe https://go.microsoft.com/fwlink/p/?LinkId=2124703
+          .\MicrosoftEdgeWebView2Setup.exe /silent /install
 
       - name: Build EXE
         run: |
@@ -70,7 +74,6 @@ jobs:
               if os.path.exists('old_ver'): shutil.rmtree('old_ver')
           EOF
 
-          # 修复 Tag 获取逻辑：过滤掉当前正在推送的这个 Tag
           TAGS=($(git tag --sort=-v:refname | grep -v "${{ github.ref_name }}" | head -n 2))
           for OLD_TAG in "${TAGS[@]}"; do
             if [ ! -z "$OLD_TAG" ]; then

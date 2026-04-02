@@ -4,6 +4,7 @@ import os
 import re
 import zipfile
 from typing import Any, Dict, Optional
+from pathlib import Path
 
 import requests
 
@@ -181,10 +182,14 @@ class UpdateManager:
         self.status, self.last_error = "error", msg
 
     def start_software_download(self, asset: Dict):
-        """下载并解压软件更新包 (原有逻辑)"""
+        """下载并解压软件更新包"""
         try:
             self.status, self.progress = "downloading", 0
+            if os.path.exists(self.tmp_dir):
+                import shutil
+                shutil.rmtree(self.tmp_dir, ignore_errors=True)
             os.makedirs(self.tmp_dir, exist_ok=True)
+            
             zip_path = os.path.join(self.tmp_dir, "mower_update.zip")
             
             with requests.get(asset["browser_download_url"], stream=True, timeout=15) as r:
@@ -198,10 +203,19 @@ class UpdateManager:
                             done += len(chunk)
                             self.progress = int(done * 100 / total) if total else 0
 
-            self.status = "extractall" 
+            self.status = "extracting" 
             with zipfile.ZipFile(zip_path, "r") as z:
                 z.extractall(self.tmp_dir)
             
+            # 路径对齐逻辑：如果压缩包里套了一层文件夹，则将 self.tmp_dir 指向它
+            extracted_items = os.listdir(self.tmp_dir)
+            if len(extracted_items) <= 2: # 只有 1 个文件夹 + 刚才的 zip
+                for item in extracted_items:
+                    full_item_path = os.path.join(self.tmp_dir, item)
+                    if os.path.isdir(full_item_path) and "mower.exe" in os.listdir(full_item_path):
+                        self.tmp_dir = full_item_path
+                        break
+
             self.status = "ready_to_restart"
             with contextlib.suppress(OSError):
                 os.remove(zip_path)
@@ -209,20 +223,33 @@ class UpdateManager:
             self._handle_err(f"软件下载失败: {e}")
 
     def execute_restart(self):
-        """执行替换重启 (原有逻辑)"""
+        """执行原地全量替换并重启"""
         bat_path = os.path.join(self.root, "upgrade.bat")
-        new_exe = os.path.normpath(os.path.join(self.tmp_dir, "mower.exe"))
-        old_exe = os.path.normpath(os.path.join(self.root, "mower.exe"))
-        
+        target_dir = os.path.abspath(self.root)
+        new_content_dir = os.path.abspath(self.tmp_dir)
+        old_exe = os.path.join(target_dir, "mower.exe")
+
+        # 生成批处理脚本
+        # /E 复制子目录，/MOVE 移动（完成后自动清理临时目录），/R:5 重试5次
         content = (
             f'@echo off\n'
+            f'title Mower Updating...\n'
             f'timeout /t 2 /nobreak >nul\n'
-            f'del /f /q "{old_exe}"\n'
-            f'copy /y "{new_exe}" "{old_exe}"\n'
+            f'taskkill /f /im "多开管理器.exe" >nul 2>&1\n'
+            f'robocopy "{new_content_dir}" "{target_dir}" /E /MOVE /IS /IT /R:5 /W:1 /XF upgrade.bat\n'
+            f'timeout /t 1 /nobreak >nul\n'
             f'start "" "{old_exe}"\n'
             f'del "%~f0"'
         )
-        with open(bat_path, "w") as f:
-            f.write(content)
-        os.system(f"start /b {bat_path}")
+
+        # 必须使用 GBK 编码以兼容 Windows CMD 的中文文件名
+        try:
+            with open(bat_path, "w", encoding="gbk") as f:
+                f.write(content)
+        except UnicodeEncodeError:
+            with open(bat_path, "w", encoding="utf-8") as f:
+                f.write(f"@chcp 65001 >nul\n{content}")
+        
+        logger.info(f"升级脚本已就绪，正在关闭程序并应用更新: {bat_path}")
+        os.system(f'start "" /b "{bat_path}"')
         os._exit(0)
