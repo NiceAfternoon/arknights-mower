@@ -13,6 +13,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ⭐ pip 缓存
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      # ⭐ npm 缓存
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ui/node_modules
+          key: npm-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
       - name: Setup Env
         uses: actions/setup-python@v5
         with:
