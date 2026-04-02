@@ -2,9 +2,10 @@ import contextlib
 import json
 import os
 import re
+import sys
 import zipfile
+import subprocess
 from typing import Any, Dict, Optional
-from pathlib import Path
 
 import requests
 
@@ -14,33 +15,41 @@ from .log import logger
 
 class UpdateManager:
     def __init__(self):
-        # 1. 路径配置
+        # 1. 路径配置 - 修复根目录定位逻辑
         self.this_dir = os.path.dirname(os.path.abspath(__file__))
-        # self.root 为项目根目录 (包含 mower.exe, arknights_mower 文件夹的地方)
-        self.root = os.path.dirname(os.path.dirname(self.this_dir))
         
-        # 资源版本文件路径：[根目录]/arknights_mower/data/version.json
-        self.res_json_path = os.path.join(self.root, "arknights_mower", "data", "version.json")
+        # 动态获取根目录：如果是打包后的 EXE，则以 EXE 所在目录为准
+        if getattr(sys, 'frozen', False):
+            # D:\Software\Develop\mower-full-v4.1.5\mower.exe -> 目录为 mower-full-v4.1.5
+            self.root = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 源码运行模式：向上跳三级（utils -> arknights_mower -> root）
+            self.root = os.path.dirname(os.path.dirname(os.path.dirname(self.this_dir)))
+        
+        # 资源版本文件路径：在 onedir 模式下，data 位于 _internal 文件夹内
+        # 这里使用相对路径构建，确保无论根目录叫什么都能找到
+        if getattr(sys, 'frozen', False):
+            self.res_json_path = os.path.join(self.root, "_internal", "arknights_mower", "data", "version.json")
+        else:
+            self.res_json_path = os.path.join(self.root, "arknights_mower", "data", "version.json")
+            
         self.tmp_dir = os.path.join(self.root, "tmp")
         
         # 2. URL 配置
         self.github_api = "https://api.github.com/repos/NiceAfternoon/arknights-mower/releases/latest"
-        # 资源仓库基础路径
         self.res_repo_url = "https://raw.githubusercontent.com/NiceAfternoon/MowerResource/main"
         self.patch_base_url = f"{self.res_repo_url}/patch"
         
         # 3. 状态管理
-        self.status = "idle"  # idle, downloading, extracting, ready_to_restart, res_updating, error
+        self.status = "idle"
         self.progress = 0
         self.last_error = None
 
     def _fetch(self, url: str, as_json: bool = False, is_check: bool = False) -> Optional[Any]:
-        """封装请求逻辑，is_check 为 True 时用于快速检测文件是否存在"""
         try:
             if is_check:
                 resp = requests.head(url, timeout=5)
                 return resp.status_code == 200
-            
             resp = requests.get(url, timeout=10)
             resp.raise_for_status()
             return resp.json() if as_json else resp.text.strip()
@@ -50,12 +59,10 @@ class UpdateManager:
             return None
 
     def check(self) -> Dict[str, Any]:
-        """检查软件和资源更新，精准定位增量 ZIP 包"""
-        # 1. 软件更新检查
+        """检查软件和资源更新"""
         rel = self._fetch(self.github_api, as_json=True)
         if rel:
             remote_tag = rel["tag_name"]
-            # 改进比对逻辑：去除可能的 'v' 前缀再比对，防止因格式不一致导致判断失败
             local_v = __version__.lstrip('v')
             remote_v = remote_tag.lstrip('v')
             
@@ -75,7 +82,6 @@ class UpdateManager:
                     "is_patch": is_patch
                 }
 
-        # 2. 资源更新检查 (只有当软件没有更新，或者获取软件更新失败时才会执行到这里)
         remote_info_url = f"{self.res_repo_url}/resource/arknights_mower/data/version.json"
         remote_info = self._fetch(remote_info_url, as_json=True)
         
@@ -85,17 +91,14 @@ class UpdateManager:
             remote_res_full = remote_info.get("last_updated", "")
 
             if local_res_full != remote_res_full:
-                # 执行 8 位切片逻辑
                 local_8 = local_res_full[:8]
                 remote_8 = remote_res_full[:8]
                 app_tag = rel["tag_name"] if rel else __version__
 
-                # 优先级 1: 尝试找资源对资源的增量包 (from-旧资源8位-to-新资源8位-软件Tag.zip)
                 res_to_res_name = f"from-{local_8}-to-{remote_8}-{app_tag}.zip"
                 patch_url = f"{self.patch_base_url}/{res_to_res_name}"
                 
                 if not self._fetch(patch_url, is_check=True):
-                    # 优先级 2: 找不到则使用软件对资源的增量包 (from-软件Tag-to-新资源8位-软件Tag.zip)
                     app_to_res_name = f"from-{app_tag}-to-{remote_8}-{app_tag}.zip"
                     patch_url = f"{self.patch_base_url}/{app_to_res_name}"
 
@@ -109,14 +112,12 @@ class UpdateManager:
         return {"type": "none"}
 
     def start_res_upgrade(self, patch_url: str, remote_info: Dict):
-        """下载增量 ZIP 并直接解压到根目录覆盖"""
+        """资源增量更新逻辑"""
         try:
             self.status, self.progress = "res_updating", 0
             os.makedirs(self.tmp_dir, exist_ok=True)
             zip_path = os.path.join(self.tmp_dir, "res_patch.zip")
 
-            # 1. 下载增量包
-            logger.info(f"正在获取资源增量包: {patch_url}")
             with requests.get(patch_url, stream=True, timeout=15) as r:
                 r.raise_for_status()
                 total = int(r.headers.get("content-length", 0))
@@ -129,31 +130,24 @@ class UpdateManager:
                             if total:
                                 self.progress = int(done * 100 / total)
 
-            # 解压覆盖
-            # 此时 ZIP 内部结构已经是 arknights_mower/... 和 ui/...
-            # 直接解压到 self.root 即可完成覆盖
             self.status = "extracting"
-            logger.info("正在应用资源更新...")
+            # 资源更新直接解压到 root 即可（ZIP 内含 _internal/... 结构）
             with zipfile.ZipFile(zip_path, "r") as z:
                 z.extractall(self.root)
 
-            # 强制更新本地 version.json，确保版本号对齐
             os.makedirs(os.path.dirname(self.res_json_path), exist_ok=True)
             with open(self.res_json_path, "w", encoding="utf-8") as f:
                 json.dump(remote_info, f, indent=4, ensure_ascii=False)
 
-            # 清理临时文件
             with contextlib.suppress(OSError):
                 os.remove(zip_path)
 
             self.status, self.progress = "idle", 100
             logger.info("资源更新完成")
-
         except Exception as e:
             self._handle_err(f"资源更新执行失败: {e}")
 
     def load_local_res(self) -> Dict:
-        """加载本地资源版本信息"""
         if os.path.exists(self.res_json_path):
             try:
                 with open(self.res_json_path, "r", encoding="utf-8") as f:
@@ -163,21 +157,17 @@ class UpdateManager:
         return {"last_updated": "00-00-00-00-00-00_000000"}
 
     def _compare_ver(self, local: str, remote: str) -> int:
-        """版本号比对逻辑"""
         def n(v): return [int(m.group(1)) for x in str(v).split('.') if (m := re.match(r'^(\d+)', x))]
         try:
             v1, v2 = n(local), n(remote)
             for a, b in zip(v1 + [0]*3, v2 + [0]*3):
-                if b > a:
-                    return 1
-                if b < a:
-                    return -1
+                if b > a: return 1
+                if b < a: return -1
         except Exception:
             return 1 if local != remote else 0
         return 0
 
     def _handle_err(self, msg):
-        """统一错误处理"""
         logger.error(msg)
         self.status, self.last_error = "error", msg
 
@@ -207,13 +197,13 @@ class UpdateManager:
             with zipfile.ZipFile(zip_path, "r") as z:
                 z.extractall(self.tmp_dir)
             
-            # 路径对齐逻辑：
-            extracted_items = os.listdir(self.tmp_dir)
-            if len(extracted_items) <= 2: # 只有 1 个文件夹 + 刚才的 zip
-                for item in extracted_items:
-                    full_item_path = os.path.join(self.tmp_dir, item)
-                    if os.path.isdir(full_item_path) and "mower.exe" in os.listdir(full_item_path):
-                        self.tmp_dir = full_item_path
+            # 自动对齐文件夹深度
+            items = os.listdir(self.tmp_dir)
+            if len(items) <= 2: 
+                for item in items:
+                    path = os.path.join(self.tmp_dir, item)
+                    if os.path.isdir(path) and "mower.exe" in os.listdir(path):
+                        self.tmp_dir = path
                         break
 
             self.status = "ready_to_restart"
@@ -223,26 +213,24 @@ class UpdateManager:
             self._handle_err(f"软件下载失败: {e}")
 
     def execute_restart(self):
-        """执行原地全量替换并重启"""
+        """静默执行原地替换并重启"""
         bat_path = os.path.join(self.root, "upgrade.bat")
         target_dir = os.path.abspath(self.root)
         new_content_dir = os.path.abspath(self.tmp_dir)
         old_exe = os.path.join(target_dir, "mower.exe")
 
-        # 生成批处理脚本
-        # /E 复制子目录，/MOVE 移动（完成后自动清理临时目录），/R:5 重试5次
+        # 构造批处理命令
         content = (
             f'@echo off\n'
-            f'title Mower Updating...\n'
             f'timeout /t 2 /nobreak >nul\n'
             f'taskkill /f /im "多开管理器.exe" >nul 2>&1\n'
+            # robocopy 同步 tmp -> root
             f'robocopy "{new_content_dir}" "{target_dir}" /E /MOVE /IS /IT /R:5 /W:1 /XF upgrade.bat\n'
             f'timeout /t 1 /nobreak >nul\n'
             f'start "" "{old_exe}"\n'
             f'del "%~f0"'
         )
 
-        # 使用 GBK 编码以兼容 Windows CMD 的中文文件名
         try:
             with open(bat_path, "w", encoding="gbk") as f:
                 f.write(content)
@@ -250,6 +238,18 @@ class UpdateManager:
             with open(bat_path, "w", encoding="utf-8") as f:
                 f.write(f"@chcp 65001 >nul\n{content}")
         
-        logger.info(f"升级脚本已就绪，正在关闭程序并应用更新: {bat_path}")
-        os.system(f'start "" /b "{bat_path}"')
+        logger.info(f"应用更新中，正在关闭程序...")
+        
+        # 使用 subprocess.Popen 并在 Windows 下创建无窗口进程
+        # 0x08000000 是 CREATE_NO_WINDOW 的常量值
+        if sys.platform == "win32":
+            subprocess.Popen(
+                ["cmd.exe", "/c", bat_path],
+                creationflags=0x08000000,
+                close_fds=True,
+                shell=False
+            )
+        else:
+            os.system(f'start "" /b "{bat_path}"')
+            
         os._exit(0)
