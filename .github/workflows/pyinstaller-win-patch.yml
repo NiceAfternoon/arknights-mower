@@ -37,7 +37,8 @@ jobs:
       - name: Build Frontend
         run: |
           cd ui
-          npm install
+          # 使用 --legacy-peer-deps 绕过 Vite 8 与插件的版本冲突
+          npm install --legacy-peer-deps
           npm run build
           cd ..
 
