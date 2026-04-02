@@ -1,9 +1,10 @@
 import json
+import os
 import platform
 import sys
 from pathlib import Path
 
-__version__ = "4.1.5"
+__version__ = "4.1.6"
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     __rootdir__ = Path(sys._MEIPASS).joinpath("arknights_mower").resolve()
@@ -14,7 +15,9 @@ else:
 
     __version__ += "+" + revision_info()[:7]
 
-with open("arknights_mower/data/version.json", "r", encoding="utf-8") as f:
+RES_PATH = os.path.join(__rootdir__, "data", "version.json")
+
+with open(RES_PATH, "r", encoding="utf-8") as f:
     res = json.load(f)
 
 if res["activity"]["time"] >= res["gacha"]["time"]:

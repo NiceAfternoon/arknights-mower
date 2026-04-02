@@ -23,7 +23,7 @@ class UpdateManager:
         self.tmp_dir = os.path.join(self.root, "tmp")
         
         # 2. URL 配置
-        self.github_api = "https://api.github.com/repos/ArkMowers/arknights-mower/releases/latest"
+        self.github_api = "https://api.github.com/repos/NiceAfternoon/arknights-mower/releases/latest"
         # 资源仓库基础路径
         self.res_repo_url = "https://raw.githubusercontent.com/NiceAfternoon/MowerResource/main"
         self.patch_base_url = f"{self.res_repo_url}/patch"

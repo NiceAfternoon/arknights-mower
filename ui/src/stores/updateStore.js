@@ -23,7 +23,7 @@ export const useUpdateStore = defineStore('update', () => {
    */
   const fetchStatus = async () => {
     try {
-      const res = await fetch('/api/update/status')
+      const res = await fetch('/update/status')
       const data = await res.json()
 
       status.value = data.status
@@ -42,22 +42,27 @@ export const useUpdateStore = defineStore('update', () => {
   /**
    * 检查是否有新版本
    */
-  const checkUpdate = async () => {
+const checkUpdate = async () => {
     try {
-      const res = await fetch('/api/update/check')
+      // 1. 修正路径（去掉 /api，或根据你实际后端情况调整）
+      const res = await fetch('/update/check') 
       const result = await res.json()
 
-      // 更新本地版本显示
+      // 2. 增加业务状态码判断
+      if (result.code !== 200) {
+        throw new Error(result.msg || '后端检查失败')
+      }
+
       localVersion.value = result.local_version || ''
       localResTag.value = result.local_res_tag || ''
 
-      // 记录当前时间并持久化到本地，更新上次检查时间
       const now = new Date().toLocaleString()
       lastCheckTime.value = now
       localStorage.setItem('last_update_check', now)
 
-      // 校验是否有实际更新
-      if (result.data && result.data.type !== 'none') {
+      // 3. 校验 data 内部的逻辑
+      // 注意：根据后端 api_check_update，数据都在 result.data 里
+      if (result.data && result.data.type && result.data.type !== 'none') {
         updateInfo.value = result.data
         return true
       }
@@ -66,30 +71,37 @@ export const useUpdateStore = defineStore('update', () => {
       return false
     } catch (error) {
       console.error('检查更新失败:', error)
-      errorMsg.value = '无法连接到服务器检查更新'
+      errorMsg.value = error.message || '无法连接到服务器'
       return false
     }
   }
 
-  /**
+    /**
    * 向后端发送开始更新的指令
    */
   const startUpdate = async () => {
+    if (!updateInfo.value) return
+
     try {
-      const res = await fetch('/api/update/download', {
+      // 1. 修正路径
+      const res = await fetch('/update/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // 2. 确保 updateInfo 内部有 type, asset, diff 等后端需要的 key
         body: JSON.stringify(updateInfo.value)
       })
 
-      if (res.ok) {
-        // 指令发送成功后，开启定时器每秒拉取一次进度
+      const result = await res.json()
+      
+      if (res.ok && result.code === 200) {
         if (timer) clearInterval(timer)
         timer = setInterval(fetchStatus, 1000)
+      } else {
+        errorMsg.value = result.msg || '启动下载失败'
       }
     } catch (error) {
       console.error('启动更新失败:', error)
-      errorMsg.value = '网络请求失败，无法启动更新'
+      errorMsg.value = '网络请求失败'
     }
   }
 

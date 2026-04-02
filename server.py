@@ -181,7 +181,7 @@ updater = UpdateManager()
 @app.route('/update/check', methods=['GET'])
 def api_check_update():
     """检查更新，并返回当前本地版本"""
-    from arknights_mower import __resource_version__, __version__
+    from arknights_mower.__init__ import __resource_version__, __version__
     try:
         info = updater.check()
         # 将本地版本信息合并到返回数据中
