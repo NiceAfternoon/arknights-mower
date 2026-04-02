@@ -22,18 +22,20 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install & Build
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime
+          # 必须安装 pywebview 和 pythonnet 以确保 PyInstaller 能识别窗口组件
+          pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime pywebview pythonnet
           cd ui && npm install --legacy-peer-deps && npm run build
 
       - name: Build EXE
-        run: pyinstaller .\webui_zip.spec
+        run: |
+          # 确保 PyInstaller 扫描到了 webview 相关模块
+          pyinstaller --collect-all webview .\webui_zip.spec
 
       - name: Create Full Zip
         run: |
-          # 7z 是 Windows 镜像自带的，速度极快
           7z a -tzip mower-full-${{ github.ref_name }}.zip ./dist/mower/*
 
       - name: Generate Patches
@@ -41,7 +43,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 编写 Python 对比脚本，解决缩进和编码问题
           cat << 'EOF' > make_patch.py
           import sys, os, hashlib, zipfile, shutil
           from pathlib import Path
@@ -55,26 +56,32 @@ jobs:
           old_zip, new_dir, patch_name = sys.argv[1], sys.argv[2], sys.argv[3]
           if os.path.exists('old_ver'): shutil.rmtree('old_ver')
           
-          with zipfile.ZipFile(old_zip, 'r') as z:
-              z.extractall('old_ver')
-
-          with zipfile.ZipFile(patch_name, 'w', zipfile.ZIP_DEFLATED) as z:
-              new_path = Path(new_dir)
-              for f in new_path.rglob('*'):
-                  if f.is_dir(): continue
-                  rel = f.relative_to(new_path)
-                  old_f = Path('old_ver') / rel
-                  if not old_f.exists() or get_md5(old_f) != get_md5(f):
-                      z.write(f, rel)
+          try:
+              with zipfile.ZipFile(old_zip, 'r') as z:
+                  z.extractall('old_ver')
+              with zipfile.ZipFile(patch_name, 'w', zipfile.ZIP_DEFLATED) as z:
+                  new_path = Path(new_dir)
+                  for f in new_path.rglob('*'):
+                      if f.is_dir(): continue
+                      rel = f.relative_to(new_path)
+                      old_f = Path('old_ver') / rel
+                      if not old_f.exists() or get_md5(old_f) != get_md5(f):
+                          z.write(f, rel)
+          finally:
+              if os.path.exists('old_ver'): shutil.rmtree('old_ver')
           EOF
 
-          TAGS=($(git tag --sort=-v:refname | head -n 3))
-          for i in 1 2; do
-            OLD_TAG=${TAGS[$i]}
-            if [ ! -z "$OLD_TAG" ] && gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip; then
-              echo "Generating patch for $OLD_TAG..."
-              python make_patch.py old.zip ./dist/mower "mower-patch-from-$OLD_TAG.zip"
-              rm old.zip
+          # 修复 Tag 获取逻辑：过滤掉当前正在推送的这个 Tag
+          TAGS=($(git tag --sort=-v:refname | grep -v "${{ github.ref_name }}" | head -n 2))
+          for OLD_TAG in "${TAGS[@]}"; do
+            if [ ! -z "$OLD_TAG" ]; then
+              echo "Downloading $OLD_TAG for patch..."
+              if gh release download "$OLD_TAG" -p "mower-full-*.zip" -O old.zip; then
+                python make_patch.py old.zip ./dist/mower "mower-patch-from-$OLD_TAG.zip"
+                rm old.zip
+              else
+                echo "Warning: Failed to download $OLD_TAG full zip."
+              fi
             fi
           done
 
