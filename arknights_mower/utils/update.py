@@ -129,7 +129,7 @@ class UpdateManager:
                             if total:
                                 self.progress = int(done * 100 / total)
 
-            # 2. 解压覆盖
+            # 解压覆盖
             # 此时 ZIP 内部结构已经是 arknights_mower/... 和 ui/...
             # 直接解压到 self.root 即可完成覆盖
             self.status = "extracting"
@@ -137,12 +137,12 @@ class UpdateManager:
             with zipfile.ZipFile(zip_path, "r") as z:
                 z.extractall(self.root)
 
-            # 3. 强制更新本地 version.json，确保版本号对齐
+            # 强制更新本地 version.json，确保版本号对齐
             os.makedirs(os.path.dirname(self.res_json_path), exist_ok=True)
             with open(self.res_json_path, "w", encoding="utf-8") as f:
                 json.dump(remote_info, f, indent=4, ensure_ascii=False)
 
-            # 4. 清理临时文件
+            # 清理临时文件
             with contextlib.suppress(OSError):
                 os.remove(zip_path)
 
@@ -207,7 +207,7 @@ class UpdateManager:
             with zipfile.ZipFile(zip_path, "r") as z:
                 z.extractall(self.tmp_dir)
             
-            # 路径对齐逻辑：如果压缩包里套了一层文件夹，则将 self.tmp_dir 指向它
+            # 路径对齐逻辑：
             extracted_items = os.listdir(self.tmp_dir)
             if len(extracted_items) <= 2: # 只有 1 个文件夹 + 刚才的 zip
                 for item in extracted_items:
@@ -242,7 +242,7 @@ class UpdateManager:
             f'del "%~f0"'
         )
 
-        # 必须使用 GBK 编码以兼容 Windows CMD 的中文文件名
+        # 使用 GBK 编码以兼容 Windows CMD 的中文文件名
         try:
             with open(bat_path, "w", encoding="gbk") as f:
                 f.write(content)
