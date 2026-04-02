@@ -32,7 +32,7 @@ jobs:
       - name: Build EXE
         run: |
           # 确保 PyInstaller 扫描到了 webview 相关模块
-          pyinstaller --collect-all webview .\webui_zip.spec
+          pyinstaller .\webui_zip.spec
 
       - name: Create Full Zip
         run: |
