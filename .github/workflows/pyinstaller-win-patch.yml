@@ -26,23 +26,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller rapidocr_onnxruntime onnxruntime
 
-      # 2. 强力修复 pyzbar DLL 丢失问题
-      - name: Fix pyzbar dependency
-        shell: pwsh
-        run: |
-          $pyzbarPath = python -c "import pyzbar, os; print(os.path.dirname(pyzbar.__file__))"
-          $sitePackages = python -c "import site; print(site.getsitepackages()[0])"
-          # 针对 PyInstaller 报错路径进行双重覆盖（Lib 和 lib）
-          $targetPaths = @(
-            "$sitePackages\pyzbar",
-            "$(python -c 'import sys; print(sys.prefix)')\Lib\site-packages\pyzbar"
-          )
-          foreach ($target in $targetPaths) {
-            if (!(Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target }
-            Copy-Item "$pyzbarPath\libzbar-64.dll" -Destination "$target\libzbar-64.dll" -Force
-            Write-Host "已同步 DLL 到: $target"
-          }
-
       - name: Build EXE
         run: pyinstaller .\webui_zip.spec
 
