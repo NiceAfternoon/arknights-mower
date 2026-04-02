@@ -213,43 +213,64 @@ class UpdateManager:
             self._handle_err(f"软件下载失败: {e}")
 
     def execute_restart(self):
-        """静默执行原地替换并重启"""
+        """完全静默、强制退出旧进程并重启"""
         bat_path = os.path.join(self.root, "upgrade.bat")
         target_dir = os.path.abspath(self.root)
         new_content_dir = os.path.abspath(self.tmp_dir)
-        old_exe = os.path.join(target_dir, "mower.exe")
+        old_exe_name = "mower.exe"
+        old_exe_path = os.path.join(target_dir, old_exe_name)
 
-        # 构造批处理命令
+        # 构造更强力的批处理命令
+        # :wait_process 循环检查进程是否还在，直到它彻底退出
         content = (
             f'@echo off\n'
-            f'timeout /t 2 /nobreak >nul\n'
-            f'taskkill /f /im "多开管理器.exe" >nul 2>&1\n'
-            # robocopy 同步 tmp -> root
-            f'robocopy "{new_content_dir}" "{target_dir}" /E /MOVE /IS /IT /R:5 /W:1 /XF upgrade.bat\n'
+            f'setlocal enabledelayedexpansion\n'
             f'timeout /t 1 /nobreak >nul\n'
-            f'start "" "{old_exe}"\n'
+            
+            f':: 1. 强制结束所有相关进程\n'
+            f'taskkill /f /im "{old_exe_name}" /t >nul 2>&1\n'
+            f'taskkill /f /im "多开管理器.exe" /t >nul 2>&1\n'
+            
+            f':: 2. 等待进程彻底释放文件锁 (最多重试10次)\n'
+            f'set /a retry=0\n'
+            f':wait_lock\n'
+            f'if !retry! leq 10 (\n'
+            f'    timeout /t 1 /nobreak >nul\n'
+            f'    2>nul ( >>"{old_exe_path}" (call )) && (goto :do_copy) || (set /a retry+=1 & goto :wait_lock)\n'
+            f')\n'
+
+            f':do_copy\n'
+            f':: 3. 执行覆盖式移动\n'
+            f'robocopy "{new_content_dir}" "{target_dir}" /E /MOVE /IS /IT /R:5 /W:1 /XF upgrade.bat\n'
+            
+            f':: 4. 启动新进程\n'
+            f'timeout /t 1 /nobreak >nul\n'
+            f'start "" "{old_exe_path}"\n'
+            
+            f':: 5. 自毁\n'
             f'del "%~f0"'
         )
 
         try:
+            # 必须使用 GBK 编码以确保 CMD 识别循环指令
             with open(bat_path, "w", encoding="gbk") as f:
                 f.write(content)
-        except UnicodeEncodeError:
+        except Exception:
             with open(bat_path, "w", encoding="utf-8") as f:
                 f.write(f"@chcp 65001 >nul\n{content}")
         
-        logger.info(f"应用更新中，正在关闭程序...")
+        logger.info("主程序即将关闭以应用更新...")
         
-        # 使用 subprocess.Popen 并在 Windows 下创建无窗口进程
-        # 0x08000000 是 CREATE_NO_WINDOW 的常量值
+        # 启动隐藏窗口的批处理
         if sys.platform == "win32":
             subprocess.Popen(
                 ["cmd.exe", "/c", bat_path],
-                creationflags=0x08000000,
+                creationflags=0x08000000, # CREATE_NO_WINDOW
                 close_fds=True,
                 shell=False
             )
         else:
             os.system(f'start "" /b "{bat_path}"')
             
+        # 立即终止当前 Python 环境
         os._exit(0)
