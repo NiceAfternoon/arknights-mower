@@ -20,7 +20,7 @@ jobs:
           python-version: '3.12'
           architecture: x64
 
-      # 2. 设置 Node.js (构建前端所需)
+      # 2. 设置 Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,11 +33,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller rapidocr_onnxruntime onnxruntime
 
-      # 4. 构建前端 (解决 ui/dist 缺失问题)
+      # 4. 构建前端 (使用 --legacy-peer-deps 解决依赖冲突)
       - name: Build Frontend
         run: |
           cd ui
-          # 使用 --legacy-peer-deps 绕过 Vite 8 与插件的版本冲突
           npm install --legacy-peer-deps
           npm run build
           cd ..
@@ -64,13 +63,18 @@ jobs:
             local OLD_TAG=$1
             echo "正在生成从 $OLD_TAG 到 $CURRENT 的增量包..."
             
-            # 下载旧版本的全量 zip 进行对比
+            # 清理旧的残留目录
+            rm -rf old_ver old.zip
+            
+            # 下载旧版本的全量 zip
             gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip || { echo "未找到旧版本 $OLD_TAG 的全量包，跳过"; return 0; }
             
-            # 解压旧版本
-            unzip -q old.zip -d old_ver
+            # 使用 Python 解压以避免 Windows unzip 的编码和交互问题
+            python -c "import zipfile, os; 
+            with zipfile.ZipFile('old.zip', 'r') as z: 
+                z.extractall('old_ver')"
             
-            # 使用 Python 进行二进制级别的 MD5 对比
+            # 使用 Python 进行二进制级别的 MD5 对比并生成增量包
             python -c "
             import os, hashlib, zipfile
             from pathlib import Path
@@ -89,16 +93,16 @@ jobs:
                         if f.is_dir(): continue
                         rel_path = f.relative_to(new_path)
                         old_f = Path(old_dir) / rel_path
-                        # 如果旧版不存在，或者 MD5 不一致，则加入增量包
                         if not old_f.exists() or get_md5(old_f) != get_md5(f):
                             z.write(f, rel_path)
 
             create_patch('./old_ver', './dist/mower', f'mower-patch-from-$OLD_TAG.zip')
             "
+            # 清理现场
             rm -rf old_ver old.zip
           }
 
-          # 为前两个版本生成增量
+          # 为前两个版本生成增量（如果存在）
           if [ ! -z "${TAGS[1]}" ]; then make_patch ${TAGS[1]}; fi
           if [ ! -z "${TAGS[2]}" ]; then make_patch ${TAGS[2]}; fi
 
