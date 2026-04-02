@@ -25,6 +25,20 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller rapidocr_onnxruntime onnxruntime
 
+      # 新增步骤：修复 pyzbar 在 CI 环境下的 DLL 路径问题
+      - name: Fix pyzbar dependency
+        shell: pwsh
+        run: |
+          # 动态获取真实的 pyzbar 安装路径
+          $pyzbarDir = python -c "import pyzbar, os; print(os.path.dirname(pyzbar.__file__))"
+          
+          # 构造 PyInstaller 报错中寻找的大写 'Lib' 的目标路径
+          $targetDir = python -c "import sys, os; print(os.path.join(sys.prefix, 'Lib', 'site-packages', 'pyzbar'))"
+          
+          # 如果目标路径不存在，则创建并拷贝 dll
+          if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
+          Copy-Item "$pyzbarDir\libzbar-64.dll" -Destination "$targetDir\libzbar-64.dll" -Force
+
       - name: Build EXE
         run: pyinstaller .\webui_zip.spec
 
