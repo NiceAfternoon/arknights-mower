@@ -28,6 +28,7 @@ jobs:
           pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime pywebview pythonnet
           cd ui && npm install --legacy-peer-deps && npm run build
 
+      # 安装 WebView2 Runtime
       - name: Install WebView2 Runtime
         run: |
           curl -L -o MicrosoftEdgeWebView2Setup.exe https://go.microsoft.com/fwlink/p/?LinkId=2124703
@@ -46,6 +47,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set +e  # 防止 gh/grep/head 失败导致整个 job 退出
+
+          # 生成 make_patch.py
           cat << 'EOF' > make_patch.py
           import sys, os, hashlib, zipfile, shutil
           from pathlib import Path
@@ -74,16 +78,26 @@ jobs:
               if os.path.exists('old_ver'): shutil.rmtree('old_ver')
           EOF
 
-          TAGS=($(git tag --sort=-v:refname | grep -v "${{ github.ref_name }}" | head -n 2))
+          # 修复 Windows CRLF 导致 grep/head 失效的问题
+          git tag --sort=-v:refname | tr -d '\r' > tags.txt
+
+          # 过滤掉当前 tag，取前两个旧 tag
+          TAGS=($(grep -v "${{ github.ref_name }}" tags.txt | head -n 2))
+
+          echo "Found tags: ${TAGS[@]}"
+
           for OLD_TAG in "${TAGS[@]}"; do
-            if [ ! -z "$OLD_TAG" ]; then
+            if [ -n "$OLD_TAG" ]; then
               echo "Downloading $OLD_TAG for patch..."
-              if gh release download "$OLD_TAG" -p "mower-full-*.zip" -O old.zip; then
-                python make_patch.py old.zip ./dist/mower "mower-patch-from-$OLD_TAG.zip"
-                rm old.zip
-              else
+
+              gh release download "$OLD_TAG" -p "mower-full-*.zip" -O old.zip
+              if [ $? -ne 0 ]; then
                 echo "Warning: Failed to download $OLD_TAG full zip."
+                continue
               fi
+
+              python make_patch.py old.zip ./dist/mower "mower-patch-from-$OLD_TAG.zip"
+              rm old.zip
             fi
           done
 
