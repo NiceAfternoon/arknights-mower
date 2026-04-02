@@ -13,10 +13,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.9
+      # 1. 使用最新的 Python 3.12
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.12'
           architecture: x64
 
       - name: Install dependencies
@@ -25,35 +26,37 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller rapidocr_onnxruntime onnxruntime
 
-      # 新增步骤：修复 pyzbar 在 CI 环境下的 DLL 路径问题
+      # 2. 强力修复 pyzbar DLL 丢失问题
       - name: Fix pyzbar dependency
         shell: pwsh
         run: |
-          # 动态获取真实的 pyzbar 安装路径
-          $pyzbarDir = python -c "import pyzbar, os; print(os.path.dirname(pyzbar.__file__))"
-          
-          # 构造 PyInstaller 报错中寻找的大写 'Lib' 的目标路径
-          $targetDir = python -c "import sys, os; print(os.path.join(sys.prefix, 'Lib', 'site-packages', 'pyzbar'))"
-          
-          # 如果目标路径不存在，则创建并拷贝 dll
-          if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir }
-          Copy-Item "$pyzbarDir\libzbar-64.dll" -Destination "$targetDir\libzbar-64.dll" -Force
+          $pyzbarPath = python -c "import pyzbar, os; print(os.path.dirname(pyzbar.__file__))"
+          $sitePackages = python -c "import site; print(site.getsitepackages()[0])"
+          # 针对 PyInstaller 报错路径进行双重覆盖（Lib 和 lib）
+          $targetPaths = @(
+            "$sitePackages\pyzbar",
+            "$(python -c 'import sys; print(sys.prefix)')\Lib\site-packages\pyzbar"
+          )
+          foreach ($target in $targetPaths) {
+            if (!(Test-Path $target)) { New-Item -ItemType Directory -Force -Path $target }
+            Copy-Item "$pyzbarPath\libzbar-64.dll" -Destination "$target\libzbar-64.dll" -Force
+            Write-Host "已同步 DLL 到: $target"
+          }
 
       - name: Build EXE
         run: pyinstaller .\webui_zip.spec
 
-      # 1. 生成全量包 (Full Zip)
+      # 3. 生成全量包 (Full Zip)
       - name: Create Full Zip
         run: |
           Compress-Archive -Path ./dist/mower/* -DestinationPath mower-full-${{ github.ref_name }}.zip
 
-      # 2. 生成增量包 (Patch Zip)
+      # 4. 生成增量包 (Patch Zip)
       - name: Generate Patches
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 获取最近的 3 个 Tag (含当前)
           TAGS=($(git tag --sort=-v:refname | head -n 3))
           CURRENT=${TAGS[0]}
           
@@ -61,13 +64,9 @@ jobs:
             local OLD_TAG=$1
             echo "正在生成从 $OLD_TAG 到 $CURRENT 的增量包..."
             
-            # 下载旧版本的全量 zip 进行对比
             gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip
-            
-            # 解压旧版本
             unzip -q old.zip -d old_ver
             
-            # 使用 Python 进行二进制级别的 MD5 对比，确保增量包准确
             python -c "
             import os, hashlib, zipfile
             from pathlib import Path
@@ -86,22 +85,20 @@ jobs:
                         if f.is_dir(): continue
                         rel_path = f.relative_to(new_path)
                         old_f = Path(old_dir) / rel_path
-                        # 如果旧版不存在，或者 MD5 不一致，则加入增量包
                         if not old_f.exists() or get_md5(old_f) != get_md5(f):
                             z.write(f, rel_path)
 
-            create_patch('./old_ver', './dist/mower', f'mower-patch-from-{'$OLD_TAG'}.zip')
+            create_patch('./old_ver', './dist/mower', 'mower-patch-from-$OLD_TAG.zip')
             "
             rm -rf old_ver old.zip
           }
 
-          # 为前两个版本生成增量
           if [ ! -z "${TAGS[1]}" ]; then make_patch ${TAGS[1]}; fi
           if [ ! -z "${TAGS[2]}" ]; then make_patch ${TAGS[2]}; fi
 
-      # 3. 发布 Release
+      # 5. 发布 Release
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             mower-full-*.zip
