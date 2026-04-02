@@ -13,7 +13,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Environment
+      - name: Setup Env
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -24,49 +24,40 @@ jobs:
 
       - name: Install & Build
         run: |
-          # 1. 安装后端依赖
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime
-          
-          # 2. 构建前端
-          cd ui
-          npm install --legacy-peer-deps
-          npm run build
+          cd ui && npm install --legacy-peer-deps && npm run build
 
       - name: Build EXE
         run: pyinstaller .\webui_zip.spec
 
       - name: Create Full Zip
-        shell: bash
         run: |
-          # 使用原生 zip 替代 Compress-Archive，打包速度极快
-          cd dist/mower
-          zip -rq ../../mower-full-${{ github.ref_name }}.zip .
+          # 7z 是 Windows 镜像自带的，速度极快
+          7z a -tzip mower-full-${{ github.ref_name }}.zip ./dist/mower/*
 
       - name: Generate Patches
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 将增量对比逻辑写入独立的 Python 文件，彻底告别缩进和引号冲突！
+          # 编写 Python 对比脚本，解决缩进和编码问题
           cat << 'EOF' > make_patch.py
           import sys, os, hashlib, zipfile, shutil
           from pathlib import Path
 
-          old_zip, new_dir, patch_name = sys.argv[1], sys.argv[2], sys.argv[3]
-
-          # 解压旧包
-          with zipfile.ZipFile(old_zip, 'r') as z:
-              z.extractall('old_ver')
-
-          # 计算 MD5
           def get_md5(p):
               h = hashlib.md5()
               with open(p, 'rb') as f:
                   for chunk in iter(lambda: f.read(4096), b''): h.update(chunk)
               return h.hexdigest()
 
-          # 对比并生成增量包
+          old_zip, new_dir, patch_name = sys.argv[1], sys.argv[2], sys.argv[3]
+          if os.path.exists('old_ver'): shutil.rmtree('old_ver')
+          
+          with zipfile.ZipFile(old_zip, 'r') as z:
+              z.extractall('old_ver')
+
           with zipfile.ZipFile(patch_name, 'w', zipfile.ZIP_DEFLATED) as z:
               new_path = Path(new_dir)
               for f in new_path.rglob('*'):
@@ -75,27 +66,15 @@ jobs:
                   old_f = Path('old_ver') / rel
                   if not old_f.exists() or get_md5(old_f) != get_md5(f):
                       z.write(f, rel)
-
-          # 清理临时解压目录
-          shutil.rmtree('old_ver')
           EOF
 
-          # 获取最新的前三个 Tag
           TAGS=($(git tag --sort=-v:refname | head -n 3))
-          
-          # 循环前两个历史版本生成增量包
           for i in 1 2; do
             OLD_TAG=${TAGS[$i]}
-            if [ -z "$OLD_TAG" ]; then continue; fi
-            
-            echo "正在生成从 $OLD_TAG 到 ${TAGS[0]} 的增量包..."
-            
-            # 下载旧版 zip，如果成功则调用 Python 脚本处理
-            if gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip; then
+            if [ ! -z "$OLD_TAG" ] && gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip; then
+              echo "Generating patch for $OLD_TAG..."
               python make_patch.py old.zip ./dist/mower "mower-patch-from-$OLD_TAG.zip"
               rm old.zip
-            else
-              echo "未找到 $OLD_TAG 的全量包，跳过。"
             fi
           done
 
