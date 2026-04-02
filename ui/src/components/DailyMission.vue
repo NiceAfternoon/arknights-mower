@@ -1,7 +1,7 @@
 <script setup>
 import { useConfigStore } from '@/stores/config'
 import { storeToRefs } from 'pinia'
-import { inject, ref } from 'vue'
+import { inject, ref, computed } from 'vue'
 const axios = inject('axios')
 
 const store = useConfigStore()
@@ -16,6 +16,12 @@ async function test_sign() {
   const response = await axios.get(`${import.meta.env.VITE_HTTP_URL}/check-skland-sign`)
   sign_msg.value = response.data
 }
+
+const enable_test = computed(() => {
+  return skland_info.value.some((item) => {
+    return item.account?.trim() && item.password?.trim()
+  })
+})
 
 // 复选框逻辑
 // 账号勾选时相当于全选
@@ -115,7 +121,7 @@ const SyncStatus = (item, game) => {
         </n-tab-pane>
       </n-tabs>
       <n-flex style="misc-container" align="center">
-        <n-button @click="test_sign">测试签到</n-button>
+        <n-button :disabled="!enable_test" @click="test_sign">测试签到</n-button>
         <div>{{ sign_msg }}</div>
       </n-flex>
       <n-divider />

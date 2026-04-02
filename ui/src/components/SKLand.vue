@@ -29,6 +29,12 @@ async function test_maa() {
   const response = await axios.get(`${import.meta.env.VITE_HTTP_URL}/check-skland`)
   maa_msg.value = response.data.join('\n')
 }
+
+const enable_test = computed(() => {
+  return skland_info.value.some((item) => {
+    return item.account?.trim() && item.password?.trim()
+  })
+})
 </script>
 
 <template>
@@ -64,7 +70,7 @@ async function test_maa() {
       </template>
     </n-dynamic-input>
     <div class="misc-container">
-      <n-button @click="test_maa">测试设置</n-button>
+      <n-button :disabled="!enable_test" @click="test_maa">测试设置</n-button>
       <n-card
         content-scrollable
         style="max-height: 80px"
