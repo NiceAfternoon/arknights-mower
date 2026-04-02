@@ -234,6 +234,35 @@ function createNewItem() {
     self_upper_limit: 20
   }
 }
+
+import { useUpdateStore } from '@/stores/updateStore';
+import { useMessage } from 'naive-ui';
+
+const store = useUpdateStore();
+const message = useMessage();
+const checking = ref(false);
+
+const statusText = computed(() => {
+  const map = {
+    'downloading': '正在下载安装包...',
+    'res_updating': '正在同步资源文件...',
+    'extracting': '正在解压文件...'
+  };
+  return map[store.status] || '处理中...';
+});
+
+const handleCheck = async () => {
+  checking.value = true;
+  const hasUpdate = await store.checkUpdate();
+  checking.value = false;
+  if (!hasUpdate) message.success('当前已是最新版本');
+};
+
+const handleRestart = async () => {
+  await fetch('/update/restart', { method: 'POST' });
+  message.loading('正在重启应用...', { duration: 0 });
+};
+
 </script>
 
 <template>
@@ -512,6 +541,70 @@ function createNewItem() {
                 <template #suffix>小时</template>
               </n-input-number>
             </n-form-item>
+
+            <n-form-item label="软件版本">
+              <n-space>
+                <n-tag :type="store.updateInfo?.type === 'software' ? 'warning' : 'success'">
+                  {{ store.localVersion || '未检测' }}
+                </n-tag>
+                <n-text v-if="store.updateInfo?.type === 'software'" depth="3">
+                  (发现新版本: {{ store.updateInfo.version }})
+                </n-text>
+              </n-space>
+            </n-form-item>
+
+            <n-form-item label="资源版本">
+              <n-space>
+                <n-tag :type="store.updateInfo?.type === 'resources' ? 'warning' : 'success'">
+                  {{ store.localResTag || '未检测' }}
+                </n-tag>
+                <n-text v-if="store.updateInfo?.type === 'resources'" depth="3">
+                  (有资源补丁待更新)
+                </n-text>
+              </n-space>
+            </n-form-item>
+
+            <n-form-item label="当前状态">
+                <div class="flex-1">
+                  <n-text v-if="store.status === 'idle'" depth="3">
+                    {{ store.lastCheckTime ? `上次检查: ${store.lastCheckTime}` : '尚未检查更新' }}
+                  </n-text>
+                  
+                  <n-text v-else-if="store.status === 'ready_to_restart'" type="success">准备重启</n-text>
+                  <n-text v-else-if="store.status === 'error'" type="error">更新失败</n-text>
+                  
+                  <div v-else>
+                    <div class="mb-1 text-xs">{{ statusText }}</div>
+                    <n-progress
+                      type="line"
+                      :percentage="store.progress"
+                      :indicator-placement="'inside'"
+                      processing
+                    />
+                  </div>
+                </div>
+              </n-form-item>
+
+            <n-space>
+              <n-button @click="handleCheck" :loading="checking">检查更新</n-button>
+              
+              <n-button 
+                v-if="store.updateInfo && store.status === 'idle'" 
+                type="primary" 
+                @click="store.startUpdate"
+              >
+                立即更新
+              </n-button>
+
+              <n-button 
+                v-if="store.status === 'ready_to_restart'" 
+                type="error" 
+                @click="handleRestart"
+              >
+                重启软件
+              </n-button>
+            </n-space>
+
           </n-form>
         </n-card>
       </div>

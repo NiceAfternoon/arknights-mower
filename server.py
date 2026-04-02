@@ -5,13 +5,21 @@ import mimetypes
 import os
 import pathlib
 import sys
+import threading
 import time
 from functools import wraps
 from io import BytesIO
 from threading import Thread
 
 import pytz
-from flask import Flask, abort, request, send_file, send_from_directory
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    request,
+    send_file,
+    send_from_directory,
+)
 from flask_cors import CORS
 from flask_sock import Sock
 from tzlocal import get_localzone
@@ -26,6 +34,7 @@ from arknights_mower.utils.datetime import get_server_time
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.operators import Operators, build_global_plan
 from arknights_mower.utils.path import get_path
+from arknights_mower.utils.update import UpdateManager  # 确保路径正确
 
 mimetypes.add_type("text/html", ".html")
 mimetypes.add_type("text/css", ".css")
@@ -167,6 +176,58 @@ def get_status():
                 )
     return response
 
+updater = UpdateManager()
+
+@app.route('/update/check', methods=['GET'])
+def api_check_update():
+    """检查更新，并返回当前本地版本"""
+    from arknights_mower import __resource_version__, __version__
+    try:
+        info = updater.check()
+        # 将本地版本信息合并到返回数据中
+        return jsonify({
+            "code": 200, 
+            "data": info,
+            "local_version": __version__,
+            "local_res_tag": __resource_version__
+        })
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e)}), 500
+
+@app.route('/update/download', methods=['POST'])
+def api_start_download():
+    """异步启动下载任务"""
+    if updater.status in ["downloading", "res_updating", "extracting"]:
+        return jsonify({"code": 400, "msg": "任务运行中"}), 400
+
+    data = request.get_json()
+    u_type = data.get("type")
+
+    if u_type == "software":
+        thread = threading.Thread(target=updater.start_software_download, args=(data.get("asset"),))
+        thread.start()
+    elif u_type == "resources":
+        thread = threading.Thread(target=updater.start_res_download, args=(data.get("diff"), data.get("full_info")))
+        thread.start()
+    
+    return jsonify({"code": 200, "msg": "下载线程已启动"})
+
+@app.route('/update/status', methods=['GET'])
+def api_get_update_status():
+    """获取异步任务进度，函数名已改为唯一值"""
+    return jsonify({
+        "status": updater.status,
+        "progress": updater.progress,
+        "error": updater.last_error
+    })
+
+@app.route('/update/restart', methods=['POST'])
+def api_handle_restart():
+    """执行重启替换"""
+    if updater.status == "ready_to_restart":
+        updater.execute_restart()
+        return jsonify({"code": 200, "msg": "正在重启"})
+    return jsonify({"code": 400, "msg": "未就绪"}), 400
 
 @app.route("/start/<start_type>")
 @require_token

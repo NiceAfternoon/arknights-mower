@@ -3,8 +3,8 @@ import lzma
 import os
 import pickle
 import re
-from datetime import datetime
 import time
+from datetime import datetime
 
 import cv2
 import numpy as np

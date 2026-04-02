@@ -1,0 +1,97 @@
+name: Windows Release with Patches
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+          architecture: x64
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller rapidocr_onnxruntime onnxruntime
+
+      - name: Build EXE
+        run: pyinstaller .\webui_zip.spec
+
+      # 1. 生成全量包 (Full Zip)
+      - name: Create Full Zip
+        run: |
+          Compress-Archive -Path ./dist/mower/* -DestinationPath mower-full-${{ github.ref_name }}.zip
+
+      # 2. 生成增量包 (Patch Zip)
+      - name: Generate Patches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 获取最近的 3 个 Tag (含当前)
+          TAGS=($(git tag --sort=-v:refname | head -n 3))
+          CURRENT=${TAGS[0]}
+          
+          make_patch() {
+            local OLD_TAG=$1
+            echo "正在生成从 $OLD_TAG 到 $CURRENT 的增量包..."
+            
+            # 下载旧版本的全量 zip 进行对比
+            gh release download $OLD_TAG -p "mower-full-*.zip" -O old.zip
+            
+            # 解压旧版本
+            unzip -q old.zip -d old_ver
+            
+            # 使用 Python 进行二进制级别的 MD5 对比，确保增量包准确
+            python -c "
+            import os, hashlib, zipfile
+            from pathlib import Path
+
+            def get_md5(file_path):
+                hash_md5 = hashlib.md5()
+                with open(file_path, 'rb') as f:
+                    for chunk in iter(lambda: f.read(4096), b''):
+                        hash_md5.update(chunk)
+                return hash_md5.hexdigest()
+
+            def create_patch(old_dir, new_dir, patch_name):
+                with zipfile.ZipFile(patch_name, 'w', zipfile.ZIP_DEFLATED) as z:
+                    new_path = Path(new_dir)
+                    for f in new_path.rglob('*'):
+                        if f.is_dir(): continue
+                        rel_path = f.relative_to(new_path)
+                        old_f = Path(old_dir) / rel_path
+                        # 如果旧版不存在，或者 MD5 不一致，则加入增量包
+                        if not old_f.exists() or get_md5(old_f) != get_md5(f):
+                            z.write(f, rel_path)
+
+            create_patch('./old_ver', './dist/mower', f'mower-patch-from-{'$OLD_TAG'}.zip')
+            "
+            rm -rf old_ver old.zip
+          }
+
+          # 为前两个版本生成增量
+          if [ ! -z "${TAGS[1]}" ]; then make_patch ${TAGS[1]}; fi
+          if [ ! -z "${TAGS[2]}" ]; then make_patch ${TAGS[2]}; fi
+
+      # 3. 发布 Release
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            mower-full-*.zip
+            mower-patch-from-*.zip
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

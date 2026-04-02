@@ -455,6 +455,16 @@ watch(
     actions_on_resize()
   }
 )
+
+import { useUpdateStore } from '@/stores/updateStore';
+
+const updateStore = useUpdateStore();
+
+onMounted(() => {
+  // 每次启动应用（App初始化）时执行一次
+  updateStore.checkUpdate();
+});
+
 </script>
 
 <style>

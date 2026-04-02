@@ -115,7 +115,7 @@ def webview_window(child_conn, global_space, host, port, url, tray):
 
     webview.settings["ALLOW_DOWNLOADS"] = True
 
-    from arknights_mower.__init__ import __version__
+    from arknights_mower.__init__ import __resource_version__, __version__
     from arknights_mower.utils import config, path
 
     path.global_space = global_space
@@ -134,7 +134,7 @@ def webview_window(child_conn, global_space, host, port, url, tray):
         height = h
 
     window = webview.create_window(
-        f"arknights-mower {__version__} (http://{host}:{port})",
+        f"Arknights-Mower - {__version__} - {__resource_version__} | (http://{host}:{port})",
         url,
         text_select=True,
         confirm_close=not tray,
