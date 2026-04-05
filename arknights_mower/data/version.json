@@ -10,10 +10,10 @@
     "endTime": 1775764799
   },
   "last_updated": "26-03-31-05-42-28_7d7f67",
-  "res_version": "2026.0405.1807",
+  "res_version": "2026.0405.2126",
   "files": {
     "arknights_mower/data/stage_data_full.json": "69808957d3a8ed9e0562cd3ff110308e",
-    "arknights_mower/data/version.json": "b5d20c4e62ef0320eaa8551f0ac85a92",
+    "arknights_mower/data/version.json": "6943f2b9a182f15b9bc89f08100c5358",
     "arknights_mower/data/agent_profession.json": "d53b5e50058b0f392305abf6e567d12b",
     "arknights_mower/data/workshop_formula.json": "2ca15a36209457a2af5c8815abbaa53f",
     "arknights_mower/data/recruit_result.json": "dcd4200165bcf9826321b5da88ca784d",
@@ -28,7 +28,7 @@
     "arknights_mower/models/operator_room.model": "75371ecb6479c5a7f9fbbdbef7ed6c6c",
     "arknights_mower/models/recruit_result.pkl": "8063d400a3f509916854bf63299a28c3",
     "arknights_mower/models/operator_train.model": "9bd5703827cfb960abc242fe3fb2b0c9",
-    "arknights_mower/models/recruit.pkl": "9f40d34ff5a93f1d1a75c47d3918fd6c",
+    "arknights_mower/models/recruit.pkl": "dde8ff834cf5b55ed0f2fbc0cbd56ca8",
     "arknights_mower/models/operator_select.model": "2083eaa958c6316d4d0eefbd25388e80",
     "arknights_mower/fonts/SourceHanSansCN-Medium.otf": "4aa8af7246b887f39283be95d96de859",
     "arknights_mower/fonts/README.md": "44ffd1c5202c3116c8301707b0de3383",
