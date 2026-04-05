@@ -13,28 +13,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # pip 缓存
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: C:/Users/runneradmin/AppData/Local/pip/Cache
-          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            pip-${{ runner.os }}-
-
-      # npm 缓存
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: C:/Users/runneradmin/AppData/Roaming/npm-cache
-          key: npm-${{ runner.os }}-${{ hashFiles('ui/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-
-
       - name: Setup Env
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           
       - uses: actions/setup-node@v4
         with:
@@ -42,9 +24,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm config set cache C:/Users/runneradmin/AppData/Roaming/npm-cache --global
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller rapidocr_onnxruntime onnxruntime pywebview pythonnet
+          pip install -r requirements.txt
           cd ui && npm install --legacy-peer-deps && npm run build
 
       # 安装 WebView2 Runtime
@@ -97,7 +78,6 @@ jobs:
               if os.path.exists('old_ver'): shutil.rmtree('old_ver')
           EOF
 
-          # 修复 Windows CRLF 导致 grep/head 失效的问题
           git tag --sort=-v:refname | tr -d '\r' > tags.txt
 
           # 过滤掉当前 tag，取前两个旧 tag

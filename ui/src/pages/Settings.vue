@@ -1,8 +1,10 @@
 <script setup lang="jsx">
 import { useConfigStore } from '@/stores/config'
 import { usePlanStore } from '@/stores/plan'
+import { useUpdateStore } from '@/stores/updateStore'
+import { useMessage } from 'naive-ui'
 import { storeToRefs } from 'pinia'
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 
 import { pinyin_match } from '@/utils/common'
 
@@ -159,7 +161,7 @@ const onSelectionChange = (newValue) => {
     simulator.value.index = '0'
   }
 }
-import { ref } from 'vue'
+
 import ChatBotSetting from '../components/ChatBotSetting.vue'
 
 const showSettingModal = ref(false)
@@ -235,9 +237,6 @@ function createNewItem() {
   }
 }
 
-import { useUpdateStore } from '@/stores/updateStore'
-import { useMessage } from 'naive-ui'
-
 const store = useUpdateStore()
 const message = useMessage()
 const checking = ref(false)
@@ -259,8 +258,12 @@ const handleCheck = async () => {
 }
 
 const handleRestart = async () => {
-  await fetch('/update/restart', { method: 'POST' })
-  message.loading('正在重启应用...', { duration: 0 })
+  try {
+    await fetch('/update/restart', { method: 'POST' })
+    message.loading('正在重启应用...', { duration: 0 })
+  } catch (err) {
+    message.error('请求重启失败')
+  }
 }
 </script>
 
@@ -569,10 +572,13 @@ const handleRestart = async () => {
                   {{ store.lastCheckTime ? `上次检查: ${store.lastCheckTime}` : '尚未检查更新' }}
                 </n-text>
 
-                <n-text v-else-if="store.status === 'ready_to_restart'" type="success"
-                  >准备重启</n-text
-                >
-                <n-text v-else-if="store.status === 'error'" type="error">更新失败</n-text>
+                <n-text v-else-if="store.status === 'ready_to_restart'" type="success">
+                  准备重启
+                </n-text>
+                
+                <n-text v-else-if="store.status === 'error'" type="error">
+                  更新失败: {{ store.errorMsg }}
+                </n-text>
 
                 <div v-else>
                   <div class="mb-1 text-xs">{{ statusText }}</div>
@@ -605,6 +611,7 @@ const handleRestart = async () => {
                 重启软件
               </n-button>
             </n-space>
+
           </n-form>
         </n-card>
       </div>

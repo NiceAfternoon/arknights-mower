@@ -34,7 +34,7 @@ from arknights_mower.utils.datetime import get_server_time
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.operators import Operators, build_global_plan
 from arknights_mower.utils.path import get_path
-from arknights_mower.utils.update import UpdateManager  # 确保路径正确
+from arknights_mower.utils.update import UpdateManager
 
 mimetypes.add_type("text/html", ".html")
 mimetypes.add_type("text/css", ".css")
@@ -48,6 +48,7 @@ mower_thread = None
 log_lines = []
 ws_connections = []
 
+updater = UpdateManager()
 
 def read_log():
     global log_lines
@@ -176,15 +177,11 @@ def get_status():
                 )
     return response
 
-updater = UpdateManager()
-
 @app.route('/update/check', methods=['GET'])
 def api_check_update():
-    """检查更新，并返回当前本地版本"""
     from arknights_mower.__init__ import __resource_version__, __version__
     try:
         info = updater.check()
-        # 将本地版本信息合并到返回数据中
         return jsonify({
             "code": 200, 
             "data": info,
@@ -203,18 +200,25 @@ def api_start_download():
     data = request.get_json()
     u_type = data.get("type")
 
+    # 启动前彻底清空残留状态，防止前端误读
+    updater.progress = 0
+    updater.last_error = None
+
     if u_type == "software":
-        thread = threading.Thread(target=updater.start_software_download, args=(data.get("asset"),))
+        # 传入 daemon=True，确保后台线程静默运行不阻塞主线程
+        thread = threading.Thread(target=updater.start_software_download, args=(data.get("asset"),), daemon=True)
         thread.start()
     elif u_type == "resources":
-        thread = threading.Thread(target=updater.start_res_download, args=(data.get("diff"), data.get("full_info")))
+        # 修正方法名为 start_res_upgrade 以匹配 UpdateManager 类
+        thread = threading.Thread(target=updater.start_res_upgrade, args=(data.get("patch_url"), data.get("remote_info")), daemon=True)
         thread.start()
+    else:
+        return jsonify({"code": 400, "msg": "未知的更新类型"}), 400
     
     return jsonify({"code": 200, "msg": "下载线程已启动"})
 
 @app.route('/update/status', methods=['GET'])
 def api_get_update_status():
-    """获取异步任务进度，函数名已改为唯一值"""
     return jsonify({
         "status": updater.status,
         "progress": updater.progress,
@@ -223,12 +227,10 @@ def api_get_update_status():
 
 @app.route('/update/restart', methods=['POST'])
 def api_handle_restart():
-    """执行重启替换"""
     if updater.status == "ready_to_restart":
         updater.execute_restart()
         return jsonify({"code": 200, "msg": "正在重启"})
     return jsonify({"code": 400, "msg": "未就绪"}), 400
-
 @app.route("/start/<start_type>")
 @require_token
 def start(start_type):
