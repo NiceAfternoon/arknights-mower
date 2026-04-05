@@ -5,6 +5,7 @@ import re
 import sys
 import zipfile
 import subprocess
+import shutil
 from typing import Any, Dict, Optional
 
 import requests
@@ -119,13 +120,41 @@ class UpdateManager:
                                 self.progress = int(done * 100 / total)
 
             self.status = "extracting"
-            with zipfile.ZipFile(zip_path, "r") as z:
-                z.extractall(self.root)
+            # 创建临时解压目录
+            extract_tmp = os.path.join(self.tmp_dir, "res_extract")
+            if os.path.exists(extract_tmp):
+                shutil.rmtree(extract_tmp)
+            os.makedirs(extract_tmp, exist_ok=True)
 
+            with zipfile.ZipFile(zip_path, "r") as z:
+                z.extractall(extract_tmp)
+
+            # 路径校正：判断解压出的内容是否包含 resource 文件夹
+            source_path = extract_tmp
+            if "resource" in os.listdir(extract_tmp):
+                source_path = os.path.join(extract_tmp, "resource")
+            
+            # 确定移动的目标根目录（frozen 模式下为 _internal）
+            move_target = os.path.dirname(os.path.dirname(os.path.dirname(self.res_json_path)))
+
+            # 将内容移动到正确位置
+            for item in os.listdir(source_path):
+                s = os.path.join(source_path, item)
+                d = os.path.join(move_target, item)
+                if os.path.isdir(s):
+                    if os.path.exists(d):
+                        shutil.rmtree(d)
+                    shutil.move(s, d)
+                else:
+                    shutil.move(s, d)
+
+            # 写入版本号文件
             os.makedirs(os.path.dirname(self.res_json_path), exist_ok=True)
             with open(self.res_json_path, "w", encoding="utf-8") as f:
                 json.dump(remote_info, f, indent=4, ensure_ascii=False)
 
+            # 清理
+            shutil.rmtree(extract_tmp, ignore_errors=True)
             with contextlib.suppress(OSError):
                 os.remove(zip_path)
 
@@ -162,7 +191,6 @@ class UpdateManager:
         try:
             self.status, self.progress = "downloading", 0
             if os.path.exists(self.tmp_dir):
-                import shutil
                 shutil.rmtree(self.tmp_dir, ignore_errors=True)
             os.makedirs(self.tmp_dir, exist_ok=True)
             
