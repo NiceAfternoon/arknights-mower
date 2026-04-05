@@ -9,9 +9,10 @@
     "time": 1774598400,
     "endTime": 1775764799
   },
+  "last_updated": "26-03-31-05-42-28_7d7f67",
+  "res_version": "2026.0405.1755",
   "files": {
     "arknights_mower/data/stage_data_full.json": "69808957d3a8ed9e0562cd3ff110308e",
-    "arknights_mower/data/version.json": "74d19b309bae77d66addbf129e791e8d",
     "arknights_mower/data/agent_profession.json": "d53b5e50058b0f392305abf6e567d12b",
     "arknights_mower/data/workshop_formula.json": "2ca15a36209457a2af5c8815abbaa53f",
     "arknights_mower/data/recruit_result.json": "dcd4200165bcf9826321b5da88ca784d",
@@ -26,7 +27,7 @@
     "arknights_mower/models/operator_room.model": "75371ecb6479c5a7f9fbbdbef7ed6c6c",
     "arknights_mower/models/recruit_result.pkl": "8063d400a3f509916854bf63299a28c3",
     "arknights_mower/models/operator_train.model": "9bd5703827cfb960abc242fe3fb2b0c9",
-    "arknights_mower/models/recruit.pkl": "80ef69ddf61aafadf7acc62d34dc0ea8",
+    "arknights_mower/models/recruit.pkl": "94302d636b453a03d13881ffaa8ffe9b",
     "arknights_mower/models/operator_select.model": "2083eaa958c6316d4d0eefbd25388e80",
     "arknights_mower/fonts/SourceHanSansCN-Medium.otf": "4aa8af7246b887f39283be95d96de859",
     "arknights_mower/fonts/README.md": "44ffd1c5202c3116c8301707b0de3383",
@@ -1793,7 +1794,5 @@
     "ui/src/pages/basement_skill/skill.json": "33f8232d4299adf33bef54be93d091a1",
     "ui/src/pages/basement_skill/buffer.json": "84f182bcd75e486b6f2c4fa81875daf0",
     "ui/src/pages/stage_data/event_data.json": "bb167058f6783fada43520dde21d39ad"
-  },
-  "last_updated": "26-03-31-05-42-28_7d7f67",
-  "res_version": "2026.0405.1725"
+  }
 }
