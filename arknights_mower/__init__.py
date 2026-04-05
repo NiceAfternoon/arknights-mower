@@ -4,7 +4,7 @@ import platform
 import sys
 from pathlib import Path
 
-__version__ = "v4.1.7"
+__version__ = "v4.1.5"
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     __rootdir__ = Path(sys._MEIPASS).joinpath("arknights_mower").resolve()
@@ -21,9 +21,9 @@ with open(RES_PATH, "r", encoding="utf-8") as f:
     res = json.load(f)
 
 if res["activity"]["time"] >= res["gacha"]["time"]:
-    res_version = f"{res['activity']['name']}#{res['last_updated'][:8]}"
+    res_version = f"{res['activity']['name']}#{res['res_version'][:9]}"
 else:
-    res_version = f"{res['gacha']['name']}#{res['last_updated'][:8]}"
+    res_version = f"{res['gacha']['name']}#{res['res_version'][:9]}"
 
 __resource_tag__ = res['last_updated']
 __resource_version__ = res_version

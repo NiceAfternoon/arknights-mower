@@ -231,6 +231,7 @@ def api_handle_restart():
         updater.execute_restart()
         return jsonify({"code": 200, "msg": "正在重启"})
     return jsonify({"code": 400, "msg": "未就绪"}), 400
+
 @app.route("/start/<start_type>")
 @require_token
 def start(start_type):

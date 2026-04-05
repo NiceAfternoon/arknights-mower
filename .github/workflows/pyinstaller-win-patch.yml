@@ -26,7 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller Flask flask-cors flask-sock
           cd ui && npm install --legacy-peer-deps && npm run build
 
       # 安装 WebView2 Runtime
