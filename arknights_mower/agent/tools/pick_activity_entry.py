@@ -23,20 +23,17 @@ def _build_keywords(target_stage: str, stage_meta_json: str):
 def _score_text(text: str, keywords: list[str], target_stage: str):
     score = 0.0
     lower = text.lower()
-    noise_tokens = [
-        "前往上一次作战",
-        "to-do",
-        "attention",
-        "终端"
-    ]
+    noise_tokens = ["前往上一次作战", "to-do", "attention", "终端"]
     if any(token in lower for token in noise_tokens):
         score -= 6.0
     if re.fullmatch(r"\d+/\d+|\d+天|\d+", text):
         score -= 5.0
     # 时间/日期信息通常是说明文案，不是入口
-    if re.search(r"\d{4}/\d{2}/\d{2}", text) or re.search(
-        r"\d{1,2}:\d{2}(:\d{2})?", text
-    ) or re.search(r"\d{1,2}月\d{1,2}日", text):
+    if (
+        re.search(r"\d{4}/\d{2}/\d{2}", text)
+        or re.search(r"\d{1,2}:\d{2}(:\d{2})?", text)
+        or re.search(r"\d{1,2}月\d{1,2}日", text)
+    ):
         score -= 5.0
     if text in keywords:
         score += 8.0

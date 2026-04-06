@@ -3996,7 +3996,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         break
                 MissionSolver(self.device, self.recog).run()
                 self.last_execution["maa"] = datetime.now()
-                logger.info(f"record local task execution time: {self.last_execution['maa']}")
+                logger.info(
+                    f"record local task execution time: {self.last_execution['maa']}"
+                )
 
             remaining_time = (self.tasks[0].time - datetime.now()).total_seconds()
             self.handle_idle_action(remaining_time)
@@ -4004,9 +4006,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 f"休息 {format_time(remaining_time)}，到"
                 f"{self.tasks[0].time.strftime('%H:%M:%S')}开始工作"
             )
-            context = (
-                f"下一次任务:{self.tasks[0].plan if len(self.tasks[0].plan) != 0 else '空任务' if self.tasks[0].type == '' else self.tasks[0].type}"
-            )
+            context = f"下一次任务:{self.tasks[0].plan if len(self.tasks[0].plan) != 0 else '空任务' if self.tasks[0].type == '' else self.tasks[0].type}"
             logger.info(context)
             logger.info(subject)
             self.task_count += 1

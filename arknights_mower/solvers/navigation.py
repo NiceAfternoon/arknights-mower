@@ -1,4 +1,4 @@
-﻿import json
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -10,8 +10,7 @@ from arknights_mower import __rootdir__
 from arknights_mower.data import stage_data_full
 from arknights_mower.models import navigation
 from arknights_mower.solvers.base_mixin import BaseMixin
-from arknights_mower.utils import config
-from arknights_mower.utils import rapidocr
+from arknights_mower.utils import config, rapidocr
 from arknights_mower.utils.graph import SceneGraphSolver
 from arknights_mower.utils.image import loadres, thres2
 from arknights_mower.utils.log import logger
@@ -556,7 +555,9 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             center = cand.get("center")
             main_key = (main_sig, self.normalize_stage_text(text))
             if main_key in failed_main_attempts:
-                logger.info(f"UNKNOWN MAIN入口尝试[{idx}] 跳过（同页同候选已失败） text={text}")
+                logger.info(
+                    f"UNKNOWN MAIN入口尝试[{idx}] 跳过（同页同候选已失败） text={text}"
+                )
                 continue
             logger.info(f"UNKNOWN MAIN入口尝试[{idx}/{max_attempts}] text={text}")
             moved = self.tap_and_detect_page_move(center, text, record_step=True)
@@ -601,8 +602,12 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                         f"UNKNOWN subtitle尝试[{sub_idx}] 跳过（同页同候选已失败） text={sub_text}"
                     )
                     continue
-                logger.info(f"UNKNOWN subtitle尝试[{sub_idx}/{max_attempts}] text={sub_text}")
-                moved = self.tap_and_detect_page_move(sub_center, sub_text, record_step=True)
+                logger.info(
+                    f"UNKNOWN subtitle尝试[{sub_idx}/{max_attempts}] text={sub_text}"
+                )
+                moved = self.tap_and_detect_page_move(
+                    sub_center, sub_text, record_step=True
+                )
                 if not moved:
                     self.nav_steps = self.nav_steps[:checkpoint]
                     failed_sub_attempts.add(sub_key)
@@ -611,7 +616,9 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 if self.is_stage_code(self.name) and self.find_target_stage_after_entry(
                     self.name, max_swipes=4, pattern_only=True
                 ):
-                    logger.info(f"UNKNOWN 导航成功：subtitle候选[{sub_idx}] 命中 {self.name}")
+                    logger.info(
+                        f"UNKNOWN 导航成功：subtitle候选[{sub_idx}] 命中 {self.name}"
+                    )
                     return True
                 self.nav_steps = self.nav_steps[:checkpoint]
                 failed_sub_attempts.add(sub_key)
@@ -639,7 +646,11 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
     def find_stage_banner(self, zone_name: str, scope=None):
         key = f"navigation/stage/{zone_name}"
         template_path = (
-            Path(__rootdir__) / "resources" / "navigation" / "stage" / f"{zone_name}.png"
+            Path(__rootdir__)
+            / "resources"
+            / "navigation"
+            / "stage"
+            / f"{zone_name}.png"
         )
         if not template_path.exists():
             logger.info(f"stage banner 模板不存在，跳过图片匹配: {template_path}")
@@ -1292,5 +1303,3 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             f"[AUTO] done ok={len(summary['ok'])} failed={len(summary['failed'])}"
         )
         return summary
-
-

@@ -96,7 +96,9 @@ def build_workflow(api_key):
     def tool_node(state):
         messages = state
         last_message = messages[-1]
-        tool_calls = getattr(last_message, "additional_kwargs", {}).get("tool_calls", [])
+        tool_calls = getattr(last_message, "additional_kwargs", {}).get(
+            "tool_calls", []
+        )
         tool_messages = []
         for tool_call in tool_calls:
             tool_name = tool_call["function"]["name"]
@@ -154,10 +156,12 @@ def _run_manual_tool_loop(messages, api_key):
                     tool_name = tool_call["name"]
                     tool_args = tool_call.get("args", {})
                     tool_id = tool_call["id"]
-                result = tool_func_map.get(tool_name, lambda **_: f"未知工具: {tool_name}")(
-                    **tool_args
+                result = tool_func_map.get(
+                    tool_name, lambda **_: f"未知工具: {tool_name}"
+                )(**tool_args)
+                working_messages.append(
+                    ToolMessage(content=result, tool_call_id=tool_id)
                 )
-                working_messages.append(ToolMessage(content=result, tool_call_id=tool_id))
             continue
         content = response.content if hasattr(response, "content") else str(response)
         if content:
@@ -297,7 +301,11 @@ def _llm_summarize_missed_order(api_key, result: dict) -> str:
                         "不要编造不存在的日志。"
                     )
                 ),
-                HumanMessage(content=json.dumps(result.get("analysis_payload", result), ensure_ascii=False)),
+                HumanMessage(
+                    content=json.dumps(
+                        result.get("analysis_payload", result), ensure_ascii=False
+                    )
+                ),
             ]
         )
         content = response.content if hasattr(response, "content") else ""
@@ -329,7 +337,9 @@ def _handle_missed_order_flow(user_input, context, api_key):
                 "已取消漏单分析。你如果只想看原始数据，也可以直接让我查数据库。",
                 {"flow": "missed_order", "step": "closed"},
             )
-        if not (_looks_like_confirm(user_input) or _extract_datetime_string(user_input)):
+        if not (
+            _looks_like_confirm(user_input) or _extract_datetime_string(user_input)
+        ):
             reply = "要继续的话，直接回复“要”或“启用分析”；如果你已经知道时间，也可以直接发漏单时间。"
             return _encode_state(reply, state)
         orders_raw = analyze_missed_order(mode="list_orders")

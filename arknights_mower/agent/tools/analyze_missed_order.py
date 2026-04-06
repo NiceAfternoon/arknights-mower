@@ -146,11 +146,18 @@ def extract_run_order_candidates(log_rows: list[dict]) -> list[dict]:
     seen = set()
     for row in log_rows:
         for source_field in ("task", "message"):
-            extracted = extract_scheduler_tasks(row.get(source_field, ""), row["local_time"])
+            extracted = extract_scheduler_tasks(
+                row.get(source_field, ""), row["local_time"]
+            )
             for task in extracted:
                 if task["task_type"] != "RUN_ORDER":
                     continue
-                key = (task["planned_time"], task["room"], row["local_time"], source_field)
+                key = (
+                    task["planned_time"],
+                    task["room"],
+                    row["local_time"],
+                    source_field,
+                )
                 if key in seen:
                     continue
                 seen.add(key)
@@ -166,7 +173,9 @@ def extract_run_order_candidates(log_rows: list[dict]) -> list[dict]:
     return candidates
 
 
-def select_primary_run_order(target_time: datetime, candidates: list[dict]) -> Optional[dict]:
+def select_primary_run_order(
+    target_time: datetime, candidates: list[dict]
+) -> Optional[dict]:
     eligible = [item for item in candidates if item["planned_at"] <= target_time]
     if not eligible:
         return None
@@ -174,7 +183,9 @@ def select_primary_run_order(target_time: datetime, candidates: list[dict]) -> O
     return eligible[0]
 
 
-def detect_log_gap(log_rows: list[dict], expected_start: datetime, expected_end: datetime) -> dict:
+def detect_log_gap(
+    log_rows: list[dict], expected_start: datetime, expected_end: datetime
+) -> dict:
     if not log_rows:
         return {"has_gap": True, "reason": "window_empty"}
     datetimes = [
@@ -197,7 +208,10 @@ def detect_log_gap(log_rows: list[dict], expected_start: datetime, expected_end:
 
 
 def extract_context_signals(
-    log_rows: list[dict], room: Optional[str], time_b: Optional[datetime], time_c: datetime
+    log_rows: list[dict],
+    room: Optional[str],
+    time_b: Optional[datetime],
+    time_c: datetime,
 ) -> dict:
     direct = []
     indirect = []
@@ -212,7 +226,11 @@ def extract_context_signals(
         if any(keyword in text for keyword in DIRECT_MISS_KEYWORDS):
             direct.append(row)
             keep_indices.update({idx, max(0, idx - 1)})
-        if "TaskTypes.RUN_ORDER" in text or "run_order" in text or (room and room in text):
+        if (
+            "TaskTypes.RUN_ORDER" in text
+            or "run_order" in text
+            or (room and room in text)
+        ):
             indirect.append(row)
             keep_indices.add(idx)
         if any(keyword in text for keyword in CONTEXT_KEYWORDS):
