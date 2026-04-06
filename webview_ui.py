@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import multiprocessing as mp
+from urllib.parse import quote
 
 
 def splash_screen(queue: mp.Queue):
@@ -61,7 +62,20 @@ def splash_screen(queue: mp.Queue):
     root.mainloop()
 
 
-def start_tray(queue: mp.Queue, global_space, port, url):
+def build_window_title(instance_name, port):
+    if instance_name:
+        return f"mower@{port}({instance_name})"
+    return f"mower@{port}"
+
+
+def append_query_param(url, key, value):
+    if not value:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{key}={quote(value)}"
+
+
+def start_tray(queue: mp.Queue, instance_name, port, url):
     from PIL import Image
     from pystray import Icon, Menu, MenuItem
 
@@ -70,7 +84,7 @@ def start_tray(queue: mp.Queue, global_space, port, url):
     logo_path = get_path("@internal/logo.png")
     img = Image.open(logo_path)
 
-    title = f"mower@{port}({global_space})" if global_space else f"mower@{port}"
+    title = build_window_title(instance_name, port)
 
     def open_browser():
         import webbrowser
@@ -107,7 +121,7 @@ def start_tray(queue: mp.Queue, global_space, port, url):
     icon.run()
 
 
-def webview_window(child_conn, global_space, host, port, url, tray):
+def webview_window(child_conn, global_space, instance_name, host, port, url, tray):
     import sys
     from threading import Thread
 
@@ -134,7 +148,7 @@ def webview_window(child_conn, global_space, host, port, url, tray):
         height = h
 
     window = webview.create_window(
-        f"arknights-mower {__version__} (http://{host}:{port})",
+        f"arknights-mower {__version__} - {build_window_title(instance_name, port)}",
         url,
         text_select=True,
         confirm_close=not tray,
@@ -196,8 +210,11 @@ if __name__ == "__main__":
 
     from arknights_mower.utils import path
 
-    if len(sys.argv) == 2:
+    instance_name = ""
+    if len(sys.argv) >= 2:
         path.global_space = sys.argv[1]
+    if len(sys.argv) >= 3:
+        instance_name = sys.argv[2]
 
     from arknights_mower.utils import config
 
@@ -224,6 +241,7 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{port}"
     if token:
         url += f"?token={token}"
+    url = append_query_param(url, "instance_name", instance_name)
 
     splash_queue.put({"type": "text", "data": "加载Flask依赖"})
 
@@ -247,13 +265,14 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{port}"
     if token:
         url += f"?token={token}"
+    url = append_query_param(url, "instance_name", instance_name)
 
     if tray:
         splash_queue.put({"type": "text", "data": "加载托盘图标"})
         tray_queue = mp.Queue()
         tray_process = mp.Process(
             target=start_tray,
-            args=(tray_queue, path.global_space, port, url),
+            args=(tray_queue, instance_name or path.global_space, port, url),
             daemon=True,
         )
         tray_process.start()
@@ -263,7 +282,7 @@ if __name__ == "__main__":
     config.parent_conn, child_conn = mp.Pipe()
     config.webview_process = mp.Process(
         target=webview_window,
-        args=(child_conn, path.global_space, host, port, url, tray),
+        args=(child_conn, path.global_space, instance_name, host, port, url, tray),
         daemon=True,
     )
     config.webview_process.start()
@@ -285,6 +304,7 @@ if __name__ == "__main__":
                         args=(
                             child_conn,
                             path.global_space,
+                            instance_name,
                             host,
                             port,
                             url,
