@@ -7671,6 +7671,34 @@
         "MATERIAL",
         700186
     ],
+    "p_char_4224_turdus": [
+        "p_char_4224_turdus",
+        "p_char_4224_turdus",
+        "乌啾的信物",
+        "MATERIAL",
+        700187
+    ],
+    "乌啾的信物": [
+        "p_char_4224_turdus",
+        "p_char_4224_turdus",
+        "乌啾的信物",
+        "MATERIAL",
+        700187
+    ],
+    "p_char_4223_botany": [
+        "p_char_4223_botany",
+        "p_char_4223_botany",
+        "伯塔尼的信物",
+        "MATERIAL",
+        700188
+    ],
+    "伯塔尼的信物": [
+        "p_char_4223_botany",
+        "p_char_4223_botany",
+        "伯塔尼的信物",
+        "MATERIAL",
+        700188
+    ],
     "p_char_103_angel": [
         "p_char_103_angel",
         "p_char_103_angel",
@@ -9435,6 +9463,20 @@
         "MATERIAL",
         600126
     ],
+    "p_char_1051_headb2": [
+        "p_char_1051_headb2",
+        "p_char_1051_headb2",
+        "怒潮凛冬的信物",
+        "MATERIAL",
+        600127
+    ],
+    "怒潮凛冬的信物": [
+        "p_char_1051_headb2",
+        "p_char_1051_headb2",
+        "怒潮凛冬的信物",
+        "MATERIAL",
+        600127
+    ],
     "class_p_char_123_fang": [
         "class_p_char_123_fang",
         "class_p_char_123_fang",
@@ -10288,6 +10330,20 @@
         "维荻的中坚信物",
         "MATERIAL",
         1400053
+    ],
+    "class_p_char_4130_luton": [
+        "class_p_char_4130_luton",
+        "class_p_char_4130_luton",
+        "露托的中坚信物",
+        "MATERIAL",
+        1400054
+    ],
+    "露托的中坚信物": [
+        "class_p_char_4130_luton",
+        "class_p_char_4130_luton",
+        "露托的中坚信物",
+        "MATERIAL",
+        1400054
     ],
     "class_p_char_128_plosis": [
         "class_p_char_128_plosis",
@@ -11143,6 +11199,104 @@
         "MATERIAL",
         1300071
     ],
+    "class_p_char_476_blkngt": [
+        "class_p_char_476_blkngt",
+        "class_p_char_476_blkngt",
+        "夜半的中坚信物",
+        "MATERIAL",
+        1300072
+    ],
+    "夜半的中坚信物": [
+        "class_p_char_476_blkngt",
+        "class_p_char_476_blkngt",
+        "夜半的中坚信物",
+        "MATERIAL",
+        1300072
+    ],
+    "class_p_char_492_quercu": [
+        "class_p_char_492_quercu",
+        "class_p_char_492_quercu",
+        "夏栎的中坚信物",
+        "MATERIAL",
+        1300073
+    ],
+    "夏栎的中坚信物": [
+        "class_p_char_492_quercu",
+        "class_p_char_492_quercu",
+        "夏栎的中坚信物",
+        "MATERIAL",
+        1300073
+    ],
+    "class_p_char_4016_kazema": [
+        "class_p_char_4016_kazema",
+        "class_p_char_4016_kazema",
+        "风丸的中坚信物",
+        "MATERIAL",
+        1300074
+    ],
+    "风丸的中坚信物": [
+        "class_p_char_4016_kazema",
+        "class_p_char_4016_kazema",
+        "风丸的中坚信物",
+        "MATERIAL",
+        1300074
+    ],
+    "class_p_char_4040_rockr": [
+        "class_p_char_4040_rockr",
+        "class_p_char_4040_rockr",
+        "洛洛的中坚信物",
+        "MATERIAL",
+        1300075
+    ],
+    "洛洛的中坚信物": [
+        "class_p_char_4040_rockr",
+        "class_p_char_4040_rockr",
+        "洛洛的中坚信物",
+        "MATERIAL",
+        1300075
+    ],
+    "class_p_char_433_windft": [
+        "class_p_char_433_windft",
+        "class_p_char_433_windft",
+        "掠风的中坚信物",
+        "MATERIAL",
+        1300076
+    ],
+    "掠风的中坚信物": [
+        "class_p_char_433_windft",
+        "class_p_char_433_windft",
+        "掠风的中坚信物",
+        "MATERIAL",
+        1300076
+    ],
+    "class_p_char_1024_hbisc2": [
+        "class_p_char_1024_hbisc2",
+        "class_p_char_1024_hbisc2",
+        "濯尘芙蓉的中坚信物",
+        "MATERIAL",
+        1300077
+    ],
+    "濯尘芙蓉的中坚信物": [
+        "class_p_char_1024_hbisc2",
+        "class_p_char_1024_hbisc2",
+        "濯尘芙蓉的中坚信物",
+        "MATERIAL",
+        1300077
+    ],
+    "class_p_char_1027_greyy2": [
+        "class_p_char_1027_greyy2",
+        "class_p_char_1027_greyy2",
+        "承曦格雷伊的中坚信物",
+        "MATERIAL",
+        1300078
+    ],
+    "承曦格雷伊的中坚信物": [
+        "class_p_char_1027_greyy2",
+        "class_p_char_1027_greyy2",
+        "承曦格雷伊的中坚信物",
+        "MATERIAL",
+        1300078
+    ],
     "class_p_char_103_angel": [
         "class_p_char_103_angel",
         "class_p_char_103_angel",
@@ -11717,6 +11871,104 @@
         "MATERIAL",
         1200042
     ],
+    "class_p_char_322_lmlee": [
+        "class_p_char_322_lmlee",
+        "class_p_char_322_lmlee",
+        "老鲤的中坚信物",
+        "MATERIAL",
+        1200043
+    ],
+    "老鲤的中坚信物": [
+        "class_p_char_322_lmlee",
+        "class_p_char_322_lmlee",
+        "老鲤的中坚信物",
+        "MATERIAL",
+        1200043
+    ],
+    "class_p_char_377_gdglow": [
+        "class_p_char_377_gdglow",
+        "class_p_char_377_gdglow",
+        "澄闪的中坚信物",
+        "MATERIAL",
+        1200044
+    ],
+    "澄闪的中坚信物": [
+        "class_p_char_377_gdglow",
+        "class_p_char_377_gdglow",
+        "澄闪的中坚信物",
+        "MATERIAL",
+        1200044
+    ],
+    "class_p_char_300_phenxi": [
+        "class_p_char_300_phenxi",
+        "class_p_char_300_phenxi",
+        "菲亚梅塔的中坚信物",
+        "MATERIAL",
+        1200045
+    ],
+    "菲亚梅塔的中坚信物": [
+        "class_p_char_300_phenxi",
+        "class_p_char_300_phenxi",
+        "菲亚梅塔的中坚信物",
+        "MATERIAL",
+        1200045
+    ],
+    "class_p_char_4039_horn": [
+        "class_p_char_4039_horn",
+        "class_p_char_4039_horn",
+        "号角的中坚信物",
+        "MATERIAL",
+        1200046
+    ],
+    "号角的中坚信物": [
+        "class_p_char_4039_horn",
+        "class_p_char_4039_horn",
+        "号角的中坚信物",
+        "MATERIAL",
+        1200046
+    ],
+    "class_p_char_4009_irene": [
+        "class_p_char_4009_irene",
+        "class_p_char_4009_irene",
+        "艾丽妮的中坚信物",
+        "MATERIAL",
+        1200047
+    ],
+    "艾丽妮的中坚信物": [
+        "class_p_char_4009_irene",
+        "class_p_char_4009_irene",
+        "艾丽妮的中坚信物",
+        "MATERIAL",
+        1200047
+    ],
+    "class_p_char_4046_ebnhlz": [
+        "class_p_char_4046_ebnhlz",
+        "class_p_char_4046_ebnhlz",
+        "黑键的中坚信物",
+        "MATERIAL",
+        1200048
+    ],
+    "黑键的中坚信物": [
+        "class_p_char_4046_ebnhlz",
+        "class_p_char_4046_ebnhlz",
+        "黑键的中坚信物",
+        "MATERIAL",
+        1200048
+    ],
+    "class_p_char_4048_doroth": [
+        "class_p_char_4048_doroth",
+        "class_p_char_4048_doroth",
+        "多萝西的中坚信物",
+        "MATERIAL",
+        1200049
+    ],
+    "多萝西的中坚信物": [
+        "class_p_char_4048_doroth",
+        "class_p_char_4048_doroth",
+        "多萝西的中坚信物",
+        "MATERIAL",
+        1200049
+    ],
     "classic_normal_ticket": [
         "classic_normal_ticket",
         "classic_normal_ticket",
@@ -11828,5 +12080,19 @@
         "未爆的哑弹",
         "NORMAL",
         10604
+    ],
+    "SINGLE_72_0_1_GACHA": [
+        "SINGLE_72_0_1_GACHA",
+        "SINGLE_72_0_1_GACHA",
+        "辟路之人寻访凭证",
+        "NORMAL",
+        40003
+    ],
+    "辟路之人寻访凭证": [
+        "SINGLE_72_0_1_GACHA",
+        "SINGLE_72_0_1_GACHA",
+        "辟路之人寻访凭证",
+        "NORMAL",
+        40003
     ]
 }
