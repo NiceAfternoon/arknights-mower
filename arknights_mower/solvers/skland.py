@@ -14,8 +14,8 @@ from arknights_mower.utils.skland import (
     header,
     header_login,
     log,
-    sign_url,
     sign_endfield_url,
+    sign_url,
     token_password_url,
 )
 
@@ -33,7 +33,7 @@ class SKLand:
 
     def start(self):
         for item in config.conf.skland_info:
-            if not(item.arknights_isCheck or item.endfield_isCheck):
+            if not (item.arknights_isCheck or item.endfield_isCheck):
                 continue
             if self.has_record(item.account):
                 continue
@@ -44,9 +44,9 @@ class SKLand:
                 if i["gameId"] == 1 and item.arknights_isCheck:
                     if not i["uid"]:
                         continue
-                    if not(item.sign_in_bilibili) and i["channelName"] == "bilibili服":
+                    if not (item.sign_in_bilibili) and i["channelName"] == "bilibili服":
                         continue
-                    if not(item.sign_in_official) and i["channelName"] == "官服":
+                    if not (item.sign_in_official) and i["channelName"] == "官服":
                         continue
                     body = {"gameId": 1, "uid": i.get("uid")}
                     resp = requests.post(
@@ -59,9 +59,9 @@ class SKLand:
                     if resp["code"] != 0:
                         self.reward.append(
                             {
-                                "nickName": item.account, 
-                                "game": "明日方舟{}".format(i.get("channelName")), 
-                                "reward": resp.get("message")
+                                "nickName": item.account,
+                                "game": "明日方舟{}".format(i.get("channelName")),
+                                "reward": resp.get("message"),
                             }
                         )
                         logger.info(f"{i.get('nickName')}：{resp.get('message')}")
@@ -73,7 +73,9 @@ class SKLand:
                             {
                                 "nickName": item.account,
                                 "game": "明日方舟{}".format(i.get("channelName")),
-                                "reward": "{}×{}".format(res["name"], j.get("count") or 1),
+                                "reward": "{}×{}".format(
+                                    res["name"], j.get("count") or 1
+                                ),
                             }
                         )
                         logger.info(
@@ -84,14 +86,32 @@ class SKLand:
                     for j in i["roles"]:
                         if not i["roles"]:
                             continue
-                        if not(item.sign_in_endfield_bilibili) and i["channelName"] == "bilibili服":
+                        if (
+                            not (item.sign_in_endfield_bilibili)
+                            and i["channelName"] == "bilibili服"
+                        ):
                             continue
-                        if not(item.sign_in_endfield_official) and i["channelName"] == "官服":
+                        if (
+                            not (item.sign_in_endfield_official)
+                            and i["channelName"] == "官服"
+                        ):
                             continue
-                        body_endfield = {"gameId": 3, "roleId": j.get("roleId"), "serverId": j.get("serverId")}
-                        headers_endfield = get_sign_header(sign_endfield_url, "post", body_endfield, self.sign_token, header)
+                        body_endfield = {
+                            "gameId": 3,
+                            "roleId": j.get("roleId"),
+                            "serverId": j.get("serverId"),
+                        }
+                        headers_endfield = get_sign_header(
+                            sign_endfield_url,
+                            "post",
+                            body_endfield,
+                            self.sign_token,
+                            header,
+                        )
                         headers_endfield["Content-Type"] = "application/json"
-                        headers_endfield["sk-game-role"] = f"3_{j.get('roleId')}_{j.get('serverId')}"
+                        headers_endfield["sk-game-role"] = (
+                            f"3_{j.get('roleId')}_{j.get('serverId')}"
+                        )
                         headers_endfield["referer"] = "https://game.skland.com/"
                         headers_endfield["origin"] = "https://game.skland.com/"
 
@@ -103,9 +123,9 @@ class SKLand:
                         if resp["code"] != 0:
                             self.reward.append(
                                 {
-                                    "nickname": item.account, 
-                                    "game": "终末地", 
-                                    "reward": resp.get("message")
+                                    "nickname": item.account,
+                                    "game": "终末地",
+                                    "reward": resp.get("message"),
                                 }
                             )
                             logger.info(f"{j.get('nickname')}：{resp.get('message')}")
@@ -119,7 +139,9 @@ class SKLand:
                                 {
                                     "nickname": item.account,
                                     "game": "终末地",
-                                    "reward": "{}×{}".format(res["name"], res.get("count") or 1)
+                                    "reward": "{}×{}".format(
+                                        res["name"], res.get("count") or 1
+                                    ),
                                 }
                             )
                             logger.info(
@@ -157,7 +179,7 @@ class SKLand:
                 res_df.to_csv(self.record_path, mode="a", header=False, encoding="gbk")
         except Exception as e:
             self.test_writecsv = False
-            logger.exception(e)       
+            logger.exception(e)
         return True
 
     def has_record(self, phone: str):
@@ -175,16 +197,22 @@ class SKLand:
             sign_endfield_bilibili = False
 
             for item in df.iloc:
-                if (item[0] == datetime.datetime.now().strftime("%Y/%m/%d")) and (item[1].astype(str) == phone):
+                if (item[0] == datetime.datetime.now().strftime("%Y/%m/%d")) and (
+                    item[1].astype(str) == phone
+                ):
                     for game in config.conf.skland_info:
                         if (phone == game.account) and not game.sign_in_official:
                             sign_arknights_official = True
                         if (phone == game.account) and not game.sign_in_bilibili:
                             sign_arknights_bilbili = True
-                        if (phone == game.account) and not game.sign_in_endfield_official:
+                        if (
+                            phone == game.account
+                        ) and not game.sign_in_endfield_official:
                             sign_endfield_official = True
-                        if (phone == game.account) and not game.sign_in_endfield_bilibili:
-                            sign_endfield_bilibili = True                                                     
+                        if (
+                            phone == game.account
+                        ) and not game.sign_in_endfield_bilibili:
+                            sign_endfield_bilibili = True
                     if item[2] == "明日方舟官服":
                         sign_arknights_official = True
                     if item[2] == "明日方舟bilibili服":
@@ -192,7 +220,12 @@ class SKLand:
                     if item[2] == "终末地":
                         sign_endfield_official = True
                         sign_endfield_bilibili = True
-                    if sign_arknights_official and sign_arknights_bilbili and sign_endfield_official and sign_endfield_bilibili:
+                    if (
+                        sign_arknights_official
+                        and sign_arknights_bilbili
+                        and sign_endfield_official
+                        and sign_endfield_bilibili
+                    ):
                         logger.info(f"{phone}今天签到过了")
                         return True
             return False
@@ -220,7 +253,8 @@ class SKLand:
                             for j in i["roles"]:
                                 res.append(
                                     "{}连接成功".format(
-                                        j["nickname"] + "(终末地{})".format(i["channelName"])
+                                        j["nickname"]
+                                        + "(终末地{})".format(i["channelName"])
                                     )
                                 )
                 except Exception as e:
@@ -229,24 +263,28 @@ class SKLand:
                     res.append(msg)
         return res
 
-
     # 用于测试签到
     def test_sign(self):
         res = []
         try:
             for item in config.conf.skland_info:
-                if (not item.account or not item.password) and (item.arknights_isCheck or item.endfield_isCheck):
-                    res.append(
-                        "账号{}配置不完整，请检查".format(item.account)
-                    )
+                if (not item.account or not item.password) and (
+                    item.arknights_isCheck or item.endfield_isCheck
+                ):
+                    res.append("账号{}配置不完整，请检查".format(item.account))
                     return res
             if bool(self.start()):
                 for info in self.reward:
                     res.append(
-                        "{}{}签到成功".format(info.get("nickname") or info.get("nickName"), info.get("game")) 
+                        "{}{}签到成功".format(
+                            info.get("nickname") or info.get("nickName"),
+                            info.get("game"),
+                        )
                     )
                 if not self.test_writecsv:
-                    res.append("签到数据写入失败，可能是根目录下的tmp文件夹不存在或tmp/skland.csv被占用")
+                    res.append(
+                        "签到数据写入失败，可能是根目录下的tmp文件夹不存在或tmp/skland.csv被占用"
+                    )
                     self.test_writecsv = True
                 return res
         except Exception as e:

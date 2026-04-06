@@ -268,6 +268,7 @@ class Arknights数据处理器:
             return clean_zone_name(
                 _pick_text(info.get("name"), info.get("id"), activity_id)
             )
+
         for 键, _ in 还未结束的非常驻关卡.items():
             关卡代码 = self.关卡表["stages"][键]["code"]
             if 键.endswith("#f#"):
@@ -429,10 +430,7 @@ class Arknights数据处理器:
                         "stageType": 值["stageType"],
                     }
                 )
-            elif (
-                值["zoneId"] in zoneToActivity
-                and 值["stageType"] == "ACTIVITY"
-            ):
+            elif 值["zoneId"] in zoneToActivity and 值["stageType"] == "ACTIVITY":
                 activity_id = zoneToActivity[值["zoneId"]]
                 activity_name = get_activity_name(activity_id)
                 if not activity_name and activity_id in ssData:
@@ -922,7 +920,7 @@ class Arknights数据处理器:
                     干员技能字典["span"] = len(干员技能字典["child_skill"])
                 skill_key += 1
             干员技能列表.append(干员技能字典.copy())
-        干员技能列表 = sorted(干员技能列表, key=lambda x: (-x["key"]))
+        干员技能列表 = sorted(干员技能列表, key=lambda x: -x["key"])
         # print(干员技能列表)
         with open(
             "./ui/src/pages/basement_skill/skill.json", "w", encoding="utf-8"
