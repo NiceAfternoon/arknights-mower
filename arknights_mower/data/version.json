@@ -5,15 +5,15 @@
     "endTime": 1775591999
   },
   "gacha": {
-    "name": "自火中归还",
-    "time": 1774598400,
-    "endTime": 1775764799
+    "name": "辟路之人",
+    "time": 1775516400,
+    "endTime": 1776715199
   },
   "last_updated": "26-04-03-04-44-31_c79db9",
-  "res_version": "2026.0407.1646",
+  "res_version": "2026.0407.1724",
   "files": {
     "arknights_mower/data/stage_data_full.json": "950de9c24417a17200341f873a462233",
-    "arknights_mower/data/version.json": "bdb566b8f965bb9024090654e0d1424c",
+    "arknights_mower/data/version.json": "c18f465ae41538d4fa9f9208dbb9d263",
     "arknights_mower/data/agent_profession.json": "9826df89f41780afd007dcc90b963cb3",
     "arknights_mower/data/workshop_formula.json": "2ca15a36209457a2af5c8815abbaa53f",
     "arknights_mower/data/recruit_result.json": "dcd4200165bcf9826321b5da88ca784d",
@@ -28,7 +28,7 @@
     "arknights_mower/models/operator_room.model": "bec6f92ad163ad6510d329aeeaf48a16",
     "arknights_mower/models/recruit_result.pkl": "8063d400a3f509916854bf63299a28c3",
     "arknights_mower/models/operator_train.model": "33807072557c68c1829b22828fbed425",
-    "arknights_mower/models/recruit.pkl": "97dc4a846f29e9f60fc23e45f20b92b5",
+    "arknights_mower/models/recruit.pkl": "ac15a7027055015e0a21ad710b0c969d",
     "arknights_mower/models/operator_select.model": "90c833374f4e1986d8486c9fd0c51ac4",
     "arknights_mower/fonts/SourceHanSansCN-Medium.otf": "4aa8af7246b887f39283be95d96de859",
     "arknights_mower/fonts/README.md": "44ffd1c5202c3116c8301707b0de3383",
