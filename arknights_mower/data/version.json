@@ -10,15 +10,16 @@
     "endTime": 1775764799
   },
   "last_updated": "26-04-03-04-44-31_c79db9",
-  "res_version": "2026.0407.0737",
+  "res_version": "2026.0407.1316",
   "files": {
     "arknights_mower/data/stage_data_full.json": "950de9c24417a17200341f873a462233",
-    "arknights_mower/data/version.json": "24cfb959a1e1593978a8b20113417481",
+    "arknights_mower/data/version.json": "9e318570d1846a5d6b9ca84d68c1cb46",
     "arknights_mower/data/agent_profession.json": "9826df89f41780afd007dcc90b963cb3",
     "arknights_mower/data/workshop_formula.json": "2ca15a36209457a2af5c8815abbaa53f",
     "arknights_mower/data/recruit_result.json": "dcd4200165bcf9826321b5da88ca784d",
     "arknights_mower/data/key_mapping.json": "f0657c53fe776d49554ebe143097ea13",
     "arknights_mower/data/agent.json": "aafb78fc52b2698b9bda8c58c7752d1f",
+    "arknights_mower/data/stage_data.json": "fbc016b2f2c148fccf5452d3d878e8e0",
     "arknights_mower/data/stage_order.json": "3c46308d3d3ed970f32f210491db6579",
     "arknights_mower/data/recruit.json": "8c91f57c4be69843db99adfc8206f41a",
     "arknights_mower/models/avatar.pkl": "700cc480ec519c57996f3c68b7260b9b",
@@ -27,7 +28,7 @@
     "arknights_mower/models/operator_room.model": "bec6f92ad163ad6510d329aeeaf48a16",
     "arknights_mower/models/recruit_result.pkl": "8063d400a3f509916854bf63299a28c3",
     "arknights_mower/models/operator_train.model": "33807072557c68c1829b22828fbed425",
-    "arknights_mower/models/recruit.pkl": "1c465e8a7f28d1b813a4263794eb734a",
+    "arknights_mower/models/recruit.pkl": "2cc49dd6a172434fc790bef1ba0a5bf2",
     "arknights_mower/models/operator_select.model": "90c833374f4e1986d8486c9fd0c51ac4",
     "arknights_mower/fonts/SourceHanSansCN-Medium.otf": "4aa8af7246b887f39283be95d96de859",
     "arknights_mower/fonts/README.md": "44ffd1c5202c3116c8301707b0de3383",
@@ -1815,6 +1816,6 @@
     "ui/public/avatar/诗怀雅.webp": "f4629f1b810d4f7099f8b60899219552",
     "ui/src/pages/basement_skill/skill.json": "5a72e1badcb0251039d5407414698d67",
     "ui/src/pages/basement_skill/buffer.json": "254cc61f2e3ea8f9529396e80f8b97fd",
-    "ui/src/pages/stage_data/event_data.json": "bcae070387a4573f94306b1b7d191b93"
+    "ui/src/pages/stage_data/event_data.json": "8b3c49c945da114685f2cd0d4fdc5c6d"
   }
 }
