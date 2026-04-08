@@ -34,6 +34,8 @@ mimetypes.add_type("application/javascript", ".js")
 app = Flask(__name__, static_folder="ui/dist", static_url_path="")
 sock = Sock(app)
 CORS(app)
+if token := config.conf.webview.token:
+    app.token = token
 
 mower_thread = None
 log_lines = []
@@ -659,6 +661,14 @@ def test_skland():
     from arknights_mower.solvers.skland import SKLand
 
     return SKLand().test_connect()
+
+
+@app.route("/check-skland-sign")
+@require_token
+def test_skland_sign():
+    from arknights_mower.solvers.skland import SKLand
+
+    return SKLand().test_sign()
 
 
 @app.route("/task", methods=["GET", "POST"])

@@ -51,13 +51,14 @@ class Api:
 
         is_win = platform.system() == "Windows"
         frozen = getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+        instance = self.instances[idx]
         if is_win and frozen:
-            Popen(["mower.exe", self.instances[idx]["path"]])
+            Popen(["mower.exe", instance["path"], instance["name"]])
         else:
             if is_win:
-                Popen(["python.exe", "webview_ui.py", self.instances[idx]["path"]])
+                Popen(["python.exe", "webview_ui.py", instance["path"], instance["name"]])
             else:
-                Popen(["python3", "webview_ui.py", self.instances[idx]["path"]])
+                Popen(["python3", "webview_ui.py", instance["path"], instance["name"]])
 
 
 def jump_to_index(window):
