@@ -335,181 +335,6 @@
         "NORMAL",
         10205
     ],
-    "LMTGS_COIN_601": [
-        "LMTGS_COIN_601",
-        "LMTGS_COIN_601",
-        "寻访数据契约",
-        "NORMAL",
-        10301
-    ],
-    "寻访数据契约": [
-        "LMTGS_COIN_7001",
-        "LMTGS_COIN_7001",
-        "寻访数据契约",
-        "NORMAL",
-        10324
-    ],
-    "LMTGS_COIN_903": [
-        "LMTGS_COIN_903",
-        "LMTGS_COIN_903",
-        "寻访数据契约",
-        "NORMAL",
-        10302
-    ],
-    "LMTGS_COIN_1401": [
-        "LMTGS_COIN_1401",
-        "LMTGS_COIN_1401",
-        "寻访数据契约",
-        "NORMAL",
-        10303
-    ],
-    "LMTGS_COIN_1601": [
-        "LMTGS_COIN_1601",
-        "LMTGS_COIN_1601",
-        "寻访数据契约",
-        "NORMAL",
-        10304
-    ],
-    "LMTGS_COIN_1803": [
-        "LMTGS_COIN_1803",
-        "LMTGS_COIN_1803",
-        "寻访数据契约",
-        "NORMAL",
-        10305
-    ],
-    "LMTGS_COIN_2101": [
-        "LMTGS_COIN_2101",
-        "LMTGS_COIN_2101",
-        "寻访数据契约",
-        "NORMAL",
-        10306
-    ],
-    "LMTGS_COIN_2301": [
-        "LMTGS_COIN_2301",
-        "LMTGS_COIN_2301",
-        "寻访数据契约",
-        "NORMAL",
-        10307
-    ],
-    "LMTGS_COIN_2501": [
-        "LMTGS_COIN_2501",
-        "LMTGS_COIN_2501",
-        "寻访数据契约",
-        "NORMAL",
-        10308
-    ],
-    "LMTGS_COIN_2701": [
-        "LMTGS_COIN_2701",
-        "LMTGS_COIN_2701",
-        "寻访数据契约",
-        "NORMAL",
-        10309
-    ],
-    "LMTGS_COIN_3001": [
-        "LMTGS_COIN_3001",
-        "LMTGS_COIN_3001",
-        "寻访数据契约",
-        "NORMAL",
-        10310
-    ],
-    "LMTGS_COIN_3301": [
-        "LMTGS_COIN_3301",
-        "LMTGS_COIN_3301",
-        "寻访数据契约",
-        "NORMAL",
-        10311
-    ],
-    "LMTGS_COIN_3501": [
-        "LMTGS_COIN_3501",
-        "LMTGS_COIN_3501",
-        "寻访数据契约",
-        "NORMAL",
-        10312
-    ],
-    "LMTGS_COIN_3801": [
-        "LMTGS_COIN_3801",
-        "LMTGS_COIN_3801",
-        "寻访数据契约",
-        "NORMAL",
-        10313
-    ],
-    "LMTGS_COIN_4101": [
-        "LMTGS_COIN_4101",
-        "LMTGS_COIN_4101",
-        "寻访数据契约",
-        "NORMAL",
-        10314
-    ],
-    "LMTGS_COIN_4401": [
-        "LMTGS_COIN_4401",
-        "LMTGS_COIN_4401",
-        "寻访数据契约",
-        "NORMAL",
-        10315
-    ],
-    "LMTGS_COIN_4701": [
-        "LMTGS_COIN_4701",
-        "LMTGS_COIN_4701",
-        "寻访数据契约",
-        "NORMAL",
-        10316
-    ],
-    "LMTGS_COIN_5001": [
-        "LMTGS_COIN_5001",
-        "LMTGS_COIN_5001",
-        "寻访数据契约",
-        "NORMAL",
-        10317
-    ],
-    "LMTGS_COIN_5301": [
-        "LMTGS_COIN_5301",
-        "LMTGS_COIN_5301",
-        "寻访数据契约",
-        "NORMAL",
-        10318
-    ],
-    "LMTGS_COIN_5601": [
-        "LMTGS_COIN_5601",
-        "LMTGS_COIN_5601",
-        "寻访数据契约",
-        "NORMAL",
-        10319
-    ],
-    "LMTGS_COIN_5801": [
-        "LMTGS_COIN_5801",
-        "LMTGS_COIN_5801",
-        "寻访数据契约",
-        "NORMAL",
-        10320
-    ],
-    "LMTGS_COIN_6101": [
-        "LMTGS_COIN_6101",
-        "LMTGS_COIN_6101",
-        "寻访数据契约",
-        "NORMAL",
-        10321
-    ],
-    "LMTGS_COIN_6401": [
-        "LMTGS_COIN_6401",
-        "LMTGS_COIN_6401",
-        "寻访数据契约",
-        "NORMAL",
-        10322
-    ],
-    "LMTGS_COIN_6701": [
-        "LMTGS_COIN_6701",
-        "LMTGS_COIN_6701",
-        "寻访数据契约",
-        "NORMAL",
-        10323
-    ],
-    "LMTGS_COIN_7001": [
-        "LMTGS_COIN_7001",
-        "LMTGS_COIN_7001",
-        "寻访数据契约",
-        "NORMAL",
-        10324
-    ],
     "EPGS_COIN": [
         "EPGS_COIN",
         "EPGS_COIN",
@@ -817,391 +642,6 @@
         "十连寻访凭证",
         "NORMAL",
         40001
-    ],
-    "LIMITED_TKT_GACHA_10_903": [
-        "LIMITED_TKT_GACHA_10_903",
-        "LIMITED_TKT_GACHA_10_903",
-        "苏醒纪念寻访凭证",
-        "NORMAL",
-        40002
-    ],
-    "苏醒纪念寻访凭证": [
-        "LIMITED_TKT_GACHA_10_903",
-        "LIMITED_TKT_GACHA_10_903",
-        "苏醒纪念寻访凭证",
-        "NORMAL",
-        40002
-    ],
-    "LIMITED_TKT_GACHA_10_1401": [
-        "LIMITED_TKT_GACHA_10_1401",
-        "LIMITED_TKT_GACHA_10_1401",
-        "只为铭记寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "只为铭记寻访凭证": [
-        "LIMITED_TKT_GACHA_10_1401",
-        "LIMITED_TKT_GACHA_10_1401",
-        "只为铭记寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_1601": [
-        "LIMITED_TKT_GACHA_10_1601",
-        "LIMITED_TKT_GACHA_10_1601",
-        "日落潮来寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "日落潮来寻访凭证": [
-        "LIMITED_TKT_GACHA_10_1601",
-        "LIMITED_TKT_GACHA_10_1601",
-        "日落潮来寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LINKAGE_TKT_GACHA_10_1701": [
-        "LINKAGE_TKT_GACHA_10_1701",
-        "LINKAGE_TKT_GACHA_10_1701",
-        "特勤专家寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "特勤专家寻访凭证": [
-        "LINKAGE_TKT_GACHA_10_4801",
-        "LINKAGE_TKT_GACHA_10_4801",
-        "特勤专家寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_1803": [
-        "LIMITED_TKT_GACHA_10_1803",
-        "LIMITED_TKT_GACHA_10_1803",
-        "幽海歌谣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "幽海歌谣寻访凭证": [
-        "LIMITED_TKT_GACHA_10_1803",
-        "LIMITED_TKT_GACHA_10_1803",
-        "幽海歌谣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_2101": [
-        "LIMITED_TKT_GACHA_10_2101",
-        "LIMITED_TKT_GACHA_10_2101",
-        "乘风破浪寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "乘风破浪寻访凭证": [
-        "LIMITED_TKT_GACHA_10_2101",
-        "LIMITED_TKT_GACHA_10_2101",
-        "乘风破浪寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_2301": [
-        "LIMITED_TKT_GACHA_10_2301",
-        "LIMITED_TKT_GACHA_10_2301",
-        "唤曦炽焰寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "唤曦炽焰寻访凭证": [
-        "LIMITED_TKT_GACHA_10_2301",
-        "LIMITED_TKT_GACHA_10_2301",
-        "唤曦炽焰寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_2501": [
-        "LIMITED_TKT_GACHA_10_2501",
-        "LIMITED_TKT_GACHA_10_2501",
-        "对酒当歌寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "对酒当歌寻访凭证": [
-        "LIMITED_TKT_GACHA_10_2501",
-        "LIMITED_TKT_GACHA_10_2501",
-        "对酒当歌寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_2701": [
-        "LIMITED_TKT_GACHA_10_2701",
-        "LIMITED_TKT_GACHA_10_2701",
-        "晨雾灯塔寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "晨雾灯塔寻访凭证": [
-        "LIMITED_TKT_GACHA_10_2701",
-        "LIMITED_TKT_GACHA_10_2701",
-        "晨雾灯塔寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_3001": [
-        "LIMITED_TKT_GACHA_10_3001",
-        "LIMITED_TKT_GACHA_10_3001",
-        "淬火成诗寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "淬火成诗寻访凭证": [
-        "LIMITED_TKT_GACHA_10_3001",
-        "LIMITED_TKT_GACHA_10_3001",
-        "淬火成诗寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_3301": [
-        "LIMITED_TKT_GACHA_10_3301",
-        "LIMITED_TKT_GACHA_10_3301",
-        "归狼踏影寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "归狼踏影寻访凭证": [
-        "LIMITED_TKT_GACHA_10_3301",
-        "LIMITED_TKT_GACHA_10_3301",
-        "归狼踏影寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_3501": [
-        "LIMITED_TKT_GACHA_10_3501",
-        "LIMITED_TKT_GACHA_10_3501",
-        "长风万里寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "长风万里寻访凭证": [
-        "LIMITED_TKT_GACHA_10_3501",
-        "LIMITED_TKT_GACHA_10_3501",
-        "长风万里寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LINKAGE_TKT_GACHA_10_3601": [
-        "LINKAGE_TKT_GACHA_10_3601",
-        "LINKAGE_TKT_GACHA_10_3601",
-        "指引明路寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "指引明路寻访凭证": [
-        "LINKAGE_TKT_GACHA_10_3601",
-        "LINKAGE_TKT_GACHA_10_3601",
-        "指引明路寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_3801": [
-        "LIMITED_TKT_GACHA_10_3801",
-        "LIMITED_TKT_GACHA_10_3801",
-        "未来序曲寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "未来序曲寻访凭证": [
-        "LIMITED_TKT_GACHA_10_3801",
-        "LIMITED_TKT_GACHA_10_3801",
-        "未来序曲寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_4101": [
-        "LIMITED_TKT_GACHA_10_4101",
-        "LIMITED_TKT_GACHA_10_4101",
-        "云过天空寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "云过天空寻访凭证": [
-        "LIMITED_TKT_GACHA_10_4101",
-        "LIMITED_TKT_GACHA_10_4101",
-        "云过天空寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_4401": [
-        "LIMITED_TKT_GACHA_10_4401",
-        "LIMITED_TKT_GACHA_10_4401",
-        "烛照弦鸣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "烛照弦鸣寻访凭证": [
-        "LIMITED_TKT_GACHA_10_4401",
-        "LIMITED_TKT_GACHA_10_4401",
-        "烛照弦鸣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_4701": [
-        "LIMITED_TKT_GACHA_10_4701",
-        "LIMITED_TKT_GACHA_10_4701",
-        "时和岁丰寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "时和岁丰寻访凭证": [
-        "LIMITED_TKT_GACHA_10_4701",
-        "LIMITED_TKT_GACHA_10_4701",
-        "时和岁丰寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LINKAGE_TKT_GACHA_10_4801": [
-        "LINKAGE_TKT_GACHA_10_4801",
-        "LINKAGE_TKT_GACHA_10_4801",
-        "特勤专家寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_5001": [
-        "LIMITED_TKT_GACHA_10_5001",
-        "LIMITED_TKT_GACHA_10_5001",
-        "残夜厝薪寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "残夜厝薪寻访凭证": [
-        "LIMITED_TKT_GACHA_10_5001",
-        "LIMITED_TKT_GACHA_10_5001",
-        "残夜厝薪寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_5301": [
-        "LIMITED_TKT_GACHA_10_5301",
-        "LIMITED_TKT_GACHA_10_5301",
-        "璀璨闪耀寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "璀璨闪耀寻访凭证": [
-        "LIMITED_TKT_GACHA_10_5301",
-        "LIMITED_TKT_GACHA_10_5301",
-        "璀璨闪耀寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LINKAGE_TKT_GACHA_10_5401": [
-        "LINKAGE_TKT_GACHA_10_5401",
-        "LINKAGE_TKT_GACHA_10_5401",
-        "好好吃饭寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "好好吃饭寻访凭证": [
-        "LINKAGE_TKT_GACHA_10_5401",
-        "LINKAGE_TKT_GACHA_10_5401",
-        "好好吃饭寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_5601": [
-        "LIMITED_TKT_GACHA_10_5601",
-        "LIMITED_TKT_GACHA_10_5601",
-        "荒芜探戈寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "荒芜探戈寻访凭证": [
-        "LIMITED_TKT_GACHA_10_5601",
-        "LIMITED_TKT_GACHA_10_5601",
-        "荒芜探戈寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_5801": [
-        "LIMITED_TKT_GACHA_10_5801",
-        "LIMITED_TKT_GACHA_10_5801",
-        "欢宴良宵寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "欢宴良宵寻访凭证": [
-        "LIMITED_TKT_GACHA_10_5801",
-        "LIMITED_TKT_GACHA_10_5801",
-        "欢宴良宵寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_6101": [
-        "LIMITED_TKT_GACHA_10_6101",
-        "LIMITED_TKT_GACHA_10_6101",
-        "信徒标兵寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "信徒标兵寻访凭证": [
-        "LIMITED_TKT_GACHA_10_6101",
-        "LIMITED_TKT_GACHA_10_6101",
-        "信徒标兵寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_6401": [
-        "LIMITED_TKT_GACHA_10_6401",
-        "LIMITED_TKT_GACHA_10_6401",
-        "浪客行歌寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "浪客行歌寻访凭证": [
-        "LIMITED_TKT_GACHA_10_6401",
-        "LIMITED_TKT_GACHA_10_6401",
-        "浪客行歌寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LINKAGE_TKT_GACHA_10_6501": [
-        "LINKAGE_TKT_GACHA_10_6501",
-        "LINKAGE_TKT_GACHA_10_6501",
-        "坠梦歌谣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "坠梦歌谣寻访凭证": [
-        "LINKAGE_TKT_GACHA_10_6501",
-        "LINKAGE_TKT_GACHA_10_6501",
-        "坠梦歌谣寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_6701": [
-        "LIMITED_TKT_GACHA_10_6701",
-        "LIMITED_TKT_GACHA_10_6701",
-        "融雪流痕寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "融雪流痕寻访凭证": [
-        "LIMITED_TKT_GACHA_10_6701",
-        "LIMITED_TKT_GACHA_10_6701",
-        "融雪流痕寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "LIMITED_TKT_GACHA_10_7001": [
-        "LIMITED_TKT_GACHA_10_7001",
-        "LIMITED_TKT_GACHA_10_7001",
-        "载月明归寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "载月明归寻访凭证": [
-        "LIMITED_TKT_GACHA_10_7001",
-        "LIMITED_TKT_GACHA_10_7001",
-        "载月明归寻访凭证",
-        "NORMAL",
-        40003
     ],
     "7003": [
         "7003",
@@ -8231,6 +7671,34 @@
         "MATERIAL",
         700186
     ],
+    "p_char_4224_turdus": [
+        "p_char_4224_turdus",
+        "p_char_4224_turdus",
+        "乌啾的信物",
+        "MATERIAL",
+        700187
+    ],
+    "乌啾的信物": [
+        "p_char_4224_turdus",
+        "p_char_4224_turdus",
+        "乌啾的信物",
+        "MATERIAL",
+        700187
+    ],
+    "p_char_4223_botany": [
+        "p_char_4223_botany",
+        "p_char_4223_botany",
+        "伯塔尼的信物",
+        "MATERIAL",
+        700188
+    ],
+    "伯塔尼的信物": [
+        "p_char_4223_botany",
+        "p_char_4223_botany",
+        "伯塔尼的信物",
+        "MATERIAL",
+        700188
+    ],
     "p_char_103_angel": [
         "p_char_103_angel",
         "p_char_103_angel",
@@ -9995,6 +9463,20 @@
         "MATERIAL",
         600126
     ],
+    "p_char_1051_headb2": [
+        "p_char_1051_headb2",
+        "p_char_1051_headb2",
+        "怒潮凛冬的信物",
+        "MATERIAL",
+        600127
+    ],
+    "怒潮凛冬的信物": [
+        "p_char_1051_headb2",
+        "p_char_1051_headb2",
+        "怒潮凛冬的信物",
+        "MATERIAL",
+        600127
+    ],
     "class_p_char_123_fang": [
         "class_p_char_123_fang",
         "class_p_char_123_fang",
@@ -10848,6 +10330,20 @@
         "维荻的中坚信物",
         "MATERIAL",
         1400053
+    ],
+    "class_p_char_4130_luton": [
+        "class_p_char_4130_luton",
+        "class_p_char_4130_luton",
+        "露托的中坚信物",
+        "MATERIAL",
+        1400054
+    ],
+    "露托的中坚信物": [
+        "class_p_char_4130_luton",
+        "class_p_char_4130_luton",
+        "露托的中坚信物",
+        "MATERIAL",
+        1400054
     ],
     "class_p_char_128_plosis": [
         "class_p_char_128_plosis",
@@ -11703,6 +11199,104 @@
         "MATERIAL",
         1300071
     ],
+    "class_p_char_476_blkngt": [
+        "class_p_char_476_blkngt",
+        "class_p_char_476_blkngt",
+        "夜半的中坚信物",
+        "MATERIAL",
+        1300072
+    ],
+    "夜半的中坚信物": [
+        "class_p_char_476_blkngt",
+        "class_p_char_476_blkngt",
+        "夜半的中坚信物",
+        "MATERIAL",
+        1300072
+    ],
+    "class_p_char_492_quercu": [
+        "class_p_char_492_quercu",
+        "class_p_char_492_quercu",
+        "夏栎的中坚信物",
+        "MATERIAL",
+        1300073
+    ],
+    "夏栎的中坚信物": [
+        "class_p_char_492_quercu",
+        "class_p_char_492_quercu",
+        "夏栎的中坚信物",
+        "MATERIAL",
+        1300073
+    ],
+    "class_p_char_4016_kazema": [
+        "class_p_char_4016_kazema",
+        "class_p_char_4016_kazema",
+        "风丸的中坚信物",
+        "MATERIAL",
+        1300074
+    ],
+    "风丸的中坚信物": [
+        "class_p_char_4016_kazema",
+        "class_p_char_4016_kazema",
+        "风丸的中坚信物",
+        "MATERIAL",
+        1300074
+    ],
+    "class_p_char_4040_rockr": [
+        "class_p_char_4040_rockr",
+        "class_p_char_4040_rockr",
+        "洛洛的中坚信物",
+        "MATERIAL",
+        1300075
+    ],
+    "洛洛的中坚信物": [
+        "class_p_char_4040_rockr",
+        "class_p_char_4040_rockr",
+        "洛洛的中坚信物",
+        "MATERIAL",
+        1300075
+    ],
+    "class_p_char_433_windft": [
+        "class_p_char_433_windft",
+        "class_p_char_433_windft",
+        "掠风的中坚信物",
+        "MATERIAL",
+        1300076
+    ],
+    "掠风的中坚信物": [
+        "class_p_char_433_windft",
+        "class_p_char_433_windft",
+        "掠风的中坚信物",
+        "MATERIAL",
+        1300076
+    ],
+    "class_p_char_1024_hbisc2": [
+        "class_p_char_1024_hbisc2",
+        "class_p_char_1024_hbisc2",
+        "濯尘芙蓉的中坚信物",
+        "MATERIAL",
+        1300077
+    ],
+    "濯尘芙蓉的中坚信物": [
+        "class_p_char_1024_hbisc2",
+        "class_p_char_1024_hbisc2",
+        "濯尘芙蓉的中坚信物",
+        "MATERIAL",
+        1300077
+    ],
+    "class_p_char_1027_greyy2": [
+        "class_p_char_1027_greyy2",
+        "class_p_char_1027_greyy2",
+        "承曦格雷伊的中坚信物",
+        "MATERIAL",
+        1300078
+    ],
+    "承曦格雷伊的中坚信物": [
+        "class_p_char_1027_greyy2",
+        "class_p_char_1027_greyy2",
+        "承曦格雷伊的中坚信物",
+        "MATERIAL",
+        1300078
+    ],
     "class_p_char_103_angel": [
         "class_p_char_103_angel",
         "class_p_char_103_angel",
@@ -12277,19 +11871,103 @@
         "MATERIAL",
         1200042
     ],
-    "LINKAGE_TKT_GACHA_10_3602": [
-        "LINKAGE_TKT_GACHA_10_3602",
-        "LINKAGE_TKT_GACHA_10_3602",
-        "合作限定十连寻访凭证",
-        "NORMAL",
-        40003
+    "class_p_char_322_lmlee": [
+        "class_p_char_322_lmlee",
+        "class_p_char_322_lmlee",
+        "老鲤的中坚信物",
+        "MATERIAL",
+        1200043
     ],
-    "合作限定十连寻访凭证": [
-        "LINKAGE_TKT_GACHA_10_3602",
-        "LINKAGE_TKT_GACHA_10_3602",
-        "合作限定十连寻访凭证",
-        "NORMAL",
-        40003
+    "老鲤的中坚信物": [
+        "class_p_char_322_lmlee",
+        "class_p_char_322_lmlee",
+        "老鲤的中坚信物",
+        "MATERIAL",
+        1200043
+    ],
+    "class_p_char_377_gdglow": [
+        "class_p_char_377_gdglow",
+        "class_p_char_377_gdglow",
+        "澄闪的中坚信物",
+        "MATERIAL",
+        1200044
+    ],
+    "澄闪的中坚信物": [
+        "class_p_char_377_gdglow",
+        "class_p_char_377_gdglow",
+        "澄闪的中坚信物",
+        "MATERIAL",
+        1200044
+    ],
+    "class_p_char_300_phenxi": [
+        "class_p_char_300_phenxi",
+        "class_p_char_300_phenxi",
+        "菲亚梅塔的中坚信物",
+        "MATERIAL",
+        1200045
+    ],
+    "菲亚梅塔的中坚信物": [
+        "class_p_char_300_phenxi",
+        "class_p_char_300_phenxi",
+        "菲亚梅塔的中坚信物",
+        "MATERIAL",
+        1200045
+    ],
+    "class_p_char_4039_horn": [
+        "class_p_char_4039_horn",
+        "class_p_char_4039_horn",
+        "号角的中坚信物",
+        "MATERIAL",
+        1200046
+    ],
+    "号角的中坚信物": [
+        "class_p_char_4039_horn",
+        "class_p_char_4039_horn",
+        "号角的中坚信物",
+        "MATERIAL",
+        1200046
+    ],
+    "class_p_char_4009_irene": [
+        "class_p_char_4009_irene",
+        "class_p_char_4009_irene",
+        "艾丽妮的中坚信物",
+        "MATERIAL",
+        1200047
+    ],
+    "艾丽妮的中坚信物": [
+        "class_p_char_4009_irene",
+        "class_p_char_4009_irene",
+        "艾丽妮的中坚信物",
+        "MATERIAL",
+        1200047
+    ],
+    "class_p_char_4046_ebnhlz": [
+        "class_p_char_4046_ebnhlz",
+        "class_p_char_4046_ebnhlz",
+        "黑键的中坚信物",
+        "MATERIAL",
+        1200048
+    ],
+    "黑键的中坚信物": [
+        "class_p_char_4046_ebnhlz",
+        "class_p_char_4046_ebnhlz",
+        "黑键的中坚信物",
+        "MATERIAL",
+        1200048
+    ],
+    "class_p_char_4048_doroth": [
+        "class_p_char_4048_doroth",
+        "class_p_char_4048_doroth",
+        "多萝西的中坚信物",
+        "MATERIAL",
+        1200049
+    ],
+    "多萝西的中坚信物": [
+        "class_p_char_4048_doroth",
+        "class_p_char_4048_doroth",
+        "多萝西的中坚信物",
+        "MATERIAL",
+        1200049
     ],
     "classic_normal_ticket": [
         "classic_normal_ticket",
@@ -12347,48 +12025,6 @@
         "CONSUME",
         30201
     ],
-    "SINGLE_49_0_1_GACHA": [
-        "SINGLE_49_0_1_GACHA",
-        "SINGLE_49_0_1_GACHA",
-        "如死亦终寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "如死亦终寻访凭证": [
-        "SINGLE_49_0_1_GACHA",
-        "SINGLE_49_0_1_GACHA",
-        "如死亦终寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "SINGLE_55_0_1_GACHA": [
-        "SINGLE_55_0_1_GACHA",
-        "SINGLE_55_0_1_GACHA",
-        "未致蒙尘寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "未致蒙尘寻访凭证": [
-        "SINGLE_55_0_1_GACHA",
-        "SINGLE_55_0_1_GACHA",
-        "未致蒙尘寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "SINGLE_60_0_1_GACHA": [
-        "SINGLE_60_0_1_GACHA",
-        "SINGLE_60_0_1_GACHA",
-        "指令重构寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "指令重构寻访凭证": [
-        "SINGLE_60_0_1_GACHA",
-        "SINGLE_60_0_1_GACHA",
-        "指令重构寻访凭证",
-        "NORMAL",
-        40003
-    ],
     "main16_spitem_1": [
         "main16_spitem_1",
         "main16_fadeoriginium",
@@ -12445,17 +12081,17 @@
         "NORMAL",
         10604
     ],
-    "SINGLE_66_0_1_GACHA": [
-        "SINGLE_66_0_1_GACHA",
-        "SINGLE_66_0_1_GACHA",
-        "空白频段寻访凭证",
+    "SINGLE_72_0_1_GACHA": [
+        "SINGLE_72_0_1_GACHA",
+        "SINGLE_72_0_1_GACHA",
+        "辟路之人寻访凭证",
         "NORMAL",
         40003
     ],
-    "空白频段寻访凭证": [
-        "SINGLE_66_0_1_GACHA",
-        "SINGLE_66_0_1_GACHA",
-        "空白频段寻访凭证",
+    "辟路之人寻访凭证": [
+        "SINGLE_72_0_1_GACHA",
+        "SINGLE_72_0_1_GACHA",
+        "辟路之人寻访凭证",
         "NORMAL",
         40003
     ]

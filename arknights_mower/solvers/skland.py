@@ -16,6 +16,7 @@ from arknights_mower.utils.skland import (
     log,
     sign_endfield_url,
     sign_url,
+    sign_url,
     token_password_url,
 )
 
@@ -34,7 +35,7 @@ class SKLand:
     def start(self):
 
         for item in config.conf.skland_info:
-            if not (item.arknights_isCheck or item.endfield_isCheck):
+            if not  (item.arknights_isCheck or item.endfield_isCheck):
                 continue
             if self.has_record(item.account):
                 continue
@@ -47,9 +48,9 @@ class SKLand:
                 if i["gameId"] == 1 and item.arknights_isCheck:
                     if not i.get("uid"):
                         continue
-                    if not (item.sign_in_bilibili) and i["channelName"] == "bilibili服":
+                    if not  (item.sign_in_bilibili) and i["channelName"] == "bilibili服":
                         continue
-                    if not (item.sign_in_official) and i["channelName"] == "官服":
+                    if not  (item.sign_in_official) and i["channelName"] == "官服":
                         continue
                     body = {"gameId": 1, "uid": i.get("uid")}
                     resp = requests.post(
@@ -65,6 +66,9 @@ class SKLand:
                                 "nickName": item.account,
                                 "game": "明日方舟{}".format(i.get("channelName")),
                                 "reward": resp.get("message"),
+                                "nickName": item.account,
+                                "game": "明日方舟{}".format(i.get("channelName")),
+                                "reward": resp.get("message"),
                             }
                         )
                         logger.info(f"{i.get('nickName')}：{resp.get('message')}")
@@ -77,7 +81,9 @@ class SKLand:
                                 "nickName": item.account,
                                 "game": "明日方舟{}".format(i.get("channelName")),
                                 "reward": "{}×{}".format(
+                                    
                                     res["name"], j.get("count") or 1
+                                
                                 ),
                             }
                         )
@@ -90,30 +96,48 @@ class SKLand:
                         if not j.get("roleId"):
                             continue
                         if (
-                            not (item.sign_in_endfield_bilibili)
+                            (
+                            not  (item.sign_in_endfield_bilibili)
+                           
                             and i["channelName"] == "bilibili服"
+                        )
                         ):
                             continue
                         if (
-                            not (item.sign_in_endfield_official)
+                            (
+                            not  (item.sign_in_endfield_official)
+                           
                             and i["channelName"] == "官服"
+                        )
                         ):
                             continue
                         body_endfield = {
+                            
                             "gameId": 3,
+                           
                             "roleId": j.get("roleId"),
+                           
                             "serverId": j.get("serverId"),
+                        ,
                         }
                         headers_endfield = get_sign_header(
+                            
                             sign_endfield_url,
+                           
                             "post",
+                           
                             body_endfield,
+                           
                             self.sign_token,
+                           
                             header,
+                        ,
                         )
                         headers_endfield["Content-Type"] = "application/json"
                         headers_endfield["sk-game-role"] = (
+                            (
                             f"3_{j.get('roleId')}_{j.get('serverId')}"
+                        )
                         )
                         headers_endfield["referer"] = "https://game.skland.com/"
                         headers_endfield["origin"] = "https://game.skland.com/"
@@ -183,6 +207,7 @@ class SKLand:
         except Exception as e:
             self.test_writecsv = False
             logger.exception(e)
+            logger.exception(e)
         return True
 
     def has_record(self, phone: str):
@@ -201,7 +226,9 @@ class SKLand:
 
             for item in df.iloc:
                 if (item[0] == datetime.datetime.now().strftime("%Y/%m/%d")) and (
+                    
                     item[1].astype(str) == phone
+                
                 ):
                     for game in config.conf.skland_info:
                         if (phone == game.account) and not game.sign_in_official:
@@ -209,9 +236,15 @@ class SKLand:
                         if (phone == game.account) and not game.sign_in_bilibili:
                             sign_arknights_bilbili = True
                         if (
+                            
                             phone == game.account
+                        
                         ) and not game.sign_in_endfield_official:
                             sign_endfield_official = True
+                        if (
+                            phone == game.account
+                        ) and not game.sign_in_endfield_bilibili:
+                            sign_endfield_bilibili = True
                         if (
                             phone == game.account
                         ) and not game.sign_in_endfield_bilibili:
@@ -225,10 +258,15 @@ class SKLand:
                     if item[2] == "终末地bilibili服":
                         sign_endfield_bilibili = True
                     if (
+                        (
                         sign_arknights_official
+                       
                         and sign_arknights_bilbili
+                       
                         and sign_endfield_official
+                       
                         and sign_endfield_bilibili
+                    )
                     ):
                         logger.info(f"{phone}今天签到过了")
                         return True
@@ -281,6 +319,10 @@ class SKLand:
                             info.get("nickname") or info.get("nickName"),
                             info.get("game"),
                         )
+                        "{}{}签到成功".format(
+                            info.get("nickname") or info.get("nickName"),
+                            info.get("game"),
+                        )
                     )
                 if not self.test_writecsv:
                     res.append("签到数据写入失败")
@@ -292,3 +334,4 @@ class SKLand:
             res.append(msg)
         res.append("勾选的账号今天均已签到~")
         return res
+

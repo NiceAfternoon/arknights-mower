@@ -334,7 +334,7 @@ const watermarkData = ref('mower')
 
 const config_store = useConfigStore()
 const { load_config, load_shop, load_item } = config_store
-const { start_automatically, theme, webview } = storeToRefs(config_store)
+const { simulator, start_automatically, theme, webview } = storeToRefs(config_store)
 
 const plan_store = usePlanStore()
 const { operators } = storeToRefs(plan_store)
@@ -384,9 +384,16 @@ onMounted(async () => {
 
   const params = new URLSearchParams(document.location.search)
   const token = params.get('token')
+  const instanceName = params.get('instance_name')
   provide('token', token)
   axios.defaults.headers.common['token'] = token
   await Promise.all([load_config(), load_shop(), load_item(), load_operators(), get_running()])
+
+  document.title = instanceName
+    ? `${instanceName} - arknights-mower`
+    : simulator.value?.name
+      ? `${simulator.value.name} - arknights-mower`
+      : 'arknights-mower'
 
   await load_plan()
 

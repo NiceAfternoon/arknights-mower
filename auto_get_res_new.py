@@ -431,16 +431,12 @@ class Arknights数据处理器:
                 )
             elif (
                 值["zoneId"] in zoneToActivity
-                and 值["stageType"] == "ACTIVITY"
+                and zoneToActivity[值["zoneId"]] in ssData
             ):
-                activity_id = zoneToActivity[值["zoneId"]]
-                activity_name = get_activity_name(activity_id)
-                if not activity_name and activity_id in ssData:
-                    activity_name = _pick_text(ssData[activity_id].get("name"))
                 print(
                     值["zoneId"],
-                    activity_id,
-                    activity_name,
+                    zoneToActivity[值["zoneId"]],
+                    ssData[zoneToActivity[值["zoneId"]]],
                 )
                 所有关卡.append(
                     {
@@ -451,8 +447,10 @@ class Arknights数据处理器:
                         "apCost": 关卡AP,
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": clean_zone_name(activity_name),
-                        "subTitle": get_zone_name(关卡ZONE)
+                        "zoneNameSecond": ssData[zoneToActivity[值["zoneId"]]]["name"]
+                        if "name" in ssData[zoneToActivity[值["zoneId"]]]
+                        else "",
+                        "subTitle": zones[关卡ZONE]["zoneNameSecond"]
                         if 关卡ZONE in zones
                         else "",
                         "stageType": 值["stageType"],
