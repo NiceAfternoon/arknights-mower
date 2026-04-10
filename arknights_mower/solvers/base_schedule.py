@@ -23,6 +23,9 @@ from arknights_mower.solvers.credit import CreditSolver
 from arknights_mower.solvers.cultivate_depot import cultivate as cultivateDepotSolver
 from arknights_mower.solvers.depotREC import depotREC as DepotSolver
 from arknights_mower.solvers.mail import MailSolver
+from arknights_mower.solvers.mission import MissionSolver
+from arknights_mower.solvers.navigation import NavigationSolver
+from arknights_mower.solvers.operation import OperationSolver
 from arknights_mower.solvers.reclamation_algorithm import ReclamationAlgorithm
 from arknights_mower.solvers.record import (
     get_inventory_counts,
@@ -314,8 +317,15 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def handle_error(self, force=False):
         if self.scene() == Scene.UNKNOWN:
-            self.device.exit()
-            self.check_current_focus()
+            for retry in range(5):
+                logger.warning(f"当前场景无法识别，尝试返回纠正，第{retry + 1}次")
+                self.back()
+                if self.scene() != Scene.UNKNOWN:
+                    break
+            else:
+                logger.warning("连续返回 5 次后仍无法识别场景，退出游戏重进")
+                self.device.exit()
+                self.check_current_focus()
         if self.error or force:
             # 如果没有任何时间小于当前时间的任务才生成空任务
             if self.find_next_task(datetime.now()) is None:
@@ -1128,11 +1138,23 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         item_list = set(item_list)
                         self.tap(tab_pos[tab], interval=0.2)
                         logger.info(f"开始检索{tab}的材料")
+                        logger.debug(
+                            f"[workshop-scan] tab={tab} initial_candidates={sorted(item_list)}"
+                        )
                         last_scaned = []
+                        scan_round = 0
                         while True and item_list:
                             scanned_items = self.item_list()
                             current_scan = [item for item, pos, valid in scanned_items]
+                            logger.debug(
+                                f"[workshop-scan] tab={tab} round={scan_round} "
+                                f"current_scan={current_scan} remaining_candidates={sorted(item_list)}"
+                            )
                             if current_scan == last_scaned:
+                                logger.debug(
+                                    f"[workshop-scan] tab={tab} reached_bottom "
+                                    f"round={scan_round} last_scan={last_scaned}"
+                                )
                                 logger.info("已经到底了")
                                 break
                             last_scaned = current_scan
@@ -1168,6 +1190,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                     else:
                                         logger.info(f"检测到{item}不满足条件，跳过")
                                         item_list.remove(item)
+                            scan_round += 1
                             self.swipe_noinertia(
                                 (0.5 * self.recog.w, 0.9 * self.recog.h),
                                 (0, -700),
@@ -3921,6 +3944,100 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
             self.last_execution["recruit"] = datetime.now()
             logger.info(f"下一次公开招募执行时间在{config.conf.recruit_gap}小时之后")
+
+    def mower_stage_plan(self) -> list[str]:
+        plan = config.conf.maa_weekly_plan[get_server_weekday()]
+        stages = []
+        for stage in plan.stage:
+            if not isinstance(stage, str):
+                continue
+            stage = stage.strip()
+            if not stage:
+                continue
+            stages.append(stage)
+        return stages
+
+    def mower_plan_solver(self, one_time=False):
+        try:
+            conf = config.conf
+            if (
+                not one_time
+                and self.last_execution["maa"] is not None
+                and (
+                    delta := (
+                        timedelta(hours=conf.maa_gap)
+                        + self.last_execution["maa"]
+                        - datetime.now()
+                    )
+                )
+                > timedelta()
+            ):
+                logger.info(
+                    f"{format_time(delta.total_seconds())} later start local daily tasks"
+                )
+            else:
+                stages = self.mower_stage_plan()
+                logger.info(f"local operation plan: {stages}")
+                self.back_to_index()
+                stop_time = (
+                    datetime.now() + timedelta(minutes=5)
+                    if one_time
+                    else self.tasks[0].time
+                )
+                for stage in stages:
+                    if stop_time - datetime.now() < timedelta(minutes=5):
+                        logger.info("skip local operation because time is not enough")
+                        break
+                    if not NavigationSolver(self.device, self.recog).run(stage):
+                        logger.warning(f"navigation failed, skip stage: {stage}")
+                        continue
+                    if OperationSolver(self.device, self.recog).run(stop_time):
+                        logger.info("sanity drained, stop local operation")
+                        break
+                MissionSolver(self.device, self.recog).run()
+                self.last_execution["maa"] = datetime.now()
+                logger.info(
+                    f"record local task execution time: {self.last_execution['maa']}"
+                )
+
+            remaining_time = (self.tasks[0].time - datetime.now()).total_seconds()
+            self.handle_idle_action(remaining_time)
+            subject = (
+                f"休息 {format_time(remaining_time)}，到"
+                f"{self.tasks[0].time.strftime('%H:%M:%S')}开始工作"
+            )
+            context = f"下一次任务:{self.tasks[0].plan if len(self.tasks[0].plan) != 0 else '空任务' if self.tasks[0].type == '' else self.tasks[0].type}"
+            logger.info(context)
+            logger.info(subject)
+            self.task_count += 1
+            logger.info(f"第{self.task_count}次任务结束")
+            timezone_offset = config.conf.timezone_offset
+            body = task_template.render(
+                tasks=[obj.format(timezone_offset) for obj in self.tasks],
+                base_scheduler=self,
+            )
+            send_message(
+                body,
+                f"休息 {format_time(remaining_time)}，到{self.tasks[0].format(timezone_offset).time.strftime('%H:%M:%S')}开始工作",
+            )
+            if remaining_time > 0:
+                self.recog.last_scene = None
+                self.sleep(remaining_time)
+                self.check_current_focus()
+        except MowerExit:
+            raise
+        except Exception as e:
+            save_exception(e)
+            logger.exception(e)
+            self.device.exit()
+            send_message(str(e), "mower local operation error", level="ERROR")
+            remaining_time = (self.tasks[0].time - datetime.now()).total_seconds()
+            if remaining_time > 0:
+                logger.info(
+                    f"休息 {format_time(remaining_time)}，到{self.tasks[0].time.strftime('%H:%M:%S')}开始工作"
+                )
+                self.sleep(remaining_time)
+            self.check_current_focus()
 
     def mail_plan_solver(self):
         if config.conf.check_mail_enable:
