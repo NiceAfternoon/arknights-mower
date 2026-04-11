@@ -12,6 +12,10 @@ except ImportError:
     END = "__end__"
     MessageGraph = None
 
+from arknights_mower.agent.missed_order import (
+    format_missed_order_list,
+    summarize_missed_order_result,
+)
 from arknights_mower.agent.tools.analyze_missed_order import (
     analyze_missed_order,
     analyze_missed_order_tool_def,
@@ -180,7 +184,7 @@ def _build_ai_intro():
         "工具返回的结果如果是 HTML 表格，请直接返回 HTML 字符串，不要转换为 Markdown 或其他格式。"
         "优先检查用户问题是否属于常见FAQ，如果匹配FAQ则直接回复修复方法。工具名称是 get_faq。"
         "当用户问漏单原因时，优先启用 analyze_missed_order，不要自己拼 SQL 推理根因。"
-        "如果数据库没有漏单订单，就要求用户直接提供漏单发生时间。"
+        "如果数据库没有漏单日志，就要求用户直接提供漏单发生时间。"
         "常见数据库查询问法：'查询最近10条订单'、'查询某干员的上下班记录'、'查询错误信息包含漏单的任务日志'。"
         "常见问题上报问法：'我要反馈一个bug'、'提交无法启动的问题'。"
         "你可能需要多轮调用不同工具才能得到最终分析结果。"
@@ -252,79 +256,25 @@ def _extract_index_selection(text: str) -> Optional[int]:
     return int(match.group(1))
 
 
-def _format_order_list(orders: list[dict]) -> str:
-    lines = ["找到这些漏单订单，请回复编号或直接回复时间："]
-    for item in orders:
-        lines.append(
-            f"{item['index']}. {item['local_time']} 漏单 {item.get('price', '')}"
-        )
-    return "<br/>".join(lines)
-
-
-def _fallback_missed_order_summary(result: dict) -> str:
-    causes = result.get("candidate_causes") or []
-    cause_text = "；".join(
-        f"{item['type']}({item['reason']})" for item in causes[:3] if item.get("reason")
+def _log_missed_order_flow(step: str, **details):
+    logger.debug(
+        "[missed_order_flow] %s",
+        json.dumps({"step": step, **details}, ensure_ascii=False, default=str),
     )
-    room = result.get("candidate_room") or "未确定"
-    time_a = result.get("time_a") or "未找到"
-    time_b = result.get("time_b") or "未找到"
-    time_c = result.get("time_c") or result.get("target_time") or "未找到"
-    summary = (
-        f"最可能原因：{cause_text or '证据不足'}<br/>"
-        f"A/B/C 时间线：A={time_a}，B={time_b}，C={time_c}<br/>"
-        f"房间：{room}<br/>"
-    )
-    if result.get("direct_miss_signals"):
-        summary += "已证实：日志里直接出现了漏单相关提示。<br/>"
-    elif result.get("log_gap", {}).get("has_gap"):
-        summary += "推测：时间B附近存在明显日志断档，软件可能没在正常运行。<br/>"
-    else:
-        summary += "推测：根据 RUN_ORDER 任务链和日志上下文做出的判断。<br/>"
-    return summary
-
-
-def _llm_summarize_missed_order(api_key, result: dict) -> str:
-    if not result.get("candidate_room") and not result.get("direct_miss_signals"):
-        return _fallback_missed_order_summary(result)
-    try:
-        llm = build_llm(api_key, with_tools=False)
-        response = llm.invoke(
-            [
-                SystemMessage(
-                    content=(
-                        "你是 Mower 漏单分析助手。"
-                        "请根据给你的 JSON 数据，用简洁中文输出："
-                        "1. 最可能原因；2. A/B/C 时间线；3. 房间；4. 关键证据；5. 建议。"
-                        "必须明确区分“已证实”和“推测”。"
-                        "如果 room/time_b 为 null，就明确说没有锁定到同房间跑单任务，不要猜房间。"
-                        "不要编造不存在的日志。"
-                    )
-                ),
-                HumanMessage(
-                    content=json.dumps(
-                        result.get("analysis_payload", result), ensure_ascii=False
-                    )
-                ),
-            ]
-        )
-        content = response.content if hasattr(response, "content") else ""
-        return content or _fallback_missed_order_summary(result)
-    except Exception as e:
-        logger.exception(e)
-        return _fallback_missed_order_summary(result)
 
 
 def _handle_missed_order_flow(user_input, context, api_key):
+    _log_missed_order_flow("input_received", user_input=user_input)
     state = _latest_miss_state(context)
     if state and state.get("step") == "closed":
         state = None
     if state is None:
         if not _is_missed_order_intent(user_input):
             return None
+        _log_missed_order_flow("intent_detected", action="await_confirm")
         reply = (
             "检测到你在问漏单。要不要启用漏单分析？"
-            "我会先查漏单订单；如果数据库里没有漏单订单，再让你直接输入漏单时间。"
+            "我会先查 log 表里的漏单日志；如果数据库里没有漏单日志，再让你直接输入漏单时间。"
         )
         return _encode_state(
             reply,
@@ -333,6 +283,7 @@ def _handle_missed_order_flow(user_input, context, api_key):
 
     if state.get("step") == "await_confirm":
         if _looks_like_cancel(user_input):
+            _log_missed_order_flow("confirm_cancelled")
             return _encode_state(
                 "已取消漏单分析。你如果只想看原始数据，也可以直接让我查数据库。",
                 {"flow": "missed_order", "step": "closed"},
@@ -340,56 +291,110 @@ def _handle_missed_order_flow(user_input, context, api_key):
         if not (
             _looks_like_confirm(user_input) or _extract_datetime_string(user_input)
         ):
+            _log_missed_order_flow("confirm_not_understood", user_input=user_input)
             reply = "要继续的话，直接回复“要”或“启用分析”；如果你已经知道时间，也可以直接发漏单时间。"
             return _encode_state(reply, state)
+        _log_missed_order_flow("list_orders_requested")
         orders_raw = analyze_missed_order(mode="list_orders")
         orders_result = json.loads(orders_raw)
         orders = orders_result.get("orders", [])
+        _log_missed_order_flow("list_orders_loaded", count=len(orders))
         if orders:
-            reply = _format_order_list(orders)
+            reply = format_missed_order_list(orders)
             next_state = {
                 "flow": "missed_order",
                 "step": "await_target",
                 "orders": orders,
             }
             return _encode_state(reply, next_state)
-        reply = "数据库里没有漏单订单记录，请直接回复漏单发生时间，格式如 2026-02-24 11:06:16。"
+        _log_missed_order_flow("list_orders_empty", action="await_target_time")
+        reply = "数据库里没有漏单日志记录，请直接回复漏单发生时间，格式如 2026-02-24 11:06:16。"
         next_state = {"flow": "missed_order", "step": "await_target", "orders": []}
         return _encode_state(reply, next_state)
 
     if state.get("step") == "await_target":
         if _looks_like_cancel(user_input):
+            _log_missed_order_flow("target_cancelled")
             return _encode_state(
                 "已取消漏单分析。",
                 {"flow": "missed_order", "step": "closed"},
             )
         dt_text = _extract_datetime_string(user_input)
         selected_time = None
+        selected_signal_type = None
+        selected_log_event_time = None
+        selected_log_event_ts = None
+        selected_room = None
         if dt_text:
             selected_time = dt_text
             mode = "analyze_by_time"
+            _log_missed_order_flow(
+                "target_selected_by_time",
+                selected_time=selected_time,
+                mode=mode,
+            )
         else:
             selected_index = _extract_index_selection(user_input)
             orders = state.get("orders", [])
             if selected_index and 1 <= selected_index <= len(orders):
-                selected_time = orders[selected_index - 1]["local_time"]
+                selected_order = orders[selected_index - 1]
+                selected_time = (
+                    selected_order.get("task_time")
+                    or selected_order.get("current_task_time")
+                    or selected_order["local_time"]
+                )
+                selected_signal_type = selected_order.get("signal_type")
+                selected_log_event_time = selected_order.get("local_time")
+                selected_log_event_ts = selected_order.get("event_utc_time")
+                selected_room = selected_order.get("room")
                 mode = "analyze_by_order"
+                _log_missed_order_flow(
+                    "target_selected_by_index",
+                    selected_index=selected_index,
+                    selected_time=selected_time,
+                    selected_signal_type=selected_signal_type,
+                    selected_log_event_time=selected_log_event_time,
+                    selected_log_event_ts=selected_log_event_ts,
+                    selected_room=selected_room,
+                    mode=mode,
+                )
             else:
+                _log_missed_order_flow(
+                    "target_not_understood",
+                    user_input=user_input,
+                    orders_count=len(orders),
+                )
                 reply = "我没识别到具体是哪一单。请回复编号，或者直接回复完整时间，例如 2026-02-24 11:06:16。"
                 return _encode_state(reply, state)
         result_raw = analyze_missed_order(
             mode=mode,
             order_time=selected_time if mode == "analyze_by_order" else None,
             event_time=selected_time if mode == "analyze_by_time" else None,
+            signal_type=selected_signal_type if mode == "analyze_by_order" else None,
+            log_event_time=selected_log_event_time
+            if mode == "analyze_by_order"
+            else None,
+            log_event_ts=selected_log_event_ts if mode == "analyze_by_order" else None,
+            room=selected_room if mode == "analyze_by_order" else None,
         )
         result = json.loads(result_raw)
+        _log_missed_order_flow(
+            "analysis_completed",
+            mode=mode,
+            selected_time=selected_time,
+            has_error=bool(result.get("error")),
+            candidate_room=result.get("candidate_room"),
+            target_task_time=result.get("target_task_time"),
+            trace_count=len(result.get("analysis_trace") or []),
+        )
         if result.get("error"):
             return _encode_state(
                 f"漏单分析失败：{result['error']}",
                 {"flow": "missed_order", "step": "closed"},
             )
+        summary_llm = build_llm(api_key, with_tools=False)
         return _encode_state(
-            _llm_summarize_missed_order(api_key, result),
+            summarize_missed_order_result(result, llm=summary_llm),
             {"flow": "missed_order", "step": "closed"},
         )
 

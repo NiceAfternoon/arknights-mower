@@ -7,7 +7,7 @@ import numpy as np
 from arknights_mower.utils.image import loadres
 from arknights_mower.utils.path import get_path
 
-from ..solvers.record import save_trading_info
+from ..solvers.record import save_log, save_trading_info
 from .email import send_message
 from .log import logger
 
@@ -59,6 +59,7 @@ class TradingOrder:
                     logger.debug(f"Best match score:{match_results}")
                     self.price = best_match
                 if self.buff == "漏单" and not time:
+                    save_log("检测到上一个订单漏单！", level="ERROR")
                     send_message("检测到上一个订单漏单！", level="WARNING")
                 return self
         except Exception as e:

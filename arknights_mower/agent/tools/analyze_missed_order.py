@@ -7,29 +7,68 @@ from typing import Optional
 
 from arknights_mower.utils.path import get_path
 
-MISSED_ORDER_TYPE = "漏单"
-DIRECT_MISS_KEYWORDS = ("检测到漏单", "上一个订单漏单", "漏单")
-CONTEXT_KEYWORDS = (
-    "等待跑单",
-    "下一次进行插拔的时间",
-    "当前",
-    "订单",
-    "移除超过15分钟的跑单任务",
-    "移除15分钟内的跑单任务",
-    "跳过",
-    "清除",
-    "移除",
-    "skip",
-    "clear",
-    "remove",
+LIST_ORDERS_MODE = "list_orders"
+ANALYZE_BY_ORDER_MODE = "analyze_by_order"
+ANALYZE_BY_TIME_MODE = "analyze_by_time"
+ANALYZE_MISSED_ORDER_MODES = (
+    LIST_ORDERS_MODE,
+    ANALYZE_BY_ORDER_MODE,
+    ANALYZE_BY_TIME_MODE,
 )
+
+CURRENT_ORDER_MISS_KEYWORD = "检测到漏单"
+PREVIOUS_ORDER_MISS_KEYWORD = "检测到上一个订单漏单"
+WAIT_HINT_KEYWORDS = ("等待", "超时", "Scene 9998", "卡住", "stuck", "timeout")
+CLEAR_HINT_KEYWORDS = ("清除", "移除", "刷新", "skip", "clear", "remove")
 SCHEDULER_TASK_RE = re.compile(
     r"SchedulerTask\(time='(?P<time>[^']+)',task_plan=.*?,task_type=TaskTypes\."
     r"(?P<task_type>\w+),meta_data='(?P<meta_data>[^']*)'(?:,adjusted="
     r"(?P<adjusted>True|False))?\)",
     re.DOTALL,
 )
-logger = logging.getLogger(__name__)
+RUNTIME_LOG_TIME_RE = re.compile(
+    r"^(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)?\s"
+)
+RUNTIME_LOG_LEVEL_RE = re.compile(r"\b(?P<level>INFO)\b")
+
+
+def _get_logger():
+    try:
+        from arknights_mower.utils.log import logger as project_logger
+
+        return project_logger
+    except Exception:
+        return logging.getLogger(__name__)
+
+
+def _get_run_order_delay_minutes() -> float:
+    try:
+        from arknights_mower.utils import config
+
+        return float(getattr(config.conf, "run_order_delay", 0) or 0)
+    except Exception:
+        try:
+            conf_path = get_path("@app/conf.yml")
+            with conf_path.open("r", encoding="utf-8", errors="ignore") as handle:
+                for raw_line in handle:
+                    line = raw_line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.startswith("run_order_delay:"):
+                        return float(line.split(":", 1)[1].strip())
+        except Exception:
+            pass
+        return 0.0
+
+
+def _trace(trace: list[dict], step: str, **details):
+    entry = {"step": step, **details}
+    trace.append(entry)
+    _get_logger().debug(
+        "[missed_order_trace] %s",
+        json.dumps(entry, ensure_ascii=False, default=str),
+    )
+    return entry
 
 
 def _database_path():
@@ -41,7 +80,7 @@ def _connect(database_path=None):
 
 
 def _parse_local_time(time_str: str) -> datetime:
-    time_str = time_str.strip().replace("T", " ")
+    time_str = (time_str or "").strip().replace("T", " ")
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"):
         try:
             return datetime.strptime(time_str, fmt)
@@ -59,34 +98,40 @@ def _parse_scheduler_time(time_str: str) -> Optional[datetime]:
     return None
 
 
-def fetch_missed_orders(limit: int = 10, database_path=None) -> list[dict]:
-    conn = _connect(database_path)
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT
-                strftime('%Y-%m-%d %H:%M:%S', time, 'unixepoch', 'localtime') AS local_time,
-                type,
-                price
-            FROM trading_history
-            WHERE type = ?
-            ORDER BY time DESC
-            LIMIT ?
-            """,
-            (MISSED_ORDER_TYPE, limit),
-        )
-        rows = cursor.fetchall()
-        return [
-            {"local_time": row[0], "type": row[1], "price": row[2], "index": idx + 1}
-            for idx, row in enumerate(rows)
-        ]
-    finally:
-        cursor.close()
-        conn.close()
+def _classify_signal_type(level: str, message: str) -> str:
+    text = message or ""
+    if PREVIOUS_ORDER_MISS_KEYWORD in text and (level or "").upper() == "ERROR":
+        return "previous_order_miss"
+    if CURRENT_ORDER_MISS_KEYWORD in text:
+        return "current_task_miss"
+    return "generic_miss"
 
 
-def fetch_logs_in_window(start_ts: int, end_ts: int, database_path=None) -> list[dict]:
+def _serialize_db_row(row: dict) -> dict:
+    return {
+        "log_utc_time": row.get("log_utc_time"),
+        "log_local_time": row.get("log_local_time"),
+        "level": row.get("level"),
+        "task": row.get("task"),
+        "message": row.get("message"),
+    }
+
+
+def _serialize_run_order(task: Optional[dict]) -> Optional[dict]:
+    if not task:
+        return None
+    return {
+        "task_time": task.get("task_time"),
+        "room": task.get("room"),
+        "adjusted": task.get("adjusted"),
+        "log_local_time": task.get("log_local_time"),
+        "log_utc_time": task.get("log_utc_time"),
+    }
+
+
+def fetch_logs_by_utc_window(
+    start_ts: int, end_ts: int, database_path=None
+) -> list[dict]:
     conn = _connect(database_path)
     cursor = conn.cursor()
     try:
@@ -107,8 +152,8 @@ def fetch_logs_in_window(start_ts: int, end_ts: int, database_path=None) -> list
         rows = cursor.fetchall()
         return [
             {
-                "time": row[0],
-                "local_time": row[1],
+                "log_utc_time": row[0],
+                "log_local_time": row[1],
                 "task": row[2] or "",
                 "level": row[3] or "",
                 "message": row[4] or "",
@@ -120,7 +165,44 @@ def fetch_logs_in_window(start_ts: int, end_ts: int, database_path=None) -> list
         conn.close()
 
 
-def extract_scheduler_tasks(text: str, source_time: Optional[str] = None) -> list[dict]:
+def fetch_missed_event_rows(limit: int = 10, database_path=None) -> list[dict]:
+    conn = _connect(database_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT
+                time,
+                strftime('%Y-%m-%d %H:%M:%S', time, 'unixepoch', 'localtime') AS local_time,
+                level,
+                task,
+                message
+            FROM log
+            WHERE message LIKE '%漏单%'
+            ORDER BY time DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "log_utc_time": row[0],
+                "log_local_time": row[1],
+                "level": row[2] or "",
+                "task": row[3] or "",
+                "message": row[4] or "",
+            }
+            for row in rows
+        ]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def extract_scheduler_tasks(
+    text: str, log_local_time: Optional[str] = None
+) -> list[dict]:
     if not text:
         return []
     tasks = []
@@ -130,368 +212,731 @@ def extract_scheduler_tasks(text: str, source_time: Optional[str] = None) -> lis
             continue
         tasks.append(
             {
-                "planned_time": planned_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "task_time": planned_at.strftime("%Y-%m-%d %H:%M:%S"),
                 "planned_at": planned_at,
                 "task_type": match.group("task_type"),
                 "room": match.group("meta_data"),
                 "adjusted": match.group("adjusted") == "True",
-                "source_time": source_time,
+                "log_local_time": log_local_time,
             }
         )
     return tasks
 
 
-def extract_run_order_candidates(log_rows: list[dict]) -> list[dict]:
-    candidates = []
-    seen = set()
+def extract_run_order_tasks(log_rows: list[dict]) -> list[dict]:
+    tasks = []
     for row in log_rows:
-        for source_field in ("task", "message"):
-            extracted = extract_scheduler_tasks(
-                row.get(source_field, ""), row["local_time"]
+        for task in extract_scheduler_tasks(
+            row.get("task", ""), row.get("log_local_time")
+        ):
+            if task["task_type"] != "RUN_ORDER":
+                continue
+            tasks.append(
+                {
+                    **task,
+                    "log_utc_time": row.get("log_utc_time"),
+                    "level": row.get("level"),
+                }
             )
-            for task in extracted:
-                if task["task_type"] != "RUN_ORDER":
-                    continue
-                key = (
-                    task["planned_time"],
-                    task["room"],
-                    row["local_time"],
-                    source_field,
-                )
-                if key in seen:
-                    continue
-                seen.add(key)
-                candidates.append(
-                    {
-                        **task,
-                        "log_time": row["local_time"],
-                        "log_level": row["level"],
-                        "source_field": source_field,
-                    }
-                )
-    candidates.sort(key=lambda item: (item["planned_at"], item["log_time"]))
-    return candidates
+    tasks.sort(key=lambda item: (item["planned_at"], item["log_utc_time"] or 0))
+    return tasks
 
 
-def select_primary_run_order(
-    target_time: datetime, candidates: list[dict]
+def select_latest_run_order_before_log_time(
+    anchor_utc_time: int, run_orders: list[dict]
 ) -> Optional[dict]:
-    eligible = [item for item in candidates if item["planned_at"] <= target_time]
+    eligible = [
+        item
+        for item in run_orders
+        if item.get("log_utc_time") is not None
+        and item["log_utc_time"] < anchor_utc_time
+    ]
     if not eligible:
         return None
-    eligible.sort(key=lambda item: (item["planned_at"], item["log_time"]), reverse=True)
-    return eligible[0]
+    eligible.sort(key=lambda item: (item["log_utc_time"] or 0, item["planned_at"]))
+    return eligible[-1]
 
 
-def detect_log_gap(
-    log_rows: list[dict], expected_start: datetime, expected_end: datetime
-) -> dict:
-    if not log_rows:
-        return {"has_gap": True, "reason": "window_empty"}
-    datetimes = [
-        _parse_local_time(row["local_time"])
-        for row in log_rows
-        if row.get("local_time")
+def find_previous_same_room_task(
+    current_task: Optional[dict], run_orders: list[dict]
+) -> Optional[dict]:
+    if current_task is None:
+        return None
+    lower_bound = current_task["planned_at"] - timedelta(hours=2.5)
+    upper_bound = current_task["planned_at"] - timedelta(minutes=30)
+    eligible = [
+        item
+        for item in run_orders
+        if item["room"] == current_task["room"]
+        and lower_bound <= item["planned_at"] <= upper_bound
     ]
-    if not datetimes:
-        return {"has_gap": True, "reason": "window_empty"}
-    max_gap = timedelta()
-    for prev, curr in zip(datetimes, datetimes[1:]):
-        gap = curr - prev
-        if gap > max_gap:
-            max_gap = gap
-    edge_gap = max(datetimes[0] - expected_start, expected_end - datetimes[-1], max_gap)
-    return {
-        "has_gap": edge_gap >= timedelta(minutes=30),
-        "max_gap_minutes": round(edge_gap.total_seconds() / 60, 1),
-    }
+    if not eligible:
+        return None
+    eligible.sort(key=lambda item: (item["planned_at"], item["log_utc_time"] or 0))
+    return eligible[-1]
 
 
-def extract_context_signals(
-    log_rows: list[dict],
-    room: Optional[str],
-    time_b: Optional[datetime],
-    time_c: datetime,
-) -> dict:
-    direct = []
-    indirect = []
-    error_logs = []
-    keep_indices = set()
-    room = room or ""
-    for idx, row in enumerate(log_rows):
-        text = f"{row['task']} {row['message']}"
-        if row["level"] == "ERROR":
-            error_logs.append(row)
-            keep_indices.update({idx, max(0, idx - 1)})
-        if any(keyword in text for keyword in DIRECT_MISS_KEYWORDS):
-            direct.append(row)
-            keep_indices.update({idx, max(0, idx - 1)})
+def scan_runtime_info_logs(start_time: datetime, end_time: datetime) -> dict:
+    try:
+        folder = get_path("@app/log")
+        wanted_suffixes = set()
+        cursor_time = (start_time - timedelta(hours=1)).replace(
+            minute=0, second=0, microsecond=0
+        )
+        end_hour = end_time.replace(minute=0, second=0, microsecond=0)
+        while cursor_time <= end_hour:
+            wanted_suffixes.add(cursor_time.strftime("%Y-%m-%d_%H"))
+            cursor_time += timedelta(hours=1)
+        files = []
+        for file_path in sorted(folder.iterdir()):
+            if file_path.is_file() and any(
+                suffix in file_path.name for suffix in wanted_suffixes
+            ):
+                files.append(file_path)
+        entries = []
+        file_names = []
+        for file_path in files:
+            matched = False
+            with file_path.open("r", encoding="utf-8", errors="ignore") as handle:
+                for raw_line in handle:
+                    time_match = RUNTIME_LOG_TIME_RE.match(raw_line)
+                    if not time_match:
+                        continue
+                    line_time = datetime.strptime(
+                        time_match.group("time"), "%Y-%m-%d %H:%M:%S"
+                    )
+                    if not (start_time <= line_time <= end_time):
+                        continue
+                    level_match = RUNTIME_LOG_LEVEL_RE.search(raw_line)
+                    if not level_match:
+                        continue
+                    matched = True
+                    entries.append(
+                        {
+                            "time": line_time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "file": file_path.name,
+                            "message": raw_line.strip(),
+                        }
+                    )
+            if matched:
+                file_names.append(file_path.name)
+        return {"files": file_names, "entries": entries}
+    except Exception as exc:
+        return {"files": [], "entries": [], "error": str(exc)}
+
+
+def find_runtime_detected_time(runtime_info_logs: list[dict]) -> Optional[str]:
+    for entry in runtime_info_logs:
+        message = entry.get("message") or ""
         if (
-            "TaskTypes.RUN_ORDER" in text
-            or "run_order" in text
-            or (room and room in text)
+            CURRENT_ORDER_MISS_KEYWORD in message
+            or PREVIOUS_ORDER_MISS_KEYWORD in message
         ):
-            indirect.append(row)
-            keep_indices.add(idx)
-        if any(keyword in text for keyword in CONTEXT_KEYWORDS):
-            keep_indices.update({idx, max(0, idx - 1)})
-    timeline = [log_rows[idx] for idx in sorted(keep_indices)]
-    if time_b is not None:
-        timeline = [
-            row
-            for row in timeline
-            if _parse_local_time(row["local_time"]) >= time_b - timedelta(minutes=30)
-            and _parse_local_time(row["local_time"]) <= time_c
-        ] or timeline
-    return {
-        "direct_miss_signals": direct[:20],
-        "indirect_miss_signals": indirect[:40],
-        "error_logs": error_logs[:20],
-        "timeline_logs": timeline[:80],
-    }
+            return entry.get("time")
+    return None
 
 
-def infer_candidate_causes(
-    room: Optional[str],
-    primary_task: Optional[dict],
-    all_candidates: list[dict],
-    room_timeline: list[dict],
-    context_signals: dict,
-    gap_info: dict,
-    target_time: datetime,
+def _filter_runtime_logs_by_window(
+    runtime_info_logs: list[dict], start_time: datetime, end_time: datetime
 ) -> list[dict]:
-    causes = []
-    if context_signals["direct_miss_signals"]:
-        causes.append(
+    filtered = []
+    for row in runtime_info_logs:
+        row_time = row.get("time")
+        if not row_time:
+            continue
+        try:
+            parsed = _parse_local_time(row_time)
+        except Exception:
+            continue
+        if start_time <= parsed <= end_time:
+            filtered.append(row)
+    return filtered
+
+
+def _scan_runtime_window(
+    start_time: datetime,
+    end_time: datetime,
+    trace: Optional[list[dict]] = None,
+    trace_step_prefix: str = "runtime_info",
+):
+    trace = trace if trace is not None else []
+    runtime_result = scan_runtime_info_logs(start_time, end_time)
+    runtime_info_logs = runtime_result.get("entries") or []
+    _trace(
+        trace,
+        f"{trace_step_prefix}_logs_loaded",
+        start=start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        end=end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        files=runtime_result.get("files") or [],
+        count=len(runtime_info_logs),
+        error=runtime_result.get("error"),
+    )
+    for index, row in enumerate(runtime_info_logs, start=1):
+        _trace(
+            trace,
+            f"{trace_step_prefix}_log",
+            index=index,
+            time=row.get("time"),
+            file=row.get("file"),
+            message=(row.get("message") or "")[:220],
+        )
+    return runtime_result, runtime_info_logs
+
+
+def build_candidate_reasons(
+    signal_type: str,
+    timeline_logs: list[dict],
+    runtime_info_logs: list[dict],
+    target_task: Optional[dict],
+    previous_task_found: bool = True,
+) -> list[dict]:
+    timeline_text = " ".join(
+        f"{row.get('task', '')} {row.get('message', '')}" for row in timeline_logs
+    )
+    runtime_text = " ".join(entry.get("message", "") for entry in runtime_info_logs)
+    reasons = []
+    if signal_type == "previous_order_miss" and not previous_task_found:
+        reasons.append(
             {
-                "type": "direct_miss_detected",
-                "confidence": "high",
-                "reason": "日志中直接出现漏单提示",
+                "type": "previous_task_not_found",
+                "supported_evidence": ["未找到上一条同房间 RUN_ORDER 任务"],
+                "contradicting_evidence": [],
+                "confidence_hint": "high",
             }
         )
-    if context_signals["error_logs"] and primary_task is not None:
-        causes.append(
+    if any(keyword in runtime_text for keyword in WAIT_HINT_KEYWORDS):
+        reasons.append(
+            {
+                "type": "scene_wait_timeout",
+                "supported_evidence": [
+                    "原子时间附近的 runtime INFO 日志中出现等待/超时/Scene 9998 线索"
+                ],
+                "contradicting_evidence": [],
+                "confidence_hint": "medium",
+            }
+        )
+    error_logs = [row for row in timeline_logs if row.get("level") == "ERROR"]
+    actionable_error_logs = [
+        row
+        for row in error_logs
+        if CURRENT_ORDER_MISS_KEYWORD not in (row.get("message") or "")
+        and PREVIOUS_ORDER_MISS_KEYWORD not in (row.get("message") or "")
+    ]
+    if actionable_error_logs:
+        reasons.append(
             {
                 "type": "execution_failed",
-                "confidence": "medium",
-                "reason": "时间B附近存在 ERROR 日志",
+                "supported_evidence": ["数据库时间线中存在与漏单报警不同的 ERROR 日志"],
+                "contradicting_evidence": [],
+                "confidence_hint": "medium",
             }
         )
-    adjusted_timeline = [item for item in room_timeline if item["adjusted"]]
-    if adjusted_timeline:
-        causes.append(
+    if any(keyword in timeline_text for keyword in CLEAR_HINT_KEYWORDS):
+        reasons.append(
             {
-                "type": "task_delayed",
-                "confidence": "medium",
-                "reason": "同房间 RUN_ORDER 任务存在 adjusted=True，可能发生延后",
+                "type": "task_cleared_or_refreshed_but_not_executed",
+                "supported_evidence": ["数据库时间线中存在清除/刷新/移除任务线索"],
+                "contradicting_evidence": [],
+                "confidence_hint": "low",
             }
         )
-    if primary_task is not None and not context_signals["direct_miss_signals"]:
-        if gap_info.get("has_gap"):
-            causes.append(
-                {
-                    "type": "software_not_running",
-                    "confidence": "medium",
-                    "reason": "时间B附近日志存在明显断档，疑似软件未运行或未正常记录",
-                }
-            )
-        else:
-            room_events_after_b = [
-                item
-                for item in room_timeline
-                if item["planned_at"] > primary_task["planned_at"]
-                and item["planned_at"] <= target_time
-            ]
-            if not room_events_after_b:
-                causes.append(
-                    {
-                        "type": "task_skipped_or_cleared",
-                        "confidence": "low",
-                        "reason": "找到时间B的跑单任务，但后续同房间任务链中断",
-                    }
-                )
-    if primary_task is None:
-        if not all_candidates and gap_info.get("has_gap"):
-            causes.append(
-                {
-                    "type": "software_not_running",
-                    "confidence": "medium",
-                    "reason": "时间C前的窗口里几乎没有有效日志，也没有 RUN_ORDER 任务证据",
-                }
-            )
-        elif not all_candidates:
-            causes.append(
-                {
-                    "type": "insufficient_evidence",
-                    "confidence": "low",
-                    "reason": "窗口内没有找到任何 RUN_ORDER 任务证据，无法定位时间B",
-                }
-            )
-        else:
-            causes.append(
-                {
-                    "type": "insufficient_evidence",
-                    "confidence": "low",
-                    "reason": "窗口内只看到与时间C不匹配的 RUN_ORDER 计划，无法锁定同房间的时间B",
-                }
-            )
-    if not causes:
-        causes.append(
+    if target_task and not error_logs and not runtime_info_logs:
+        reasons.append(
+            {
+                "type": "task_time_not_refreshed",
+                "supported_evidence": ["找到任务时间，但窗口内缺少支撑执行链路的日志"],
+                "contradicting_evidence": [],
+                "confidence_hint": "low",
+            }
+        )
+    if not reasons:
+        reasons.append(
             {
                 "type": "insufficient_evidence",
-                "confidence": "low",
-                "reason": "已找到部分线索，但证据不足以闭环判断",
+                "supported_evidence": ["现有日志不足以闭环判断"],
+                "contradicting_evidence": [],
+                "confidence_hint": "low",
             }
         )
-    return causes
+    return reasons
 
 
-def build_analysis_payload(
-    room: Optional[str],
-    target_time: datetime,
-    time_a: Optional[datetime],
-    time_b: Optional[datetime],
-    room_timeline: list[dict],
-    context_signals: dict,
-    candidate_causes: list[dict],
+def resolve_event_context(
+    event_row: dict, database_path=None, trace: Optional[list[dict]] = None
 ) -> dict:
+    trace = trace if trace is not None else []
+    signal_type = _classify_signal_type(
+        event_row.get("level"), event_row.get("message")
+    )
+    event_utc_time = int(event_row["log_utc_time"])
+    event_local_time = event_row["log_local_time"]
+    event_dt = _parse_local_time(event_local_time)
+    _trace(
+        trace,
+        "selected_signal",
+        signal_type=signal_type,
+        log_utc_time=event_utc_time,
+        log_local_time=event_local_time,
+        level=event_row.get("level"),
+        message=(event_row.get("message") or "")[:160],
+    )
+    _trace(
+        trace,
+        "db_query_window",
+        start=event_utc_time - 1800,
+        end=event_utc_time,
+    )
+    db_rows = fetch_logs_by_utc_window(
+        event_utc_time - 1800, event_utc_time, database_path
+    )
+    run_orders = extract_run_order_tasks(db_rows)
+    _trace(
+        trace,
+        "timeline_logs_loaded",
+        count=len(db_rows),
+        run_order_count=len(run_orders),
+    )
+    for index, row in enumerate(db_rows[:20], start=1):
+        _trace(
+            trace,
+            "timeline_log",
+            index=index,
+            log_local_time=row.get("log_local_time"),
+            level=row.get("level"),
+            message=(row.get("message") or "")[:160],
+        )
+    current_task = select_latest_run_order_before_log_time(event_utc_time, run_orders)
+    previous_task = None
+    target_task = None
+    if signal_type == "previous_order_miss":
+        previous_task = find_previous_same_room_task(current_task, run_orders)
+        target_task = previous_task
+    else:
+        target_task = current_task
+        previous_task = find_previous_same_room_task(current_task, run_orders)
+    _trace(
+        trace,
+        "resolved_event_context",
+        signal_type=signal_type,
+        event_local_time=event_local_time,
+        target_task_time=target_task.get("task_time") if target_task else None,
+        current_task_time=current_task.get("task_time") if current_task else None,
+        previous_task_time=previous_task.get("task_time") if previous_task else None,
+        room=(target_task or current_task or {}).get("room"),
+    )
     return {
-        "room": room,
-        "time_a": time_a.strftime("%Y-%m-%d %H:%M:%S") if time_a else None,
-        "time_b": time_b.strftime("%Y-%m-%d %H:%M:%S") if time_b else None,
-        "time_c": target_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "run_order_timeline": [
-            {
-                "planned_time": item["planned_time"],
-                "room": item["room"],
-                "adjusted": item["adjusted"],
-                "log_time": item["log_time"],
-            }
-            for item in room_timeline[:20]
-        ],
-        "timeline_logs": [
-            {
-                "time": row["local_time"],
-                "level": row["level"],
-                "task": row["task"],
-                "message": row["message"][:400],
-            }
-            for row in context_signals["timeline_logs"]
-        ],
-        "candidate_causes": candidate_causes,
+        "signal_type": signal_type,
+        "event_row": event_row,
+        "db_rows": db_rows,
+        "run_orders": run_orders,
+        "target_task": target_task,
+        "current_task": current_task,
+        "previous_task": previous_task,
+        "room": (target_task or current_task or {}).get("room"),
     }
 
 
-def _analyze_target_time(
-    target_time: datetime,
-    window_start_hours: float,
-    window_end_hours: float,
+def build_analysis_result(context: dict, trace: Optional[list[dict]] = None) -> dict:
+    trace = trace if trace is not None else []
+    signal_type = context["signal_type"]
+    event_row = context["event_row"]
+    target_task = context["target_task"]
+    current_task = context["current_task"]
+    previous_task = context["previous_task"]
+    room = context["room"]
+    run_order_delay_minutes = _get_run_order_delay_minutes()
+    atomic_task_dt = None
+    atomic_window_start = None
+    atomic_window_end = None
+    runtime_start = None
+    probe_end = None
+    runtime_end = None
+    runtime_result = {"files": []}
+    runtime_info_logs = []
+    focused_runtime_info_logs = []
+    detected_time = None
+    if signal_type == "current_task_miss":
+        if target_task is None:
+            raise ValueError("未找到当前漏单对应的 RUN_ORDER 任务")
+        runtime_start = target_task["planned_at"] - timedelta(minutes=5)
+        probe_end = target_task["planned_at"] + timedelta(minutes=30)
+    elif signal_type == "previous_order_miss":
+        if target_task is None:
+            detected_time = event_row["log_local_time"]
+            _trace(
+                trace,
+                "runtime_scan_skipped",
+                signal_type=signal_type,
+                reason="target_task_not_found",
+                detected_time=detected_time,
+            )
+        else:
+            runtime_start = target_task["planned_at"] - timedelta(minutes=5)
+            probe_end = target_task["planned_at"] + timedelta(minutes=5)
+    else:
+        if target_task is None:
+            raise ValueError("未找到漏单对应的 RUN_ORDER 任务")
+        runtime_start = target_task["planned_at"] - timedelta(minutes=5)
+        probe_end = target_task["planned_at"] + timedelta(minutes=30)
+
+    if runtime_start is not None and probe_end is not None:
+        runtime_result, runtime_info_logs = _scan_runtime_window(
+            runtime_start, probe_end, trace=trace, trace_step_prefix="runtime_probe"
+        )
+        detected_time = find_runtime_detected_time(runtime_info_logs)
+        runtime_end = probe_end
+        if detected_time:
+            detected_dt = _parse_local_time(detected_time)
+            if detected_dt >= runtime_start:
+                runtime_end = detected_dt
+        elif signal_type in {"current_task_miss", "generic_miss"}:
+            detected_time = target_task.get("task_time") if target_task else None
+        else:
+            detected_time = event_row["log_local_time"]
+        runtime_result, runtime_info_logs = _scan_runtime_window(
+            runtime_start, runtime_end, trace=trace, trace_step_prefix="runtime_info"
+        )
+        focused_runtime_info_logs = runtime_info_logs
+    if runtime_start is not None and target_task is not None:
+        atomic_task_dt = target_task["planned_at"] + timedelta(
+            minutes=run_order_delay_minutes
+        )
+        atomic_window_start = atomic_task_dt - timedelta(minutes=1)
+        atomic_window_end = atomic_task_dt + timedelta(minutes=1)
+        _trace(
+            trace,
+            "task_execution_anchor",
+            task_time=target_task.get("task_time"),
+            run_order_delay_minutes=run_order_delay_minutes,
+            atomic_task_time=atomic_task_dt.strftime("%Y-%m-%d %H:%M:%S"),
+            atomic_window_start=atomic_window_start.strftime("%Y-%m-%d %H:%M:%S"),
+            atomic_window_end=atomic_window_end.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        focused_runtime_info_logs = _filter_runtime_logs_by_window(
+            runtime_info_logs, atomic_window_start, atomic_window_end
+        )
+        _trace(
+            trace,
+            "runtime_atomic_focus",
+            source_count=len(runtime_info_logs),
+            focused_count=len(focused_runtime_info_logs),
+            atomic_task_time=atomic_task_dt.strftime("%Y-%m-%d %H:%M:%S"),
+            atomic_window_start=atomic_window_start.strftime("%Y-%m-%d %H:%M:%S"),
+            atomic_window_end=atomic_window_end.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        for index, row in enumerate(focused_runtime_info_logs, start=1):
+            _trace(
+                trace,
+                "runtime_atomic_log",
+                index=index,
+                time=row.get("time"),
+                file=row.get("file"),
+                message=(row.get("message") or "")[:220],
+            )
+    candidate_reasons = build_candidate_reasons(
+        signal_type,
+        context["db_rows"],
+        focused_runtime_info_logs,
+        target_task,
+        previous_task_found=signal_type != "previous_order_miss"
+        or previous_task is not None,
+    )
+    for index, item in enumerate(candidate_reasons, start=1):
+        _trace(
+            trace,
+            "rule_candidate_reason",
+            index=index,
+            type=item.get("type"),
+            confidence_hint=item.get("confidence_hint"),
+            supported_evidence=item.get("supported_evidence"),
+            contradicting_evidence=item.get("contradicting_evidence"),
+        )
+    return {
+        "signal_type": signal_type,
+        "analysis_mode": signal_type,
+        "log_utc_time": event_row["log_utc_time"],
+        "log_local_time": event_row["log_local_time"],
+        "detected_time": detected_time,
+        "room": room,
+        "candidate_room": room,
+        "run_order_delay_minutes": run_order_delay_minutes,
+        "atomic_task_time": atomic_task_dt.strftime("%Y-%m-%d %H:%M:%S")
+        if atomic_task_dt
+        else None,
+        "target_task_time": target_task.get("task_time") if target_task else None,
+        "current_task_time": current_task.get("task_time") if current_task else None,
+        "previous_task_time": previous_task.get("task_time") if previous_task else None,
+        "db_query_window": {
+            "start": event_row["log_utc_time"] - 1800,
+            "end": event_row["log_utc_time"],
+        },
+        "runtime_window": (
+            {
+                "start": runtime_start.strftime("%Y-%m-%d %H:%M:%S"),
+                "end": runtime_end.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            if runtime_start is not None and runtime_end is not None
+            else None
+        ),
+        "atomic_log_window": {
+            "start": atomic_window_start.strftime("%Y-%m-%d %H:%M:%S")
+            if atomic_window_start
+            else None,
+            "end": atomic_window_end.strftime("%Y-%m-%d %H:%M:%S")
+            if atomic_window_end
+            else None,
+        },
+        "timeline_logs": [_serialize_db_row(row) for row in context["db_rows"]],
+        "runtime_log_files": runtime_result.get("files") or [],
+        "runtime_info_logs": runtime_info_logs,
+        "focused_runtime_info_logs": focused_runtime_info_logs,
+        "candidate_reasons": candidate_reasons,
+        "run_order_task": _serialize_run_order(target_task),
+        "current_run_order_task": _serialize_run_order(current_task),
+        "previous_run_order_task": _serialize_run_order(previous_task),
+        "analysis_trace": trace,
+        "analysis_payload": {
+            "signal_type": signal_type,
+            "log_utc_time": event_row["log_utc_time"],
+            "log_local_time": event_row["log_local_time"],
+            "detected_time": detected_time,
+            "room": room,
+            "run_order_delay_minutes": run_order_delay_minutes,
+            "atomic_task_time": atomic_task_dt.strftime("%Y-%m-%d %H:%M:%S")
+            if atomic_task_dt
+            else None,
+            "target_task_time": target_task.get("task_time") if target_task else None,
+            "current_task_time": current_task.get("task_time")
+            if current_task
+            else None,
+            "previous_task_time": previous_task.get("task_time")
+            if previous_task
+            else None,
+            "atomic_log_window": {
+                "start": atomic_window_start.strftime("%Y-%m-%d %H:%M:%S")
+                if atomic_window_start
+                else None,
+                "end": atomic_window_end.strftime("%Y-%m-%d %H:%M:%S")
+                if atomic_window_end
+                else None,
+            },
+            "timeline_logs": [
+                {
+                    "time": row["log_local_time"],
+                    "level": row["level"],
+                    "message": row["message"][:300],
+                }
+                for row in context["db_rows"]
+            ],
+            "runtime_info_logs": focused_runtime_info_logs,
+            "candidate_reasons": candidate_reasons,
+        },
+    }
+
+
+def list_missed_orders_payload(limit: int = 10, database_path=None) -> dict:
+    trace = []
+    _trace(trace, "list_orders_started", limit=limit)
+    event_rows = fetch_missed_event_rows(limit=limit, database_path=database_path)
+    orders = []
+    for index, event_row in enumerate(event_rows, start=1):
+        context = resolve_event_context(
+            event_row, database_path=database_path, trace=trace
+        )
+        item = {
+            "index": index,
+            "log_utc_time": event_row["log_utc_time"],
+            "event_utc_time": event_row["log_utc_time"],
+            "local_time": event_row["log_local_time"],
+            "log_local_time": event_row["log_local_time"],
+            "level": event_row["level"],
+            "message": event_row["message"],
+            "signal_type": context["signal_type"],
+            "task_time": context["target_task"].get("task_time")
+            if context["target_task"]
+            else None,
+            "room": context["room"],
+            "current_task_time": context["current_task"].get("task_time")
+            if context["current_task"]
+            else None,
+            "previous_task_time": context["previous_task"].get("task_time")
+            if context["previous_task"]
+            else None,
+        }
+        orders.append(item)
+        _trace(
+            trace,
+            "missed_order_item",
+            index=index,
+            log_local_time=item["log_local_time"],
+            signal_type=item["signal_type"],
+            task_time=item["task_time"],
+            room=item["room"],
+        )
+    _trace(trace, "list_orders_loaded", count=len(orders))
+    return {
+        "has_orders": bool(orders),
+        "count": len(orders),
+        "orders": orders,
+        "analysis_trace": trace,
+    }
+
+
+def find_matching_event_by_time(
+    query_time: str, database_path=None, trace: Optional[list[dict]] = None
+) -> Optional[dict]:
+    trace = trace if trace is not None else []
+    query_dt = _parse_local_time(query_time)
+    candidate_rows = fetch_missed_event_rows(limit=20, database_path=database_path)
+    scored = []
+    for row in candidate_rows:
+        context = resolve_event_context(row, database_path=database_path, trace=trace)
+        target_task_time = (
+            context["target_task"].get("task_time") if context["target_task"] else None
+        )
+        task_distance = float("inf")
+        if target_task_time:
+            task_distance = abs(
+                (_parse_local_time(target_task_time) - query_dt).total_seconds()
+            )
+        event_distance = abs(
+            (_parse_local_time(row["log_local_time"]) - query_dt).total_seconds()
+        )
+        if min(task_distance, event_distance) > 300:
+            continue
+        scored.append(
+            (
+                task_distance,
+                event_distance,
+                0 if context["signal_type"] != "generic_miss" else 1,
+                row,
+            )
+        )
+    if not scored:
+        return None
+    scored.sort(key=lambda item: (item[0], item[1], item[2]))
+    selected = scored[0][3]
+    _trace(
+        trace,
+        "matched_event_by_time",
+        query_time=query_time,
+        matched_log_local_time=selected["log_local_time"],
+        matched_log_utc_time=selected["log_utc_time"],
+    )
+    return selected
+
+
+def analyze_missed_order_by_order(
+    order_time: str,
+    window_start_hours: float = 0.5,
+    window_end_hours: float = 0.0,
+    signal_type: Optional[str] = None,
+    log_event_time: Optional[str] = None,
+    log_event_ts: Optional[int] = None,
+    room: Optional[str] = None,
     database_path=None,
 ) -> dict:
-    search_start = target_time - timedelta(hours=window_start_hours)
-    search_end = target_time - timedelta(hours=window_end_hours)
-    if search_end > target_time:
-        search_end = target_time
-    log_rows = fetch_logs_in_window(
-        int(search_start.timestamp()),
-        int(search_end.timestamp()),
-        database_path=database_path,
+    trace = []
+    _trace(
+        trace,
+        "analyze_by_order_started",
+        order_time=order_time,
+        signal_type=signal_type,
+        log_event_time=log_event_time,
+        log_event_ts=log_event_ts,
+        room=room,
     )
-    candidates = extract_run_order_candidates(log_rows)
-    primary_task = select_primary_run_order(target_time, candidates)
-    room = primary_task["room"] if primary_task else None
-    room_timeline = [item for item in candidates if room and item["room"] == room]
-    room_timeline.sort(key=lambda item: (item["planned_at"], item["log_time"]))
-    time_b = primary_task["planned_at"] if primary_task else None
-    time_a = room_timeline[0]["planned_at"] if room_timeline else None
-    context_signals = extract_context_signals(log_rows, room, time_b, target_time)
-    gap_info = detect_log_gap(
-        log_rows,
-        time_b - timedelta(minutes=20) if time_b else search_start,
-        target_time,
+    event_row = None
+    candidate_rows = fetch_missed_event_rows(limit=20, database_path=database_path)
+    if log_event_ts is not None:
+        event_row = next(
+            (row for row in candidate_rows if row["log_utc_time"] == int(log_event_ts)),
+            None,
+        )
+    if event_row is None and log_event_time:
+        event_row = next(
+            (row for row in candidate_rows if row["log_local_time"] == log_event_time),
+            None,
+        )
+    if event_row is None:
+        event_row = find_matching_event_by_time(
+            order_time, database_path=database_path, trace=trace
+        )
+    if event_row is None:
+        raise ValueError("未找到对应的漏单日志事件")
+    context = resolve_event_context(event_row, database_path=database_path, trace=trace)
+    if signal_type:
+        context["signal_type"] = signal_type
+    if room and not context["room"]:
+        context["room"] = room
+    return build_analysis_result(context, trace=trace)
+
+
+def analyze_missed_order_by_time(
+    event_time: str,
+    window_start_hours: float = 0.5,
+    window_end_hours: float = 0.0,
+    database_path=None,
+) -> dict:
+    trace = []
+    _trace(trace, "analyze_by_time_started", event_time=event_time)
+    event_row = find_matching_event_by_time(
+        event_time, database_path=database_path, trace=trace
     )
-    candidate_causes = infer_candidate_causes(
-        room,
-        primary_task,
-        candidates,
-        room_timeline,
-        context_signals,
-        gap_info,
-        target_time,
-    )
-    return {
-        "target_time": target_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "candidate_room": room,
-        "time_a": time_a.strftime("%Y-%m-%d %H:%M:%S") if time_a else None,
-        "time_b": time_b.strftime("%Y-%m-%d %H:%M:%S") if time_b else None,
-        "time_c": target_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "search_window": {
-            "start": search_start.strftime("%Y-%m-%d %H:%M:%S"),
-            "end": search_end.strftime("%Y-%m-%d %H:%M:%S"),
-        },
-        "run_order_task": primary_task,
-        "run_order_snapshots": room_timeline[:30],
-        "timeline_logs": context_signals["timeline_logs"],
-        "direct_miss_signals": context_signals["direct_miss_signals"],
-        "indirect_miss_signals": context_signals["indirect_miss_signals"],
-        "candidate_causes": candidate_causes,
-        "log_gap": gap_info,
-        "analysis_payload": build_analysis_payload(
-            room,
-            target_time,
-            time_a,
-            time_b,
-            room_timeline,
-            context_signals,
-            candidate_causes,
-        ),
-    }
+    if event_row is None:
+        raise ValueError("未找到该时间附近的漏单日志")
+    context = resolve_event_context(event_row, database_path=database_path, trace=trace)
+    return build_analysis_result(context, trace=trace)
+
+
+def _serialize_tool_result(mode: str, payload: dict) -> str:
+    return json.dumps({"mode": mode, **payload}, ensure_ascii=False, default=str)
 
 
 def analyze_missed_order(
     mode: str,
     order_time: Optional[str] = None,
     event_time: Optional[str] = None,
-    window_start_hours: float = 2.5,
+    window_start_hours: float = 0.5,
     window_end_hours: float = 0.0,
-):
+    signal_type: Optional[str] = None,
+    log_event_time: Optional[str] = None,
+    log_event_ts: Optional[int] = None,
+    room: Optional[str] = None,
+) -> str:
     try:
-        if mode == "list_orders":
-            orders = fetch_missed_orders()
-            return json.dumps(
-                {
-                    "mode": mode,
-                    "has_orders": bool(orders),
-                    "count": len(orders),
-                    "orders": orders,
-                },
-                ensure_ascii=False,
-            )
-        if mode == "analyze_by_order":
+        if mode == LIST_ORDERS_MODE:
+            return _serialize_tool_result(mode, list_missed_orders_payload())
+        if mode == ANALYZE_BY_ORDER_MODE:
             if not order_time:
                 raise ValueError("analyze_by_order 需要 order_time")
-            target_time = _parse_local_time(order_time)
-            result = _analyze_target_time(
-                target_time, window_start_hours, window_end_hours
+            return _serialize_tool_result(
+                mode,
+                analyze_missed_order_by_order(
+                    order_time=order_time,
+                    window_start_hours=window_start_hours,
+                    window_end_hours=window_end_hours,
+                    signal_type=signal_type,
+                    log_event_time=log_event_time,
+                    log_event_ts=log_event_ts,
+                    room=room,
+                ),
             )
-            result["mode"] = mode
-            return json.dumps(result, ensure_ascii=False)
-        if mode == "analyze_by_time":
+        if mode == ANALYZE_BY_TIME_MODE:
             if not event_time:
                 raise ValueError("analyze_by_time 需要 event_time")
-            target_time = _parse_local_time(event_time)
-            result = _analyze_target_time(
-                target_time, window_start_hours, window_end_hours
+            return _serialize_tool_result(
+                mode,
+                analyze_missed_order_by_time(
+                    event_time=event_time,
+                    window_start_hours=window_start_hours,
+                    window_end_hours=window_end_hours,
+                ),
             )
-            result["mode"] = mode
-            return json.dumps(result, ensure_ascii=False)
         raise ValueError(f"未知 mode: {mode}")
-    except Exception as e:
-        logger.exception(e)
-        return json.dumps(
-            {"mode": mode, "error": str(e)},
-            ensure_ascii=False,
-        )
+    except Exception as exc:
+        _get_logger().exception(exc)
+        return json.dumps({"mode": mode, "error": str(exc)}, ensure_ascii=False)
 
 
 analyze_missed_order_tool_def = {
@@ -500,35 +945,32 @@ analyze_missed_order_tool_def = {
         "name": "analyze_missed_order",
         "description": (
             "专门用于分析跑单漏单原因。"
-            "当用户要排查漏单原因时，优先使用这个工具，而不是自己拼 SQL。"
-            "list_orders 用于列出漏单订单；analyze_by_order 用于按选中的漏单订单分析；"
-            "analyze_by_time 用于用户直接给出漏单时间时分析。"
-            "工具返回 JSON 字符串。"
+            "list_orders 列出 log 表里的漏单日志；"
+            "analyze_by_order 按选中的漏单日志分析；"
+            "analyze_by_time 按用户给定时间先匹配漏单事件，再分析。"
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "mode": {
                     "type": "string",
-                    "enum": ["list_orders", "analyze_by_order", "analyze_by_time"],
-                    "description": "执行模式",
+                    "enum": list(ANALYZE_MISSED_ORDER_MODES),
                 },
-                "order_time": {
+                "order_time": {"type": "string"},
+                "event_time": {"type": "string"},
+                "window_start_hours": {"type": "number"},
+                "window_end_hours": {"type": "number"},
+                "signal_type": {
                     "type": "string",
-                    "description": "漏单订单时间，格式 YYYY-MM-DD HH:MM:SS",
+                    "enum": [
+                        "current_task_miss",
+                        "previous_order_miss",
+                        "generic_miss",
+                    ],
                 },
-                "event_time": {
-                    "type": "string",
-                    "description": "用户直接提供的漏单发生时间，格式 YYYY-MM-DD HH:MM:SS",
-                },
-                "window_start_hours": {
-                    "type": "number",
-                    "description": "向前回溯多少小时，默认 2.5",
-                },
-                "window_end_hours": {
-                    "type": "number",
-                    "description": "距离目标时间的截断小时数，默认 0.0",
-                },
+                "log_event_time": {"type": "string"},
+                "log_event_ts": {"type": "integer"},
+                "room": {"type": "string"},
             },
             "required": ["mode"],
         },

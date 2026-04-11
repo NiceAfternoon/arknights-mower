@@ -43,6 +43,7 @@
             <n-layout-content class="layout-content-container">
               <router-view v-if="loaded" />
               <ChatBot v-model:show="showChatBot" />
+              <Feedback />
             </n-layout-content>
             <n-layout-footer v-if="mobile">
               <n-tabs type="line" justify-content="space-evenly" size="small">
@@ -177,9 +178,12 @@ import Coffee from '@vicons/tabler/Coffee'
 import { NIcon } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import { h, inject, onMounted, provide, ref } from 'vue'
+import Feedback from '@/components/Feedback.vue'
 
 const showModal = ref(false)
 const showModal2 = ref(false)
+const showFeedback = ref(false)
+provide('show_feedback', showFeedback)
 function renderIcon(icon) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
