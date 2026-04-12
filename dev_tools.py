@@ -184,6 +184,16 @@ def verify_ui_prettier():
     run_latest_prettier(["--check", "ui/**/*.js", "ui/**/*.vue"])
 
 
+def verify_python_ruff_check():
+    print("Running Python Ruff lint check...")
+    run_latest_ruff(["check", "."])
+
+
+def verify_python_ruff_format():
+    print("Running Python Ruff format check...")
+    run_latest_ruff(["format", "--check", "."])
+
+
 def process_files(base_dir):
     for root, dirs, files in os.walk(base_dir):
         dirs[:] = [
@@ -229,6 +239,8 @@ if __name__ == "__main__":
     # compare_all_subfolders(new_dir, old_dir, update_dir)
     # remove_empty_folders(update_dir)
     process_files(PROJECT_ROOT)
+    verify_python_ruff_check()
+    verify_python_ruff_format()
     format_ui_files()
     verify_ui_prettier()
     # download(BASE_URL)
