@@ -90,9 +90,26 @@ def not_found(e):
 @require_token
 def load_config():
     if request.method == "GET":
-        return config.conf.model_dump()
+        try:
+            from arknights_mower.utils.config.weekly_plan_loader import (
+                get_weekly_plan_manager,
+            )
+
+            manager = get_weekly_plan_manager()
+            manager.sync_active_plan_to_config()
+        except Exception:
+            logger.exception("Failed to sync active weekly plan before returning /conf")
+            manager = None
+        data = config.conf.model_dump()
+        if manager is not None:
+            data["maa_weekly_plan_active"] = manager.get_active_plan_key()
+        return data
     else:
-        config.conf = config.Conf(**request.json)
+        req = dict(request.json or {})
+        req["maa_weekly_plan"] = [
+            item.model_dump() for item in config.conf.maa_weekly_plan
+        ]
+        config.conf = config.Conf(**req)
         config.save_conf()
         return "New config saved!"
 
@@ -748,6 +765,72 @@ def add_task():
             ]
         else:
             return []
+
+
+@app.route("/weekly-plans", methods=["GET"])
+@require_token
+def get_weekly_plans():
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    manager = get_weekly_plan_manager()
+    return {"plans": manager.get_plans()}
+
+
+@app.route("/weekly-plans/active", methods=["POST"])
+@require_token
+def update_active_weekly_plan():
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    try:
+        req = request.json or {}
+        manager = get_weekly_plan_manager()
+
+        active_key = str(req.get("active", "")).strip()
+        if not active_key:
+            return {"error": "Plan key cannot be empty"}, 400
+
+        plan_data = req.get("plan")
+
+        if plan_data is not None:
+            if not manager.create_or_update_plan(active_key, plan_data):
+                return {"error": f"Failed to create or update plan '{active_key}'"}, 400
+        else:
+            if not manager.set_active_plan(active_key):
+                return {"error": f"Plan '{active_key}' not found"}, 404
+
+        new_plan = manager.get_plan(active_key) or []
+        return {
+            "active": active_key,
+            "plan": new_plan,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to update weekly plan: {e}")
+        return {"error": str(e)}, 500
+
+
+@app.route("/weekly-plans/<key>", methods=["DELETE"])
+@require_token
+def delete_weekly_plan(key):
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    try:
+        manager = get_weekly_plan_manager()
+
+        if not manager.delete_plan(key):
+            return {
+                "error": f"Cannot delete plan '{key}' (must keep at least one)"
+            }, 400
+
+        active_key = manager.get_active_plan_key()
+        plan_data = manager.get_plan(active_key)
+
+        return {
+            "active": active_key,
+            "plan": plan_data,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to delete weekly plan: {e}")
+        return {"error": str(e)}, 500
 
 
 @app.route("/submit_feedback", methods=["POST"])

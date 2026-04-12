@@ -17,7 +17,6 @@ for (let i = 0.5; i <= 3.0; i += 0.25) {
 
     <div class="grid-right">
       <div><clue /></div>
-      <div><maa-weekly-new /></div>
     </div>
   </div>
 </template>

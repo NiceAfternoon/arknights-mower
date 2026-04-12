@@ -469,8 +469,7 @@ def resolve_event_context(
         event_row.get("level"), event_row.get("message")
     )
     event_utc_time = int(event_row["log_utc_time"])
-    event_local_time = event_row["log_local_time"]
-    event_dt = _parse_local_time(event_local_time)
+    event_local_time = event_row["log_local_time"]    
     _trace(
         trace,
         "selected_signal",
