@@ -146,7 +146,7 @@ class Operators:
         self.party_time = None
         self.profession_filter = set(agent_arrange_order["职介选择开关"])
         self.eval_model = base_eval_model.clone()
-        self.eval_model.nodes.extend(["Call", "Attribute"])
+        self.eval_model.nodes.extend(["Call", "Attribute", "Is", "IsNot"])
         self.eval_model.attributes.extend(
             [
                 "operators",
