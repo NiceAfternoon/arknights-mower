@@ -35,6 +35,8 @@ const copyDialogVisible = ref(false)
 const copyStageValue = ref('')
 const copySourceWeekday = ref('')
 const copyTargetDays = ref([])
+let copyDialogLongPressTimer = null
+let copyDialogLongPressTriggered = false
 
 const currentWeekdayIndex = computed(() => {
   const day = new Date().getDay()
@@ -98,11 +100,54 @@ function renderStageTag(plan) {
         bordered: false,
         onMousedown: (event) => {
           event.preventDefault()
+          event.stopPropagation()
         },
         onContextmenu: (event) => {
+          event.stopPropagation()
           openCopyDialog(plan, option.value, event)
         },
+        onPointerdown: (event) => {
+          if (event.pointerType === 'touch') {
+            event.preventDefault()
+            event.stopPropagation()
+            startCopyDialogLongPress(plan, option.value)
+          }
+        },
+        onPointerup: (event) => {
+          event.stopPropagation()
+          endCopyDialogLongPress(event)
+        },
+        onPointercancel: (event) => {
+          event.stopPropagation()
+          cancelCopyDialogLongPress()
+        },
+        onPointerleave: (event) => {
+          event.stopPropagation()
+          cancelCopyDialogLongPress()
+        },
+        onTouchstart: (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          startCopyDialogLongPress(plan, option.value)
+        },
+        onTouchend: (event) => {
+          event.stopPropagation()
+          endCopyDialogLongPress(event)
+        },
+        onTouchmove: (event) => {
+          event.stopPropagation()
+          cancelCopyDialogLongPress()
+        },
+        onTouchcancel: (event) => {
+          event.stopPropagation()
+          cancelCopyDialogLongPress()
+        },
+        onClick: (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+        },
         onClose: (event) => {
+          cancelCopyDialogLongPress()
           event.stopPropagation()
           handleClose()
         }
@@ -117,8 +162,9 @@ function isToday(weekday) {
   return weekdays[currentWeekdayIndex.value] === weekday
 }
 
-function openCopyDialog(plan, stage, event) {
-  event.preventDefault()
+function openCopyDialog(plan, stage, event = null) {
+  event?.preventDefault?.()
+  cancelCopyDialogLongPress()
   copySourceWeekday.value = plan.weekday
   copyStageValue.value = stage
   copyTargetDays.value = maa_weekly_plan.value
@@ -153,10 +199,36 @@ function applyStageToSelectedDays() {
 }
 
 function closeCopyDialog() {
+  cancelCopyDialogLongPress()
   copyDialogVisible.value = false
   copyTargetDays.value = []
   copySourceWeekday.value = ''
   copyStageValue.value = ''
+}
+
+function startCopyDialogLongPress(plan, stage) {
+  cancelCopyDialogLongPress()
+  copyDialogLongPressTriggered = false
+  copyDialogLongPressTimer = window.setTimeout(() => {
+    copyDialogLongPressTriggered = true
+    openCopyDialog(plan, stage)
+  }, 600)
+}
+
+function endCopyDialogLongPress(event) {
+  if (copyDialogLongPressTriggered) {
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+  }
+  cancelCopyDialogLongPress()
+}
+
+function cancelCopyDialogLongPress() {
+  if (copyDialogLongPressTimer !== null) {
+    window.clearTimeout(copyDialogLongPressTimer)
+    copyDialogLongPressTimer = null
+  }
+  copyDialogLongPressTriggered = false
 }
 </script>
 
