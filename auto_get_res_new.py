@@ -230,6 +230,45 @@ class Arknights数据处理器:
                 "./ArknightsGameResource/gamedata/excel/story_review_table.json"
             ).items()
         }
+        activity_table = self.加载json(
+            "./ArknightsGameResource/gamedata/excel/activity_table.json"
+        )
+        zoneToActivity = activity_table.get("zoneToActivity", {})
+        activityBasicInfo = activity_table.get("basicInfo", {})
+
+        def _pick_text(*values):
+            for value in values:
+                if isinstance(value, str):
+                    value = value.strip()
+                    if value:
+                        return value
+            return ""
+
+        def clean_zone_name(name):
+            if not isinstance(name, str):
+                return name
+            return name.replace("·复刻", "").strip()
+
+        def get_zone_name(zone_id):
+            zone = zones.get(zone_id, {})
+            return _pick_text(
+                zone.get("zoneNameSecond"),
+                zone.get("zoneNameFirst"),
+                zone.get("zoneNameThird"),
+                zone.get("zoneNameTitleCurrent"),
+                zone.get("zoneNameTitleUnCurrent"),
+                zone.get("zoneID"),
+                zone_id,
+            )
+
+        def get_activity_name(activity_id):
+            if not activity_id:
+                return ""
+            info = activityBasicInfo.get(activity_id, {})
+            return clean_zone_name(
+                _pick_text(info.get("name"), info.get("id"), activity_id)
+            )
+
         for 键, _ in 还未结束的非常驻关卡.items():
             关卡代码 = self.关卡表["stages"][键]["code"]
             if 键.endswith("#f#"):
@@ -296,8 +335,8 @@ class Arknights数据处理器:
                         "apCost": 值["apCost"],
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": event_name,
-                        "subTitle": zones[值["zoneId"]]["zoneNameSecond"]
+                        "zoneNameSecond": clean_zone_name(event_name),
+                        "subTitle": get_zone_name(值["zoneId"])
                         if 值["zoneId"] in zones
                         else "",
                         "stageType": 值["stageType"],
@@ -329,9 +368,6 @@ class Arknights数据处理器:
         ) as f:
             json.dump(self.常驻关卡, f, ensure_ascii=False, indent=2)
         普通关卡 = self.关卡表["stages"]
-        zoneToActivity = self.加载json(
-            "./ArknightsGameResource/gamedata/excel/activity_table.json"
-        )["zoneToActivity"]
         storylineStorySets = self.关卡表["storylineStorySets"]
         ssData = {}
         全部关卡排序信息 = []
@@ -341,11 +377,15 @@ class Arknights数据处理器:
             name = ""
             if v.get("mainlineData") and v["mainlineData"].get("zoneId"):
                 zid = v["mainlineData"]["zoneId"]
-                name = zones.get(zid, {}).get("zoneNameSecond", zid)
+                name = get_zone_name(zid)
             elif v.get("ssData") and v["ssData"].get("name"):
                 name = v["ssData"]["name"]
             elif v.get("collectData") and v["collectData"].get("name"):
                 name = v["collectData"]["name"]
+            if not name and v.get("relevantActivityId"):
+                name = get_activity_name(v["relevantActivityId"])
+            if not name and v.get("ssData") and v["ssData"].get("reopenActivityId"):
+                name = get_activity_name(v["ssData"]["reopenActivityId"])
             全部关卡排序信息.append(
                 {
                     "name": name,
@@ -370,7 +410,7 @@ class Arknights数据处理器:
                         "apCost": 关卡AP,
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": zones[关卡ZONE]["zoneNameSecond"],
+                        "zoneNameSecond": clean_zone_name(get_zone_name(关卡ZONE)),
                         "stageType": 值["stageType"],
                     }
                 )
@@ -384,18 +424,21 @@ class Arknights数据处理器:
                         "apCost": 值["apCost"],
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": "" if 值["zoneId"] in zones else "",
+                        "zoneNameSecond": clean_zone_name(get_zone_name(值["zoneId"]))
+                        if 值["zoneId"] in zones
+                        else "",
                         "stageType": 值["stageType"],
                     }
                 )
-            elif (
-                值["zoneId"] in zoneToActivity
-                and zoneToActivity[值["zoneId"]] in ssData
-            ):
+            elif 值["zoneId"] in zoneToActivity and 值["stageType"] == "ACTIVITY":
+                activity_id = zoneToActivity[值["zoneId"]]
+                activity_name = get_activity_name(activity_id)
+                if not activity_name and activity_id in ssData:
+                    activity_name = _pick_text(ssData[activity_id].get("name"))
                 print(
                     值["zoneId"],
-                    zoneToActivity[值["zoneId"]],
-                    ssData[zoneToActivity[值["zoneId"]]],
+                    activity_id,
+                    activity_name,
                 )
                 所有关卡.append(
                     {
@@ -406,10 +449,8 @@ class Arknights数据处理器:
                         "apCost": 关卡AP,
                         "difficulty": 值["difficulty"],
                         "diffGroup": 值["diffGroup"],
-                        "zoneNameSecond": ssData[zoneToActivity[值["zoneId"]]]["name"]
-                        if "name" in ssData[zoneToActivity[值["zoneId"]]]
-                        else "",
-                        "subTitle": zones[关卡ZONE]["zoneNameSecond"]
+                        "zoneNameSecond": clean_zone_name(activity_name),
+                        "subTitle": get_zone_name(关卡ZONE)
                         if 关卡ZONE in zones
                         else "",
                         "stageType": 值["stageType"],
