@@ -268,6 +268,7 @@ class Arknights数据处理器:
             return clean_zone_name(
                 _pick_text(info.get("name"), info.get("id"), activity_id)
             )
+
         for 键, _ in 还未结束的非常驻关卡.items():
             关卡代码 = self.关卡表["stages"][键]["code"]
             if 键.endswith("#f#"):
@@ -429,10 +430,7 @@ class Arknights数据处理器:
                         "stageType": 值["stageType"],
                     }
                 )
-            elif (
-                值["zoneId"] in zoneToActivity
-                and 值["stageType"] == "ACTIVITY"
-            ):
+            elif 值["zoneId"] in zoneToActivity and 值["stageType"] == "ACTIVITY":
                 activity_id = zoneToActivity[值["zoneId"]]
                 activity_name = get_activity_name(activity_id)
                 if not activity_name and activity_id in ssData:
@@ -609,10 +607,7 @@ class Arknights数据处理器:
             hog_features = hog(
                 模板,
                 orientations=18,
-                pixels_per_cell=(
-                    16,
-                    16,
-                ),  # 这里从(8, 8)改成了(16, 16)，解决了一些物品因为特征相似导致会识别错误的问题，depotREC.py中也同步修改了
+                pixels_per_cell=(8, 8),
                 cells_per_block=(2, 2),
                 block_norm="L2-Hys",
                 transform_sqrt=True,

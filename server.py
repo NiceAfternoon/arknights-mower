@@ -5,21 +5,13 @@ import mimetypes
 import os
 import pathlib
 import sys
-import threading
 import time
 from functools import wraps
 from io import BytesIO
 from threading import Thread
 
 import pytz
-from flask import (
-    Flask,
-    abort,
-    jsonify,
-    request,
-    send_file,
-    send_from_directory,
-)
+from flask import Flask, abort, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_sock import Sock
 from tzlocal import get_localzone
@@ -34,7 +26,6 @@ from arknights_mower.utils.datetime import get_server_time
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.operators import Operators, build_global_plan
 from arknights_mower.utils.path import get_path
-from arknights_mower.utils.update import UpdateManager
 
 mimetypes.add_type("text/html", ".html")
 mimetypes.add_type("text/css", ".css")
@@ -43,12 +34,13 @@ mimetypes.add_type("application/javascript", ".js")
 app = Flask(__name__, static_folder="ui/dist", static_url_path="")
 sock = Sock(app)
 CORS(app)
+if token := config.conf.webview.token:
+    app.token = token
 
 mower_thread = None
 log_lines = []
 ws_connections = []
 
-updater = UpdateManager()
 
 def read_log():
     global log_lines
@@ -98,9 +90,26 @@ def not_found(e):
 @require_token
 def load_config():
     if request.method == "GET":
-        return config.conf.model_dump()
+        try:
+            from arknights_mower.utils.config.weekly_plan_loader import (
+                get_weekly_plan_manager,
+            )
+
+            manager = get_weekly_plan_manager()
+            manager.sync_active_plan_to_config()
+        except Exception:
+            logger.exception("Failed to sync active weekly plan before returning /conf")
+            manager = None
+        data = config.conf.model_dump()
+        if manager is not None:
+            data["maa_weekly_plan_active"] = manager.get_active_plan_key()
+        return data
     else:
-        config.conf = config.Conf(**request.json)
+        req = dict(request.json or {})
+        req["maa_weekly_plan"] = [
+            item.model_dump() for item in config.conf.maa_weekly_plan
+        ]
+        config.conf = config.Conf(**req)
         config.save_conf()
         return "New config saved!"
 
@@ -177,60 +186,6 @@ def get_status():
                 )
     return response
 
-@app.route('/update/check', methods=['GET'])
-def api_check_update():
-    from arknights_mower.__init__ import __resource_version__, __version__
-    try:
-        info = updater.check()
-        return jsonify({
-            "code": 200, 
-            "data": info,
-            "local_version": __version__,
-            "local_res_tag": __resource_version__
-        })
-    except Exception as e:
-        return jsonify({"code": 500, "msg": str(e)}), 500
-
-@app.route('/update/download', methods=['POST'])
-def api_start_download():
-    """异步启动下载任务"""
-    if updater.status in ["downloading", "res_updating", "extracting"]:
-        return jsonify({"code": 400, "msg": "任务运行中"}), 400
-
-    data = request.get_json()
-    u_type = data.get("type")
-
-    # 启动前彻底清空残留状态，防止前端误读
-    updater.progress = 0
-    updater.last_error = None
-
-    if u_type == "software":
-        # 传入 daemon=True，确保后台线程静默运行不阻塞主线程
-        thread = threading.Thread(target=updater.start_software_download, args=(data.get("asset"),), daemon=True)
-        thread.start()
-    elif u_type == "resources":
-        # 修正方法名为 start_res_upgrade 以匹配 UpdateManager 类
-        thread = threading.Thread(target=updater.start_res_upgrade, args=(data.get("patch_url"), data.get("remote_info")), daemon=True)
-        thread.start()
-    else:
-        return jsonify({"code": 400, "msg": "未知的更新类型"}), 400
-    
-    return jsonify({"code": 200, "msg": "下载线程已启动"})
-
-@app.route('/update/status', methods=['GET'])
-def api_get_update_status():
-    return jsonify({
-        "status": updater.status,
-        "progress": updater.progress,
-        "error": updater.last_error
-    })
-
-@app.route('/update/restart', methods=['POST'])
-def api_handle_restart():
-    if updater.status == "ready_to_restart":
-        updater.execute_restart()
-        return jsonify({"code": 200, "msg": "正在重启"})
-    return jsonify({"code": 400, "msg": "未就绪"}), 400
 
 @app.route("/start/<start_type>")
 @require_token
@@ -810,6 +765,72 @@ def add_task():
             ]
         else:
             return []
+
+
+@app.route("/weekly-plans", methods=["GET"])
+@require_token
+def get_weekly_plans():
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    manager = get_weekly_plan_manager()
+    return {"plans": manager.get_plans()}
+
+
+@app.route("/weekly-plans/active", methods=["POST"])
+@require_token
+def update_active_weekly_plan():
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    try:
+        req = request.json or {}
+        manager = get_weekly_plan_manager()
+
+        active_key = str(req.get("active", "")).strip()
+        if not active_key:
+            return {"error": "Plan key cannot be empty"}, 400
+
+        plan_data = req.get("plan")
+
+        if plan_data is not None:
+            if not manager.create_or_update_plan(active_key, plan_data):
+                return {"error": f"Failed to create or update plan '{active_key}'"}, 400
+        else:
+            if not manager.set_active_plan(active_key):
+                return {"error": f"Plan '{active_key}' not found"}, 404
+
+        new_plan = manager.get_plan(active_key) or []
+        return {
+            "active": active_key,
+            "plan": new_plan,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to update weekly plan: {e}")
+        return {"error": str(e)}, 500
+
+
+@app.route("/weekly-plans/<key>", methods=["DELETE"])
+@require_token
+def delete_weekly_plan(key):
+    from arknights_mower.utils.config.weekly_plan_loader import get_weekly_plan_manager
+
+    try:
+        manager = get_weekly_plan_manager()
+
+        if not manager.delete_plan(key):
+            return {
+                "error": f"Cannot delete plan '{key}' (must keep at least one)"
+            }, 400
+
+        active_key = manager.get_active_plan_key()
+        plan_data = manager.get_plan(active_key)
+
+        return {
+            "active": active_key,
+            "plan": plan_data,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to delete weekly plan: {e}")
+        return {"error": str(e)}, 500
 
 
 @app.route("/submit_feedback", methods=["POST"])

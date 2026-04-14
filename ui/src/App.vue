@@ -43,6 +43,7 @@
             <n-layout-content class="layout-content-container">
               <router-view v-if="loaded" />
               <ChatBot v-model:show="showChatBot" />
+              <Feedback />
             </n-layout-content>
             <n-layout-footer v-if="mobile">
               <n-tabs type="line" justify-content="space-evenly" size="small">
@@ -67,12 +68,12 @@
                       aria-modal="true"
                     >
                       <div>
-                        <n-button @click=";(showModal2 = false), $router.push('/mowersettings')">
+                        <n-button @click=";((showModal2 = false), $router.push('/mowersettings'))">
                           mower设置
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";(showModal2 = false), $router.push('/maasettings')">
+                        <n-button @click=";((showModal2 = false), $router.push('/maasettings'))">
                           maa设置
                         </n-button>
                       </div>
@@ -100,28 +101,28 @@
                       aria-modal="true"
                     >
                       <div>
-                        <n-button @click=";(showModal = false), $router.push('/record/line')">
+                        <n-button @click=";((showModal = false), $router.push('/record/line'))">
                           心情曲线
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";(showModal = false), $router.push('/record/pie')">
+                        <n-button @click=";((showModal = false), $router.push('/record/pie'))">
                           心情饼图
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";(showModal = false), $router.push('/record/depot')">
+                        <n-button @click=";((showModal = false), $router.push('/record/depot'))">
                           仓库
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";(showModal = false), $router.push('/record/report')">
+                        <n-button @click=";((showModal = false), $router.push('/record/report'))">
                           基建报告
                         </n-button>
                       </div>
                       <div>
                         <n-button
-                          @click=";(showModal = false), $router.push('/record/trading_analysis')"
+                          @click=";((showModal = false), $router.push('/record/trading_analysis'))"
                         >
                           贸易订单分析
                         </n-button>
@@ -176,10 +177,13 @@ import RoseOutline from '@vicons/ionicons5/RoseOutline'
 import Coffee from '@vicons/tabler/Coffee'
 import { NIcon } from 'naive-ui'
 import { storeToRefs } from 'pinia'
-import { h, inject, onMounted, provide, ref } from 'vue'
+import { h, inject, onMounted, provide, ref, computed } from 'vue'
+import Feedback from '@/components/Feedback.vue'
 
 const showModal = ref(false)
 const showModal2 = ref(false)
+const showFeedback = ref(false)
+provide('show_feedback', showFeedback)
 function renderIcon(icon) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
@@ -334,7 +338,7 @@ const watermarkData = ref('mower')
 
 const config_store = useConfigStore()
 const { load_config, load_shop, load_item } = config_store
-const { start_automatically, theme, webview } = storeToRefs(config_store)
+const { simulator, start_automatically, theme, webview } = storeToRefs(config_store)
 
 const plan_store = usePlanStore()
 const { operators } = storeToRefs(plan_store)
@@ -384,9 +388,16 @@ onMounted(async () => {
 
   const params = new URLSearchParams(document.location.search)
   const token = params.get('token')
+  const instanceName = params.get('instance_name')
   provide('token', token)
   axios.defaults.headers.common['token'] = token
   await Promise.all([load_config(), load_shop(), load_item(), load_operators(), get_running()])
+
+  document.title = instanceName
+    ? `${instanceName} - arknights-mower`
+    : simulator.value?.name
+      ? `${simulator.value.name} - arknights-mower`
+      : 'arknights-mower'
 
   await load_plan()
 
@@ -595,8 +606,8 @@ td {
 
 pre {
   word-break: break-all !important;
-  font-family: 'Cascadia Mono', Consolas, 'Microsoft YaHei', 'SF Mono', 'Menlo', 'PingFang SC',
-    monospace !important;
+  font-family:
+    'Cascadia Mono', Consolas, 'Microsoft YaHei', 'SF Mono', 'Menlo', 'PingFang SC', monospace !important;
 }
 
 .n-dynamic-input-item__action {

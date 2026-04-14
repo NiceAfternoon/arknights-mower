@@ -17,9 +17,8 @@ async function test_sign() {
   sign_msg.value = response.data
 }
 
-// 有账号时才显示测试按钮
-const has_account = computed(() => {
-  return skland_info.value.some(item => {
+const enable_test = computed(() => {
+  return skland_info.value.some((item) => {
     return item.account?.trim() && item.password?.trim()
   })
 })
@@ -121,8 +120,8 @@ const SyncStatus = (item, game) => {
           </div>
         </n-tab-pane>
       </n-tabs>
-      <n-flex v-if="has_account" style="misc-container" align="center">
-        <n-button @click="test_sign">测试签到</n-button>
+      <n-flex style="misc-container" align="center">
+        <n-button :disabled="!enable_test" @click="test_sign">测试签到</n-button>
         <div>{{ sign_msg }}</div>
       </n-flex>
       <n-divider />

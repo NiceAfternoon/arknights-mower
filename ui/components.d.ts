@@ -24,7 +24,6 @@ declare module 'vue' {
     MaaRogue: typeof import('./src/components/MaaRogue.vue')['default']
     MaaSss: typeof import('./src/components/MaaSss.vue')['default']
     MaaWeekly: typeof import('./src/components/MaaWeekly.vue')['default']
-    MaaWeeklyNew: typeof import('./src/components/MaaWeeklyNew.vue')['default']
     NA: typeof import('naive-ui')['NA']
     NAlert: typeof import('naive-ui')['NAlert']
     NAutoComplete: typeof import('naive-ui')['NAutoComplete']
@@ -33,6 +32,7 @@ declare module 'vue' {
     NButtonGroup: typeof import('naive-ui')['NButtonGroup']
     NCard: typeof import('naive-ui')['NCard']
     NCheckbox: typeof import('naive-ui')['NCheckbox']
+    NCheckboxGroup: typeof import('naive-ui')['NCheckboxGroup']
     NCode: typeof import('naive-ui')['NCode']
     NConfigProvider: typeof import('naive-ui')['NConfigProvider']
     NDataTable: typeof import('naive-ui')['NDataTable']
@@ -66,7 +66,6 @@ declare module 'vue' {
     NMenu: typeof import('naive-ui')['NMenu']
     NMessageProvider: typeof import('naive-ui')['NMessageProvider']
     NModal: typeof import('naive-ui')['NModal']
-    NProgress: typeof import('naive-ui')['NProgress']
     NRadio: typeof import('naive-ui')['NRadio']
     NRadioButton: typeof import('naive-ui')['NRadioButton']
     NRadioGroup: typeof import('naive-ui')['NRadioGroup']
@@ -82,7 +81,6 @@ declare module 'vue' {
     NTabs: typeof import('naive-ui')['NTabs']
     NTag: typeof import('naive-ui')['NTag']
     NTd: typeof import('naive-ui')['NTd']
-    NText: typeof import('naive-ui')['NText']
     NThing: typeof import('naive-ui')['NThing']
     NTimePicker: typeof import('naive-ui')['NTimePicker']
     NTooltip: typeof import('naive-ui')['NTooltip']
@@ -104,5 +102,6 @@ declare module 'vue' {
     TriggerDialog: typeof import('./src/components/TriggerDialog.vue')['default']
     TriggerEditor: typeof import('./src/components/TriggerEditor.vue')['default']
     TriggerString: typeof import('./src/components/TriggerString.vue')['default']
+    WeeklyPlanSelector: typeof import('./src/components/WeeklyPlanSelector.vue')['default']
   }
 }

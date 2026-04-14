@@ -83,7 +83,7 @@ def rank_activity_entries_with_agent(
         SystemMessage(
             content=(
                 "你是导航入口排序器。"
-                "最后只返回 JSON: {\"indices\": [int,...], \"reason\": \"...\"}。"
+                '最后只返回 JSON: {"indices": [int,...], "reason": "..."}。'
                 "indices 按可能性从高到低排序，最多返回 5 个。"
                 "排序规则："
                 "1) 若候选文本包含“活动已开放/前往章节/进入活动/SIDESTORY，优先级最高；"
@@ -127,4 +127,3 @@ def rank_activity_entries_with_agent(
             f"rank_activity_entries_with_agent: response is not strict JSON, use fallback, elapsed={time.perf_counter() - start:.2f}s"
         )
         return fallback_indices
-

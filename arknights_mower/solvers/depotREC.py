@@ -44,10 +44,7 @@ def 提取特征点(模板):
     hog_features = hog(
         模板,
         orientations=18,
-        pixels_per_cell=(
-            16,
-            16,
-        ),  # 这里从(8, 8)改成了(16, 16)，解决了一些物品因为特征相似导致会识别错误的问题，在auto_get_res_new.py中也同步修改了
+        pixels_per_cell=(8, 8),
         cells_per_block=(2, 2),
         block_norm="L2-Hys",
         transform_sqrt=True,
@@ -154,9 +151,9 @@ class depotREC(SceneGraphSolver):
         predicted_label = 模型名称.predict([物品特征])
 
         数字区域 = 物品灰[160:210, 30:210]  # 多加了一次裁切，把数字区域单独裁出来
-        物品数字 = self.读取物品数字(数字区域)
+        物品数字 = self.读取物品数字(数字区域)  # 解决了合成玉只能识别3位数的问题
 
-        # 物品数字 = self.读取物品数字(物品灰)
+        # 物品数字 = self.读取物品数字(物品灰)  # 这里是原来的逻辑
         return [predicted_label[0], 物品数字]
 
     def run(self) -> None:

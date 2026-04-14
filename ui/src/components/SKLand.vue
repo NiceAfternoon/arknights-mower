@@ -30,8 +30,8 @@ async function test_maa() {
   maa_msg.value = response.data.join('\n')
 }
 
-const has_account = computed(() => {
-  return skland_info.value.some(item => {
+const enable_test = computed(() => {
+  return skland_info.value.some((item) => {
     return item.account?.trim() && item.password?.trim()
   })
 })
@@ -69,8 +69,8 @@ const has_account = computed(() => {
         </div>
       </template>
     </n-dynamic-input>
-    <div v-if="has_account" class="misc-container">
-      <n-button @click="test_maa">测试设置</n-button>
+    <div class="misc-container">
+      <n-button :disabled="!enable_test" @click="test_maa">测试设置</n-button>
       <n-card
         content-scrollable
         style="max-height: 80px"
