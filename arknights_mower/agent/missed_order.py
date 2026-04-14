@@ -13,6 +13,8 @@ MISSED_ORDER_SUMMARY_PROMPT = (
     "必须优先按时间顺序理解证据，明确区分任务时间和检测到漏单时间。"
     "如果提供了 run_order_delay_minutes 和 atomic_task_time，要把 atomic_task_time 视为更接近实际执行的原子时间。"
     "优先参考 atomic_log_window 和其中的 runtime_info_logs 来判断原因。"
+    "如果 candidate_reasons 中存在 session_interrupted_during_run_order，且证据包含“等待跑单 X 秒”，优先按会话被打断、疑似顶号解释。"
+    "这种判断不要求同时出现“退出游戏”；只要在原子时间附近出现“等待跑单 X 秒”，就可以支持该原因。"
     "不要因为看到 ERROR 就直接判断 execution_failed。"
     "漏单报警本身的 ERROR 只是检测信号，不等于根因；只有与任务执行链直接相关、且时间上成立的异常，才能支持 execution_failed。"
     "不要输出英文标题、英文字段名、英文原因代号。"
@@ -21,6 +23,7 @@ MISSED_ORDER_SUMMARY_PROMPT = (
 
 REASON_LABELS = {
     "previous_task_not_found": "未找到上一条同房间跑单任务",
+    "session_interrupted_during_run_order": "跑单时会话被打断，疑似顶号",
     "scene_wait_timeout": "场景等待超时或卡住",
     "execution_failed": "任务执行异常",
     "task_time_not_refreshed": "任务时间未及时刷新",

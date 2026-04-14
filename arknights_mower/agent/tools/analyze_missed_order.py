@@ -19,7 +19,15 @@ ANALYZE_MISSED_ORDER_MODES = (
 CURRENT_ORDER_MISS_KEYWORD = "检测到漏单"
 PREVIOUS_ORDER_MISS_KEYWORD = "检测到上一个订单漏单"
 WAIT_HINT_KEYWORDS = ("等待", "超时", "Scene 9998", "卡住", "stuck", "timeout")
-CLEAR_HINT_KEYWORDS = ("清除", "移除", "刷新", "skip", "clear", "remove")
+CLEAR_HINT_KEYWORDS = ("移除超过", "刷新时间")
+RUN_ORDER_WAIT_HINT_KEYWORDS = "等待跑单"
+SESSION_INTERRUPT_HINT_KEYWORDS = (
+    "Scene.UNKNOWN",
+    "unknown scene",
+    "back_to_infrastructure",
+    "退出游戏",
+)
+RUN_ORDER_WAIT_SECONDS_RE = re.compile(r"等待跑单\s*\d+(?:\.\d+)?\s*秒")
 SCHEDULER_TASK_RE = re.compile(
     r"SchedulerTask\(time='(?P<time>[^']+)',task_plan=.*?,task_type=TaskTypes\."
     r"(?P<task_type>\w+),meta_data='(?P<meta_data>[^']*)'(?:,adjusted="
@@ -353,6 +361,57 @@ def _filter_runtime_logs_by_window(
     return filtered
 
 
+def _parse_runtime_log_time(entry: dict) -> Optional[datetime]:
+    row_time = entry.get("time")
+    if not row_time:
+        return None
+    try:
+        return _parse_local_time(row_time)
+    except Exception:
+        return None
+
+
+def _find_session_interrupt_context(
+    runtime_info_logs: list[dict],
+) -> tuple[Optional[dict], bool]:
+    wait_entry = None
+    interrupt_confirmed = False
+    for entry in runtime_info_logs:
+        message = entry.get("message") or ""
+        if not all(
+            keyword in message for keyword in (RUN_ORDER_WAIT_HINT_KEYWORDS[0], "秒")
+        ):
+            continue
+        if not RUN_ORDER_WAIT_SECONDS_RE.search(message):
+            continue
+        wait_entry = entry
+        wait_time = _parse_runtime_log_time(entry)
+        if wait_time is None:
+            break
+        for sibling in runtime_info_logs:
+            if sibling is entry:
+                continue
+            sibling_message = sibling.get("message") or ""
+            sibling_time = _parse_runtime_log_time(sibling)
+            if sibling_time is None:
+                continue
+            delta_seconds = (sibling_time - wait_time).total_seconds()
+            if abs(delta_seconds) <= 5 and any(
+                keyword in sibling_message
+                for keyword in ("Scene.UNKNOWN", "unknown scene")
+            ):
+                interrupt_confirmed = True
+                break
+            if 0 <= delta_seconds <= 60 and any(
+                keyword in sibling_message
+                for keyword in ("back_to_infrastructure", "退出游戏")
+            ):
+                interrupt_confirmed = True
+                break
+        break
+    return wait_entry, interrupt_confirmed
+
+
 def _scan_runtime_window(
     start_time: datetime,
     end_time: datetime,
@@ -395,6 +454,24 @@ def build_candidate_reasons(
     )
     runtime_text = " ".join(entry.get("message", "") for entry in runtime_info_logs)
     reasons = []
+    wait_entry, interrupt_confirmed = _find_session_interrupt_context(runtime_info_logs)
+    if wait_entry is not None:
+        wait_message = wait_entry.get("message") or ""
+        supported_evidence = [
+            f"原子时间附近出现等待跑单日志：{wait_message[:160]}",
+        ]
+        if interrupt_confirmed:
+            supported_evidence.append(
+                "等待跑单日志前后存在场景异常/回基建/退出游戏线索"
+            )
+        reasons.append(
+            {
+                "type": "session_interrupted_during_run_order",
+                "supported_evidence": supported_evidence,
+                "contradicting_evidence": [],
+                "confidence_hint": "high" if interrupt_confirmed else "medium",
+            }
+        )
     if signal_type == "previous_order_miss" and not previous_task_found:
         reasons.append(
             {

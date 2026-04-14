@@ -297,6 +297,119 @@ class TestMissedOrderTool(unittest.TestCase):
         self.assertIn("目标任务时间：2026-02-18 22:06:22", text)
         self.assertNotIn("A/B/C", text)
 
+    def test_build_candidate_reasons_detects_wait_run_order_as_session_interrupt(self):
+        runtime_logs = [
+            {
+                "time": "2026-04-08 08:46:36",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:46:36,623 INFO tap_confirm: 等待跑单 43.7 秒",
+            }
+        ]
+
+        reasons = analyze_mod.build_candidate_reasons(
+            "current_task_miss",
+            timeline_logs=[],
+            runtime_info_logs=runtime_logs,
+            target_task={"task_time": "2026-04-08 08:42:36"},
+        )
+
+        session_reason = next(
+            item
+            for item in reasons
+            if item["type"] == "session_interrupted_during_run_order"
+        )
+        self.assertEqual(session_reason["confidence_hint"], "medium")
+        self.assertIn("等待跑单", session_reason["supported_evidence"][0])
+
+    def test_build_candidate_reasons_promotes_session_interrupt_when_game_exits(self):
+        runtime_logs = [
+            {
+                "time": "2026-04-08 08:46:36",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:46:36,623 INFO tap_confirm: 等待跑单 43.7 秒",
+            },
+            {
+                "time": "2026-04-08 08:47:34",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:47:34,983 INFO back_to_infrastructure: 场景图导航：back_to_infrastructure",
+            },
+            {
+                "time": "2026-04-08 08:47:35",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:47:35,557 INFO exit: 退出游戏",
+            },
+        ]
+
+        reasons = analyze_mod.build_candidate_reasons(
+            "current_task_miss",
+            timeline_logs=[],
+            runtime_info_logs=runtime_logs,
+            target_task={"task_time": "2026-04-08 08:42:36"},
+        )
+
+        session_reason = next(
+            item
+            for item in reasons
+            if item["type"] == "session_interrupted_during_run_order"
+        )
+        self.assertEqual(session_reason["confidence_hint"], "high")
+        self.assertIn(
+            "场景异常/回基建/退出游戏线索", session_reason["supported_evidence"][1]
+        )
+
+    def test_build_candidate_reasons_promotes_session_interrupt_on_unknown_scene(self):
+        runtime_logs = [
+            {
+                "time": "2026-04-08 08:46:36",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:46:36,623 INFO tap_confirm: 等待跑单 43.7 秒",
+            },
+            {
+                "time": "2026-04-08 08:46:40",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:46:40,100 INFO scene_graph_navigation abort: unknown scene persists current=UNKNOWN",
+            },
+        ]
+
+        reasons = analyze_mod.build_candidate_reasons(
+            "current_task_miss",
+            timeline_logs=[],
+            runtime_info_logs=runtime_logs,
+            target_task={"task_time": "2026-04-08 08:42:36"},
+        )
+
+        session_reason = next(
+            item
+            for item in reasons
+            if item["type"] == "session_interrupted_during_run_order"
+        )
+        self.assertEqual(session_reason["confidence_hint"], "high")
+
+    def test_build_candidate_reasons_does_not_infer_session_interrupt_from_exit_alone(
+        self,
+    ):
+        runtime_logs = [
+            {
+                "time": "2026-04-08 08:47:35",
+                "file": "runtime.log.2026-04-08_08",
+                "message": "2026-04-08 08:47:35,557 INFO exit: 退出游戏",
+            }
+        ]
+
+        reasons = analyze_mod.build_candidate_reasons(
+            "current_task_miss",
+            timeline_logs=[],
+            runtime_info_logs=runtime_logs,
+            target_task={"task_time": "2026-04-08 08:42:36"},
+        )
+
+        self.assertFalse(
+            any(
+                item["type"] == "session_interrupted_during_run_order"
+                for item in reasons
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3455,6 +3455,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             return
                 else:
                     logger.info("检测到漏单")
+                    save_exception(Exception("检测到漏单"))
                     send_message("检测到漏单！", level="WARNING")
                 self.accept_order()
                 if self.drone_room is None or (
