@@ -586,6 +586,518 @@
     }
   },
   {
+    "id": "PA-EX-1",
+    "name": "在底层",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 10,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-1 突袭",
+    "name": "在底层",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 10,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-2",
+    "name": "活尸",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 10,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-2 突袭",
+    "name": "活尸",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 10,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-3",
+    "name": "母亲",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-3 突袭",
+    "name": "母亲",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-4",
+    "name": "长子",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-4 突袭",
+    "name": "长子",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-5",
+    "name": "三姐妹",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-5 突袭",
+    "name": "三姐妹",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-6",
+    "name": "钦差大臣",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-6 突袭",
+    "name": "钦差大臣",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 15,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-7",
+    "name": "乐观的悲剧",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 20,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-7 突袭",
+    "name": "乐观的悲剧",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 20,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-8",
+    "name": "樱桃园",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 20,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-EX-8 突袭",
+    "name": "樱桃园",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone2",
+    "apCost": 20,
+    "difficulty": "FOUR_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "踏入新生黎明",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1776153600,
+      "endTs": 1776715199
+    }
+  },
+  {
     "id": "PA-TR-1",
     "name": "卑劣与繁荣",
     "drop": [
