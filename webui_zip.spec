@@ -1,3 +1,6 @@
+import shutil
+import os
+
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 
@@ -141,3 +144,18 @@ coll = COLLECT(
     upx_exclude=[],
     name="mower",
 )
+
+dist_root = os.path.join('dist', 'mower')
+internal_dir = os.path.join(dist_root, '_internal')
+
+src_dll = os.path.join(internal_dir, 'msvcp140.dll')
+
+target_dll = os.path.join(internal_dir, 'sklearn', '.libs', 'msvcp140.dll') 
+
+if os.path.exists(src_dll) and os.path.exists(target_dll):
+    try:
+        print(f"正在用新版 {src_dll} 替换旧版 {target_dll}...")
+        shutil.copy2(src_dll, target_dll)
+        print("替换成功！")
+    except Exception as e:
+        print(f"替换失败: {e}")
