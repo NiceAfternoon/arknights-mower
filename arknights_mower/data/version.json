@@ -9,8 +9,8 @@
     "time": 1775516400,
     "endTime": 1776715199
   },
-  "last_updated": "26-04-13-12-31-42_e9b560",
-  "res_version": "2026.0414.1720",
+  "last_updated": "26-04-14-11-12-01_cf554f",
+  "res_version": "2026.0415.0009",
   "files": {
     "ui/src/pages/stage_data/event_data.json": "c2e9c0cc37bc35e8b360b4776baad4df",
     "ui/src/pages/basement_skill/buffer.json": "254cc61f2e3ea8f9529396e80f8b97fd",
@@ -1812,7 +1812,7 @@
     "arknights_mower/models/avatar.pkl": "e3d73c17f542192fde2b6d06fbd9a680",
     "arknights_mower/models/operator_select.model": "90c833374f4e1986d8486c9fd0c51ac4",
     "arknights_mower/models/NORMAL.pkl": "2e28d5879d000179a7e1bde6ce9dbb7d",
-    "arknights_mower/models/recruit.pkl": "1c9e87d59002d2f613c00d25a17af220",
+    "arknights_mower/models/recruit.pkl": "04ba89c517019869e0f97837a123a92e",
     "arknights_mower/data/recruit.json": "8c91f57c4be69843db99adfc8206f41a",
     "arknights_mower/data/stage_data.json": "fbc016b2f2c148fccf5452d3d878e8e0",
     "arknights_mower/data/stage_order.json": "3c46308d3d3ed970f32f210491db6579",
@@ -1821,7 +1821,7 @@
     "arknights_mower/data/stage_data_full.json": "c05607528ab805142a29c7a817862e34",
     "arknights_mower/data/agent_profession.json": "9826df89f41780afd007dcc90b963cb3",
     "arknights_mower/data/recruit_result.json": "dcd4200165bcf9826321b5da88ca784d",
-    "arknights_mower/data/version.json": "b4d2cca59b0606c55abb4212592c9869",
+    "arknights_mower/data/version.json": "46cb35548715f2fbcd810f87f5d51e10",
     "arknights_mower/data/key_mapping.json": "f0657c53fe776d49554ebe143097ea13"
   }
 }
