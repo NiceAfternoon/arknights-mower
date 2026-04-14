@@ -21,7 +21,7 @@ class UpdateManager:
             self.root = os.path.dirname(os.path.abspath(sys.executable))
             self.res_json_path = os.path.join(self.root, "_internal", "arknights_mower", "data", "version.json")
         else:
-            self.root = os.path.dirname(os.path.dirname(os.path.dirname(self.this_dir)))
+            self.root = os.path.dirname(os.path.dirname(self.this_dir))
             self.res_json_path = os.path.join(self.root, "arknights_mower", "data", "version.json")
             
         self.tmp_dir = os.path.join(self.root, "tmp")
@@ -137,16 +137,11 @@ class UpdateManager:
             # 确定移动的目标根目录（frozen 模式下为 _internal）
             move_target = os.path.dirname(os.path.dirname(os.path.dirname(self.res_json_path)))
 
-            # 将内容移动到正确位置
+            # 将内容移动到正确位置，递归合并
             for item in os.listdir(source_path):
                 s = os.path.join(source_path, item)
                 d = os.path.join(move_target, item)
-                if os.path.isdir(s):
-                    if os.path.exists(d):
-                        shutil.rmtree(d)
-                    shutil.move(s, d)
-                else:
-                    shutil.move(s, d)
+                self._recursive_overwrite(s, d)
 
             # 写入版本号文件
             os.makedirs(os.path.dirname(self.res_json_path), exist_ok=True)
@@ -162,6 +157,23 @@ class UpdateManager:
             logger.info("资源更新完成")
         except Exception as e:
             self._handle_err(f"资源更新执行失败: {e}")
+
+
+    def _recursive_overwrite(self, src: str, dst: str):
+        """
+        递归地将 src 中的内容覆盖到 dst，但不删除 dst 中原本存在而 src 中没有的文件。
+        """
+        if os.path.isdir(src):
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            for item in os.listdir(src):
+                self._recursive_overwrite(os.path.join(src, item), 
+                                        os.path.join(dst, item))
+        else:
+            # 如果目标文件已存在，先删除（避免权限或覆盖冲突），再移动/复制
+            if os.path.exists(dst):
+                os.remove(dst)
+            shutil.move(src, dst)
 
     def load_local_res(self) -> Dict:
         if os.path.exists(self.res_json_path):

@@ -1,7 +1,7 @@
 [
   {
-    "id": "EA-1",
-    "name": "扉页所见",
+    "id": "PA-1",
+    "name": "“卡托加区欢迎你”",
     "drop": [
       {
         "occPercent": 0,
@@ -94,21 +94,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-2",
-    "name": "不过别离",
+    "id": "PA-2",
+    "name": "枷锁之中",
     "drop": [
       {
         "occPercent": 0,
@@ -201,21 +201,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 9,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-3",
-    "name": "惶惑与冲动",
+    "id": "PA-3",
+    "name": "阳光照耀圣骏堡",
     "drop": [
       {
         "occPercent": 0,
@@ -248,7 +248,7 @@
         "dropType": 0
       },
       {
-        "occPercent": 2,
+        "occPercent": 3,
         "GetPercent": 0.0,
         "CannotGetPercent": 0.0,
         "Expectation": 0.0,
@@ -268,21 +268,88 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-4",
-    "name": "旧舞步",
+    "id": "PA-4",
+    "name": "一墙之隔",
+    "drop": [
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 3,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      },
+      {
+        "occPercent": 0,
+        "GetPercent": 0.0,
+        "CannotGetPercent": 0.0,
+        "Expectation": 0.0,
+        "SumOfCountWeight": 0.0,
+        "type": 0,
+        "id": null,
+        "dropType": 0
+      }
+    ],
+    "zoneId": "act51side_zone1",
+    "apCost": 12,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
+    "stageType": "ACTIVITY",
+    "endTs": {
+      "startTs": 1775516400,
+      "endTs": 1776715199
+    }
+  },
+  {
+    "id": "PA-5",
+    "name": "高尚的背叛",
     "drop": [
       {
         "occPercent": 0,
@@ -335,21 +402,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 12,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-5",
-    "name": "溺火",
+    "id": "PA-6",
+    "name": "各自流亡",
     "drop": [
       {
         "occPercent": 0,
@@ -372,17 +439,7 @@
         "dropType": 0
       },
       {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
+        "occPercent": 1,
         "GetPercent": 0.0,
         "CannotGetPercent": 0.0,
         "Expectation": 0.0,
@@ -402,21 +459,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
-    "apCost": 12,
+    "zoneId": "act51side_zone1",
+    "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-6",
-    "name": "失路人",
+    "id": "PA-7",
+    "name": "死结两端",
     "drop": [
       {
         "occPercent": 0,
@@ -459,21 +516,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-7",
-    "name": "烧灯者",
+    "id": "PA-8",
+    "name": "一千年后",
     "drop": [
       {
         "occPercent": 0,
@@ -496,7 +553,7 @@
         "dropType": 0
       },
       {
-        "occPercent": 2,
+        "occPercent": 1,
         "GetPercent": 0.0,
         "CannotGetPercent": 0.0,
         "Expectation": 0.0,
@@ -516,115 +573,21 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 21,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
-    "id": "EA-8",
-    "name": "夜尽之时",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 2,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone1",
-    "apCost": 21,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-1",
-    "name": "帷幕另一侧",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 10,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-1 突袭",
-    "name": "帷幕另一侧",
+    "id": "PA-TR-1",
+    "name": "卑劣与繁荣",
     "drop": [
       {
         "occPercent": 0,
@@ -637,491 +600,16 @@
         "dropType": 0
       }
     ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 10,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-2",
-    "name": "以篝火占卜",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 10,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-2 突袭",
-    "name": "以篝火占卜",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 10,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-3",
-    "name": "暖春游行",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-3 突袭",
-    "name": "暖春游行",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-4",
-    "name": "窗边玩偶",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-4 突袭",
-    "name": "窗边玩偶",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-5",
-    "name": "五月树",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-5 突袭",
-    "name": "五月树",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-6",
-    "name": "歌唱时",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-6 突袭",
-    "name": "歌唱时",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 15,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-7",
-    "name": "花环",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 20,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-7 突袭",
-    "name": "花环",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 20,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-8",
-    "name": "冠冕",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 20,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-EX-8 突袭",
-    "name": "冠冕",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone2",
-    "apCost": 20,
-    "difficulty": "FOUR_STAR",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "将熄的火",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
-    }
-  },
-  {
-    "id": "EA-TR-1",
-    "name": "拨雾声",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act41sre_zone1",
+    "zoneId": "act51side_zone1",
     "apCost": 0,
     "difficulty": "NORMAL",
     "diffGroup": "NONE",
-    "zoneNameSecond": "挽歌燃烧殆尽",
-    "subTitle": "摇曳的影",
+    "zoneNameSecond": "人们，我们",
+    "subTitle": "告别天真年代",
     "stageType": "ACTIVITY",
     "endTs": {
-      "startTs": 1774598400,
-      "endTs": 1775419199
+      "startTs": 1775516400,
+      "endTs": 1776715199
     }
   },
   {
