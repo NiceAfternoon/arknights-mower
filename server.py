@@ -675,9 +675,9 @@ def test_custom_screenshot():
 @app.route("/check-skland")
 @require_token
 def test_skland():
-    from arknights_mower.solvers.skland import SKLand
+    from arknights_mower.solvers.player_info import PlayerInfoClient
 
-    return SKLand().test_connect()
+    return PlayerInfoClient().probe_accounts()
 
 
 @app.route("/check-skland-sign")

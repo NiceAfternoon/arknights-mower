@@ -70,6 +70,7 @@ pip install Flask flask-cors flask-sock pywebview
 ```bash
 pip install pyinstaller
 pyinstaller webui_zip.spec
+python scripts/fix_runtime_dlls.py
 ```
 
 生成的 `mower.exe` 在 `dist` 文件夹中，到此打包完成，已可使用。

@@ -423,7 +423,7 @@ class SceneGraphSolver(BaseSolver):
 
         unknown_count = 0
         while (current := self.scene()) != scene:
-            if current in self.waiting_scene:
+            if current in self.waiting_scene and current != Scene.UNKNOWN:
                 self.waiting_solver()
                 continue
 

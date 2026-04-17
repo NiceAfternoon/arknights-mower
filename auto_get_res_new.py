@@ -456,6 +456,24 @@ class Arknights数据处理器:
                         "stageType": 值["stageType"],
                     }
                 )
+        if not any(关卡.get("id") == "Annihilation" for 关卡 in 所有关卡):
+            所有关卡.insert(
+                0,
+                {
+                    "id": "Annihilation",
+                    "name": "剿灭",
+                    "drop": [],
+                    "zoneId": "Annihilation",
+                    "apCost": 25,
+                    "difficulty": "NORMAL",
+                    "diffGroup": "Annihilation",
+                    "zoneNameSecond": "剿灭",
+                    "subTitle": "",
+                    "stageType": "UNKNOWN",
+                    "endTs": -1,
+                },
+            )
+
         with open(
             "arknights_mower/data/stage_data_full.json", "w", encoding="utf-8"
         ) as f:

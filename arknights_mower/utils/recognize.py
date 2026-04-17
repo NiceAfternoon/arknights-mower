@@ -768,7 +768,7 @@ class Recognizer:
             "next_step": (915, 811),
             "ope_agency_lock": [(1565, 856), (1565, 875)],
             "ope_elimi_agency_confirm": (1554, 941),
-            "ope_elimi_agency_panel": (1409, 612),
+            # "ope_elimi_agency_panel": (1409, 612),
             "ope_eliminate": (1332, 938),
             "ope_recover_originite_on": (1514, 124),
             "ope_recover_potion_on": (1046, 127),

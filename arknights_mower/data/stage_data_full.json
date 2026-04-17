@@ -1,5 +1,18 @@
 [
   {
+    "id": "Annihilation",
+    "name": "剿灭",
+    "drop": [],
+    "zoneId": "Annihilation",
+    "apCost": 25,
+    "difficulty": "NORMAL",
+    "diffGroup": "Annihilation",
+    "zoneNameSecond": "剿灭",
+    "subTitle": "",
+    "stageType": "UNKNOWN",
+    "endTs": -1
+  },
+  {
     "id": "PA-1",
     "name": "“卡托加区欢迎你”",
     "drop": [

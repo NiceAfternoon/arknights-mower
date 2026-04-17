@@ -16,16 +16,25 @@ from arknights_mower.data import (
     agent_list,
     agent_profession,
     base_room_list,
+    stage_data_full,
     workshop_formula,
 )
 from arknights_mower.solvers.base_mixin import BaseMixin
 from arknights_mower.solvers.credit import CreditSolver
 from arknights_mower.solvers.cultivate_depot import cultivate as cultivateDepotSolver
 from arknights_mower.solvers.depotREC import depotREC as DepotSolver
+from arknights_mower.solvers.local_operation import (
+    FOLLOWUP_TASK_META,
+    build_sanity_projection,
+    compute_next_threshold_time,
+    get_required_runs_total,
+    get_stage_drain_runs_total,
+)
 from arknights_mower.solvers.mail import MailSolver
 from arknights_mower.solvers.mission import MissionSolver
 from arknights_mower.solvers.navigation import NavigationSolver
 from arknights_mower.solvers.operation import OperationSolver
+from arknights_mower.solvers.player_info import PlayerInfoClient
 from arknights_mower.solvers.reclamation_algorithm import ReclamationAlgorithm
 from arknights_mower.solvers.record import (
     get_inventory_counts,
@@ -107,6 +116,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         self.choose_error = set()
         self.drop_send = False
         self.global_plan = {}
+        self.local_operation_followup_time = None
 
     def find_next_task(
         self,
@@ -3958,11 +3968,214 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             stages.append(stage)
         return stages
 
+    def mower_stage_ap_cost(self, stage_id: str) -> int | None:
+        stage_meta = next(
+            (item for item in stage_data_full if item.get("id") == stage_id),
+            None,
+        )
+        if stage_meta is None:
+            return None
+        ap_cost = stage_meta.get("apCost")
+        if not isinstance(ap_cost, int) or ap_cost <= 0:
+            return None
+        return ap_cost
+
+    def clear_local_operation_followups(self):
+        existing_count = sum(
+            1 for task in self.tasks if task.meta_data == FOLLOWUP_TASK_META
+        )
+        self.tasks = [
+            task for task in self.tasks if task.meta_data != FOLLOWUP_TASK_META
+        ]
+        self.local_operation_followup_time = None
+        if existing_count:
+            logger.info(
+                "clear local operation follow-up tasks | count=%s",
+                existing_count,
+            )
+
+    def upsert_local_operation_followup(self, run_at: datetime | None):
+        self.clear_local_operation_followups()
+        if run_at is None:
+            logger.info("skip local operation follow-up insert because run_at is empty")
+            return
+        self.tasks.append(SchedulerTask(time=run_at, meta_data=FOLLOWUP_TASK_META))
+        self.tasks.sort(key=lambda task: task.time)
+        self.local_operation_followup_time = run_at
+        logger.info(
+            "schedule local operation follow-up task | run_at=%s",
+            run_at.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    def get_local_operation_stage_target(
+        self,
+        stage: str,
+        simulated_current_ap: int | None,
+        threshold_control_failed: bool,
+        threshold: int,
+        maa_gap: float,
+    ):
+        ap_cost = self.mower_stage_ap_cost(stage)
+        projection = None
+        if threshold_control_failed:
+            target_total_runs = get_stage_drain_runs_total(
+                simulated_current_ap,
+                ap_cost,
+            )
+        else:
+            target_total_runs, projection = get_required_runs_total(
+                simulated_current_ap,
+                threshold,
+                maa_gap,
+                ap_cost,
+            )
+        return ap_cost, target_total_runs, projection
+
+    def run_local_operation_stage(
+        self,
+        stage: str,
+        next_task_time: datetime,
+        simulated_current_ap: int | None,
+        ap_cost: int | None,
+        target_total_runs: int | None,
+        mode: str,
+        threshold: int | None = None,
+    ):
+        remaining_runs = target_total_runs
+        executed_any = False
+
+        while True:
+            if next_task_time - datetime.now() < timedelta(minutes=5):
+                logger.info("skip local operation because time is not enough")
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": True,
+                }
+            if remaining_runs is not None and remaining_runs <= 0:
+                logger.info(
+                    "local operation stage completed | stage=%s | mode=%s",
+                    stage,
+                    mode,
+                )
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": False,
+                }
+
+            logger.info(
+                "start navigation before operation | stage=%s | mode=%s | simulated_current_ap=%s | ap_cost=%s | remaining_runs=%s",
+                stage,
+                mode,
+                simulated_current_ap,
+                ap_cost,
+                remaining_runs,
+            )
+            if not NavigationSolver(self.device, self.recog).run(stage):
+                logger.warning(f"navigation failed, skip stage: {stage}")
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": False,
+                }
+
+            logger.info(
+                "navigation succeeded, start operation | stage=%s | mode=%s | target_total_runs=%s",
+                stage,
+                mode,
+                remaining_runs,
+            )
+            result = OperationSolver(self.device, self.recog).run(
+                next_task_time=next_task_time,
+                stage_id=stage,
+                target_total_runs=remaining_runs,
+                simulated_current_ap=simulated_current_ap,
+                ap_cost=ap_cost,
+                sanity_threshold=threshold,
+            )
+            logger.info(
+                "local operation stage result | stage=%s | mode=%s | result=%s",
+                stage,
+                mode,
+                result,
+            )
+
+            simulated_current_ap = (
+                simulated_current_ap
+                if result["simulated_current_ap"] is None
+                else result["simulated_current_ap"]
+            )
+            if result["executed_runs"] > 0:
+                executed_any = True
+            if result["sanity_drain"] or result["stopped_by_deadline"]:
+                logger.info(
+                    "stop local operation stage loop | stage=%s | mode=%s | sanity_drain=%s | stopped_by_deadline=%s",
+                    stage,
+                    mode,
+                    result["sanity_drain"],
+                    result["stopped_by_deadline"],
+                )
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": True,
+                }
+            if remaining_runs is None:
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": False,
+                }
+
+            next_remaining_runs = result["remaining_runs"]
+            if next_remaining_runs is None or next_remaining_runs <= 0:
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": False,
+                }
+            if result["executed_runs"] <= 0:
+                logger.warning(
+                    "local operation stage made no progress, stop rerun loop | stage=%s | mode=%s | remaining_runs=%s",
+                    stage,
+                    mode,
+                    next_remaining_runs,
+                )
+                return {
+                    "simulated_current_ap": simulated_current_ap,
+                    "executed_any": executed_any,
+                    "should_break": False,
+                }
+
+            remaining_runs = next_remaining_runs
+            logger.info(
+                "local operation stage has remaining runs, rerun after renavigation | stage=%s | mode=%s | remaining_runs=%s | simulated_current_ap=%s",
+                stage,
+                mode,
+                remaining_runs,
+                simulated_current_ap,
+            )
+
     def mower_plan_solver(self, one_time=False):
         try:
             conf = config.conf
+            followup_due = (
+                self.local_operation_followup_time is not None
+                and datetime.now() >= self.local_operation_followup_time
+            )
+            if followup_due:
+                self.local_operation_followup_time = None
+            logger.info(
+                "start mower_plan_solver | one_time=%s | followup_due=%s | last_execution=%s | current_tasks=%s",
+                one_time,
+                followup_due,
+                self.last_execution["maa"],
+                len(self.tasks),
+            )
             if (
                 not one_time
+                and not followup_due
                 and self.last_execution["maa"] is not None
                 and (
                     delta := (
@@ -3979,27 +4192,197 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             else:
                 stages = self.mower_stage_plan()
                 logger.info(f"local operation plan: {stages}")
-                self.back_to_index()
-                stop_time = (
-                    datetime.now() + timedelta(minutes=5)
+                next_task_time = (
+                    datetime.now() + timedelta(days=1)
                     if one_time
                     else self.tasks[0].time
                 )
-                for stage in stages:
-                    if stop_time - datetime.now() < timedelta(minutes=5):
-                        logger.info("skip local operation because time is not enough")
-                        break
-                    if not NavigationSolver(self.device, self.recog).run(stage):
-                        logger.warning(f"navigation failed, skip stage: {stage}")
-                        continue
-                    if OperationSolver(self.device, self.recog).run(stop_time):
-                        logger.info("sanity drained, stop local operation")
-                        break
-                MissionSolver(self.device, self.recog).run()
-                self.last_execution["maa"] = datetime.now()
                 logger.info(
-                    f"record local task execution time: {self.last_execution['maa']}"
+                    "local operation scheduling window | next_task_time=%s | one_time=%s",
+                    next_task_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    one_time,
                 )
+
+                executed_any = False
+                threshold_control_failed = False
+                threshold_control_reason = ""
+                next_threshold_time = None
+                simulated_current_ap = None
+                threshold = 0
+
+                if stages:
+                    player_info = PlayerInfoClient()
+                    snapshot = player_info.get_first_available_snapshot()
+                    if snapshot is None:
+                        logger.warning(
+                            "failed to fetch skland player info, fallback to drain sanity"
+                        )
+                        threshold_control_failed = True
+                        threshold_control_reason = "missing_player_info"
+                    else:
+                        player_info.log_snapshot(snapshot)
+                        # Fetch SKLand AP once before operation starts; after this point
+                        # all AP changes are simulated locally by OperationSolver.
+                        simulated_current_ap = snapshot.current_ap
+                        threshold = max(
+                            0,
+                            int(
+                                getattr(
+                                    config.conf.maa_weekly_plan[get_server_weekday()],
+                                    "sanity_threshold",
+                                    0,
+                                )
+                                or 0
+                            ),
+                        )
+                        logger.info(
+                            "loaded local operation sanity context | skland_seed_ap=%s | threshold=%s | maa_gap=%s",
+                            simulated_current_ap,
+                            threshold,
+                            conf.maa_gap,
+                        )
+                        if threshold <= 0:
+                            logger.info(
+                                "disable threshold control because threshold <= 0, fallback to drain sanity mode"
+                            )
+                            threshold_control_failed = True
+                            threshold_control_reason = "threshold_non_positive"
+                        if any(
+                            self.mower_stage_ap_cost(stage) is None for stage in stages
+                        ):
+                            logger.warning(
+                                "stage apCost missing in weekly plan, disable threshold control and fallback to drain sanity"
+                            )
+                            threshold_control_failed = True
+                            threshold_control_reason = "missing_ap_cost"
+
+                if not stages:
+                    logger.info(
+                        "skip local operation because weekly plan has no stages"
+                    )
+                    self.clear_local_operation_followups()
+                else:
+                    mode = "fallback" if threshold_control_failed else "threshold"
+                    logger.info(
+                        "enter local operation stage loop | mode=%s | reason=%s",
+                        mode,
+                        threshold_control_reason or "",
+                    )
+                    self.back_to_index()
+                    if threshold_control_failed:
+                        self.clear_local_operation_followups()
+
+                    for stage in stages:
+                        if next_task_time - datetime.now() < timedelta(minutes=5):
+                            logger.info(
+                                "skip local operation because time is not enough"
+                            )
+                            break
+
+                        ap_cost, target_total_runs, projection = (
+                            self.get_local_operation_stage_target(
+                                stage,
+                                simulated_current_ap,
+                                threshold_control_failed,
+                                threshold,
+                                conf.maa_gap,
+                            )
+                        )
+
+                        if threshold_control_failed:
+                            logger.info(
+                                "local operation fallback evaluation | stage=%s | ap_cost=%s | simulated_current_ap=%s | target_total_runs=%s",
+                                stage,
+                                ap_cost,
+                                simulated_current_ap,
+                                target_total_runs,
+                            )
+                        else:
+                            logger.info(
+                                "local operation threshold evaluation | stage=%s | ap_cost=%s | simulated_current_ap=%s | threshold=%s | projection_minutes=%s | projected_ap=%s | excess_ap=%s | target_total_runs=%s",
+                                stage,
+                                ap_cost,
+                                simulated_current_ap,
+                                threshold,
+                                projection.projection_minutes,
+                                projection.projected_ap,
+                                projection.excess_ap,
+                                target_total_runs,
+                            )
+
+                        if (
+                            simulated_current_ap is not None
+                            and simulated_current_ap < ap_cost
+                        ):
+                            logger.info(
+                                "skip stage because simulated ap is below stage cost | stage=%s | simulated_current_ap=%s | ap_cost=%s",
+                                stage,
+                                simulated_current_ap,
+                                ap_cost,
+                            )
+                            continue
+                        if target_total_runs is not None and target_total_runs <= 0:
+                            logger.info(
+                                "skip stage because target_total_runs is zero | stage=%s",
+                                stage,
+                            )
+                            continue
+
+                        stage_run_result = self.run_local_operation_stage(
+                            stage=stage,
+                            next_task_time=next_task_time,
+                            simulated_current_ap=simulated_current_ap,
+                            ap_cost=ap_cost,
+                            target_total_runs=target_total_runs,
+                            mode=mode,
+                            threshold=None if threshold_control_failed else threshold,
+                        )
+                        simulated_current_ap = stage_run_result["simulated_current_ap"]
+                        executed_any = executed_any or stage_run_result["executed_any"]
+                        if stage_run_result["should_break"]:
+                            break
+
+                    if (
+                        not threshold_control_failed
+                        and not one_time
+                        and simulated_current_ap is not None
+                    ):
+                        projection = build_sanity_projection(
+                            simulated_current_ap,
+                            threshold,
+                            conf.maa_gap,
+                        )
+                        next_threshold_time = compute_next_threshold_time(
+                            simulated_current_ap,
+                            threshold,
+                        )
+                        if projection.excess_ap > 0:
+                            next_threshold_time = max(
+                                datetime.now() + timedelta(minutes=1),
+                                next_threshold_time,
+                            )
+                        logger.info(
+                            "computed local operation follow-up time | simulated_current_ap=%s | threshold=%s | projection_minutes=%s | projected_ap=%s | excess_ap=%s | next_threshold_time=%s",
+                            simulated_current_ap,
+                            threshold,
+                            projection.projection_minutes,
+                            projection.projected_ap,
+                            projection.excess_ap,
+                            next_threshold_time.strftime("%Y-%m-%d %H:%M:%S")
+                            if next_threshold_time is not None
+                            else None,
+                        )
+                        self.upsert_local_operation_followup(next_threshold_time)
+
+                logger.info("run mission solver after local operation")
+                MissionSolver(self.device, self.recog).run()
+                if executed_any:
+                    self.last_execution["maa"] = datetime.now()
+                    logger.info(
+                        f"record local task execution time: {self.last_execution['maa']}"
+                    )
+                else:
+                    logger.info("local operation finished without executing any stage")
 
             remaining_time = (self.tasks[0].time - datetime.now()).total_seconds()
             self.handle_idle_action(remaining_time)
