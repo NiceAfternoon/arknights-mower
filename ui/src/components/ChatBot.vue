@@ -2,8 +2,10 @@
 import { inject, ref, watch } from 'vue'
 import { useConfigStore } from '@/stores/config'
 import { storeToRefs } from 'pinia'
+import markdownit from 'markdown-it'
 
 const store = useConfigStore()
+const md = markdownit({ html: true, breaks: true })
 const { ai_key, ai_type } = storeToRefs(store)
 const showFeedback = inject('show_feedback', null)
 const WELCOME_MESSAGE =
@@ -126,7 +128,7 @@ window.addEventListener('resize', () => {
             class="chat-row"
           >
             <b>{{ msg.role === 'user' ? '你' : 'Mower AI 助手' }}：</b>
-            <span v-html="msg.content"></span>
+            <span v-html="md.render(msg.content)"></span>
             <div v-if="msg.role === 'bot' && msg.showFollowUp !== false" class="follow-up-block">
               <div class="follow-up-title">是否解决了你的问题？</div>
               <div v-if="msg.followUpState === null" class="follow-up-actions">

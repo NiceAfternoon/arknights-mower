@@ -366,7 +366,7 @@ def format_missed_order_report(result: dict, summary_text: str) -> str:
         "fallback_no_llm": "未启用大模型，使用规则回退",
         "fallback_on_error": "大模型出错，使用规则回退",
     }.get(summary_source, summary_source)
-    sections = [f"分析结论：<br/>来源：{source_label}<br/>{summary_text}"]
+    sections = [f"分析结论：\n来源：{source_label}\n{summary_text}"]
     sections.append(format_missed_order_task_records(result))
     report = "<br/><br/>".join(section for section in sections if section)
     _log_debug_report(report)
