@@ -1,8 +1,8 @@
-import json
 from typing import Optional
 
 import yaml
 
+from arknights_mower.utils.config.app_state import read_app_state, write_app_state
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
 
@@ -11,7 +11,6 @@ class WeeklyPlanManager:
     """Persist weekly plan presets and keep the active plan synced to runtime config."""
 
     WEEKLY_PLANS_FILE = get_path("@app/weekly_plans.yml")
-    STATE_FILE = get_path("@app/state.json")
     DEFAULT_PLAN_KEY = "默认"
 
     def __init__(self):
@@ -98,19 +97,10 @@ class WeeklyPlanManager:
             yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
 
     def _read_state(self) -> dict:
-        if not self.STATE_FILE.exists():
-            return {}
-        try:
-            with self.STATE_FILE.open("r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as exc:
-            logger.error("failed to read state.json: %s", exc)
-            return {}
+        return read_app_state()
 
     def _write_state(self, data: dict):
-        self.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with self.STATE_FILE.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        write_app_state(data)
 
     def get_plans(self) -> list[str]:
         return list((self._read_weekly_plans().get("plans") or {}).keys())

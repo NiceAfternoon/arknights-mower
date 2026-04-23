@@ -497,6 +497,28 @@ def getwatermark():
     return __version__
 
 
+@app.route("/update-notice")
+@require_token
+def get_update_notice():
+    from arknights_mower.utils.update_notice import UpdateNoticeManager
+
+    return UpdateNoticeManager().get_notice()
+
+
+@app.route("/update-notice/ack", methods=["POST"])
+@require_token
+def ack_update_notice():
+    from arknights_mower.utils.update_notice import UpdateNoticeManager
+
+    version = str((request.json or {}).get("version", "")).strip()
+    if not version:
+        return {"ok": False, "message": "missing version"}, 400
+    try:
+        return UpdateNoticeManager().acknowledge(version)
+    except ValueError as exc:
+        return {"ok": False, "message": str(exc)}, 400
+
+
 def str2date(target: str):
     try:
         return datetime.datetime.strptime(target, "%Y-%m-%d").date()
