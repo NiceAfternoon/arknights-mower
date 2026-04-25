@@ -345,7 +345,7 @@ class OperationSolver(SceneGraphSolver):
                         self.desired_repeat_times,
                         repeat,
                     )
-                    self.tap((1500, 910), interval=0.5)
+                    # self.tap((1500, 910), interval=0.5) # 疑似多余点击
                     self.tap((1500, 801), interval=0.5)
                     self.auto_repeat = False
                     self.repeat_button_attempts = 0
