@@ -64,16 +64,9 @@
                   {{ `从 ${updateNotice.previous_version} 更新` }}
                 </div>
                 <div
-                  style="
-                    margin-top: 16px;
-                    max-height: 50vh;
-                    overflow: auto;
-                    white-space: pre-wrap;
-                    line-height: 1.6;
-                  "
-                >
-                  {{ updateNotice.changelog }}
-                </div>
+                  style="margin-top: 16px; max-height: 50vh; overflow: auto; line-height: 1.6"
+                  v-html="renderedChangelog"
+                ></div>
                 <div style="margin-top: 20px; display: flex; justify-content: flex-end">
                   <n-button type="primary" @click="handleUpdateNoticeAck">我知道了</n-button>
                 </div>
@@ -213,7 +206,9 @@ import { NIcon } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import { h, inject, onMounted, provide, ref } from 'vue'
 import Feedback from '@/components/Feedback.vue'
+import markdownit from 'markdown-it'
 
+const md = markdownit({ html: true, breaks: true })
 const showModal = ref(false)
 const showModal2 = ref(false)
 const showFeedback = ref(false)
@@ -413,6 +408,10 @@ const mobile = ref(true)
 provide('mobile', mobile)
 
 const loaded = inject('loaded')
+
+const renderedChangelog = computed(() => {
+  return md.render(updateNotice.value.changelog)
+})
 
 async function handleUpdateNoticeAck() {
   if (!updateNotice.value.current_version) {

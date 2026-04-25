@@ -331,7 +331,7 @@ class OperationSolver(SceneGraphSolver):
                     self.auto_repeat = False
                     self.repeat_button_attempts = 0
                     return
-                repeat = self.number(((1520, 890), (1545, 930)), 28)
+                repeat = self.number(((1515, 870), (1545, 910)), 28)
                 logger.debug(
                     "operation repeat_status: repeat=%s auto_repeat=%s attempts=%s",
                     repeat,
