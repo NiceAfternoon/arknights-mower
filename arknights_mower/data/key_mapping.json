@@ -937,6 +937,20 @@
         "CONSUME",
         50057
     ],
+    "voucher_recruitR6_pick7201": [
+        "voucher_recruitR6_pick7201",
+        "voucher_recruitR6_pick7201",
+        "特殊活动调用凭证",
+        "CONSUME",
+        50058
+    ],
+    "特殊活动调用凭证": [
+        "voucher_recruitR6_pick7201",
+        "voucher_recruitR6_pick7201",
+        "特殊活动调用凭证",
+        "CONSUME",
+        50058
+    ],
     "voucher_levelmax_6": [
         "voucher_levelmax_6",
         "voucher_levelmax_6",
@@ -12080,19 +12094,5 @@
         "未爆的哑弹",
         "NORMAL",
         10604
-    ],
-    "SINGLE_72_0_1_GACHA": [
-        "SINGLE_72_0_1_GACHA",
-        "SINGLE_72_0_1_GACHA",
-        "辟路之人寻访凭证",
-        "NORMAL",
-        40003
-    ],
-    "辟路之人寻访凭证": [
-        "SINGLE_72_0_1_GACHA",
-        "SINGLE_72_0_1_GACHA",
-        "辟路之人寻访凭证",
-        "NORMAL",
-        40003
     ]
 }
