@@ -98,7 +98,7 @@ class CaptchaClickSolver(BaseSolver):
         self.wait_for_scene_stable()
         logger.info(f"当前阶段：{self._phase}，尝试次数：{self._attempt_count}")
         # 1. 不是验证码 → 退出
-        if (scene := self.scene()) != Scene.LOGIN_CAPTCHA:
+        if self.scene() != Scene.LOGIN_CAPTCHA:
             if self._attempt_count > 0:
                 logger.info("验证码场景已消失，求解成功")
             return True
