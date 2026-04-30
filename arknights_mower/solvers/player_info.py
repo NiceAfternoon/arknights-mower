@@ -159,6 +159,11 @@ class PlayerInfoClient:
             return False
         if channel_name == "官服" and not item.sign_in_official:
             return False
+        # 读取第一个账户选择的森空岛仓库读取服务器作为理智获取服务器 true: official | false: bilibili
+        if item.cultivate_select and binding.get("channelName") != "官服":
+            return False
+        if not item.cultivate_select and binding.get("channelName") != "bilibili服":
+            return False
         return True
 
     def fetch_snapshot(self, item, binding: dict) -> PlayerInfoSnapshot:

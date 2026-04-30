@@ -331,7 +331,7 @@ class OperationSolver(SceneGraphSolver):
                     self.auto_repeat = False
                     self.repeat_button_attempts = 0
                     return
-                repeat = self.number(((1520, 890), (1545, 930)), 28)
+                repeat = self.number(((1515, 870), (1545, 910)), 28)
                 logger.debug(
                     "operation repeat_status: repeat=%s auto_repeat=%s attempts=%s",
                     repeat,
@@ -345,7 +345,7 @@ class OperationSolver(SceneGraphSolver):
                         self.desired_repeat_times,
                         repeat,
                     )
-                    self.tap((1500, 910), interval=0.5)
+                    # self.tap((1500, 910), interval=0.5) # 疑似多余点击
                     self.tap((1500, 801), interval=0.5)
                     self.auto_repeat = False
                     self.repeat_button_attempts = 0
