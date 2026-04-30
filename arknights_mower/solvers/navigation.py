@@ -132,7 +132,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                         self.find_target_stage_after_entry(self.name, max_swipes=6)
                     return
             if self._activity_entry_failed:
-                logger.debug("活动入口构建失败，终止本次导航，避免终端主界面循环")
+                logger.info("活动入口构建失败，终止本次导航，避免终端主界面循环")
                 return True
             if self.stageType == "MAIN":
                 self.tap_terminal_button("main_theme")
@@ -256,13 +256,13 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             return True
 
         if self.try_replay_nav_steps():
-            logger.debug("命中历史导航步骤，导航成功")
+            logger.info("命中历史导航步骤，导航成功")
             self.success = True
             return True
 
         if not self._builder_attempted:
             self._builder_attempted = True
-            logger.debug("历史回放失败，开始在线构建一次导航步骤")
+            logger.info("历史回放失败，开始在线构建一次导航步骤")
             ok = self.try_build_nav_steps_once()
             if ok:
                 self.success = True

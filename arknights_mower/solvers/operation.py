@@ -58,7 +58,7 @@ class OperationSolver(SceneGraphSolver):
                 DEFAULT_STAGE_DURATION_SECONDS,
             )
         )
-        logger.info(
+        logger.debug(
             "operation context | stage_id=%s | next_task_time=%s | target_total_runs=%s | simulated_current_ap=%s | ap_cost=%s | sanity_threshold=%s | estimated_stage_duration_seconds=%s",
             self.stage_id,
             self.next_task_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -73,7 +73,7 @@ class OperationSolver(SceneGraphSolver):
 
         while True:
             if self.remaining_runs is not None and self.remaining_runs <= 0:
-                logger.info(
+                logger.debug(
                     "stop operation loop because remaining_runs reached zero | stage_id=%s | executed_runs=%s",
                     self.stage_id,
                     self.executed_runs,

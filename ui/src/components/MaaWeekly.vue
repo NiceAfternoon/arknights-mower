@@ -1,6 +1,6 @@
 <script setup>
 import { storeToRefs } from 'pinia'
-import { NTag } from 'naive-ui'
+import { NTag, NCheckbox } from 'naive-ui'
 import { computed, h, inject, ref } from 'vue'
 import { useConfigStore } from '@/stores/config'
 import WeeklyPlanSelector from './WeeklyPlanSelector.vue'
@@ -12,24 +12,47 @@ const { maa_weekly_plan, maa_enable, maa_expiring_medicine, exipring_medicine_on
 const mobile = inject('mobile')
 
 const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const presetStages = [
-  '',
-  'Annihilation',
-  '1-7',
-  'LS-6',
-  'CE-6',
-  'AP-5',
-  'SK-5',
-  'CA-5',
-  'PR-A-2',
-  'PR-A-1',
-  'PR-B-2',
-  'PR-B-1',
-  'PR-C-2',
-  'PR-C-1',
-  'PR-D-2',
-  'PR-D-1'
+const weekdayIndices = { '周一': 0, '周二': 1, '周三': 2, '周四': 3, '周五': 4, '周六': 5, '周日': 6 }
+
+const general_important_stages = ['', 'Annihilation']
+const general_unimportant_stages = [
+  '1-7', 'LS-6', 'CE-6', 'AP-5', 'SK-5', 'CA-5',
+  'PR-A-2', 'PR-A-1', 'PR-B-2', 'PR-B-1', 'PR-C-2', 'PR-C-1', 'PR-D-2', 'PR-D-1'
 ]
+const time_table = {
+  CE: [1, 3, 5, 6],
+  AP: [0, 3, 5, 6],
+  SK: [0, 2, 4, 5],
+  CA: [1, 2, 4, 6],
+  'PR-A': [0, 3, 4, 6],
+  'PR-B': [0, 1, 4, 5],
+  'PR-C': [2, 3, 5, 6],
+  'PR-D': [1, 2, 5, 6]
+}
+
+const stageDisplayNames = {
+  '': '上次作战',
+  Annihilation: '当期剿灭',
+  'LS-6': '经验书',
+  'CE-6': '龙门币',
+  'AP-5': '红票',
+  'SK-5': '碳本',
+  'CA-5': '技能书',
+  'PR-A-1': '医疗重装1',
+  'PR-A-2': '医疗重装2',
+  'PR-B-1': '狙击术师1',
+  'PR-B-2': '狙击术师2',
+  'PR-C-1': '先锋辅助1',
+  'PR-C-2': '先锋辅助2',
+  'PR-D-1': '近卫特种1',
+  'PR-D-2': '近卫特种2',
+  '1-7': '1-7',
+}
+const stageValueMap = Object.fromEntries(
+  Object.entries(stageDisplayNames).map(([k, v]) => [v, k])
+)
+
+const presetStages = Object.keys(stageDisplayNames)
 
 const copyDialogVisible = ref(false)
 const copyStageValue = ref('')
@@ -45,17 +68,42 @@ const currentWeekdayIndex = computed(() => {
 
 const stageOptions = computed(() =>
   presetStages.map((value) => ({
-    label: formatStageLabel(value),
+    label: value ? `${stageDisplayNames[value]} (${value})` : stageDisplayNames[value],
     value
   }))
 )
 
+// --- 关卡可用性预计算 ---
+const stageAvailability = computed(() => {
+  const availabilityMap = new Map()
+  const allDaysAvailable = Array(7).fill(true)
+  general_important_stages.forEach((stage) => availabilityMap.set(stage, allDaysAvailable))
+  general_unimportant_stages.forEach((stage) => {
+    let availableDays = allDaysAvailable
+    for (const [prefix, days] of Object.entries(time_table)) {
+      if (stage.startsWith(prefix)) {
+        const weekAvailability = Array(7).fill(false)
+        days.forEach((dayIndex) => { weekAvailability[dayIndex] = true })
+        availableDays = weekAvailability
+        break
+      }
+    }
+    availabilityMap.set(stage, availableDays)
+  })
+  return availabilityMap
+})
+
+function isStageAvailableOnWeekday(stage, weekdayName) {
+  const dayIndex = weekdayIndices[weekdayName]
+  if (dayIndex === undefined) return true
+  const available = stageAvailability.value.get(stage)
+  if (!available) return true
+  return available[dayIndex]
+}
+
 function formatStageLabel(value) {
-  if (value === '') {
-    return '上次作战'
-  }
-  if (value === 'Annihilation') {
-    return '剿灭'
+  if (value in stageDisplayNames) {
+    return stageDisplayNames[value]
   }
   if (typeof value === 'string' && value.endsWith('-HARD')) {
     return `${value.slice(0, -5)} 困难`
@@ -67,11 +115,8 @@ function formatStageLabel(value) {
 }
 
 function normalizeCreatedStage(label) {
-  if (label === ' ' || label === '上次作战') {
-    return ''
-  }
-  if (label === '剿灭') {
-    return 'Annihilation'
+  if (label in stageValueMap) {
+    return stageValueMap[label]
   }
   if (label.endsWith('困难')) {
     return `${label.slice(0, -2)}-HARD`
@@ -241,10 +286,10 @@ function cancelCopyDialogLongPress() {
       <help-text>
         <div>支持 MAA 支持的所有关卡。</div>
         <div>操作流程：</div>
-        <div>1. 先在“方案”里选择已有方案，或输入新方案名后按回车创建。</div>
+        <div>1. 先在"方案"里选择已有方案，或输入新方案名后按回车创建。</div>
         <div>2. 在每天的关卡栏里可直接下拉选择，也可以手动输入后回车生成关卡标签。</div>
-        <div>3. 右键关卡标签，可快速追加或移除到其他日期。</div>
-        <div>4. 每天可分别设置吃药次数和体力阈值</div>
+        <div>3. 右键(或者长按)关卡标签，可快速追加或移除到其他日期。</div>
+        <div>4. 每天可分别设置体力阈值</div>
         <div>5. 每天可分别设置吃药次数（敬请期待）。</div>
       </help-text>
       <n-button
@@ -349,8 +394,15 @@ function cancelCopyDialogLongPress() {
         </n-checkbox>
         <n-checkbox-group v-model:value="copyTargetDays">
           <n-space vertical>
-            <n-checkbox v-for="weekday in weekdays" :key="weekday" :value="weekday">
-              {{ weekday }}
+            <n-checkbox
+              v-for="weekday in weekdays"
+              :key="weekday"
+              :value="weekday"
+            >
+              <span :class="{ 'stage-unavailable': !isStageAvailableOnWeekday(copyStageValue, weekday) }">
+                {{ weekday }}
+              </span>
+              <span v-if="!isStageAvailableOnWeekday(copyStageValue, weekday)" class="stage-hint"> (本日不开)</span>
             </n-checkbox>
           </n-space>
         </n-checkbox-group>
@@ -420,5 +472,14 @@ function cancelCopyDialogLongPress() {
 .prts-wiki-link-text {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.stage-unavailable {
+  opacity: 0.45;
+}
+.stage-hint {
+  font-size: 0.8em;
+  opacity: 0.6;
+  margin-left: 2px;
 }
 </style>
