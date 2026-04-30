@@ -244,7 +244,8 @@ function cancelCopyDialogLongPress() {
         <div>1. 先在“方案”里选择已有方案，或输入新方案名后按回车创建。</div>
         <div>2. 在每天的关卡栏里可直接下拉选择，也可以手动输入后回车生成关卡标签。</div>
         <div>3. 右键关卡标签，可快速追加或移除到其他日期。</div>
-        <div>4. 每天可分别设置吃药次数和体力阈值（敬请期待）。</div>
+        <div>4. 每天可分别设置吃药次数和体力阈值</div>
+        <div>5. 每天可分别设置吃药次数（敬请期待）。</div>
       </help-text>
       <n-button
         text
@@ -315,7 +316,7 @@ function cancelCopyDialogLongPress() {
             <n-input-number
               v-model:value="plan.sanity_threshold"
               :min="0"
-              :max="189"
+              :max="210"
               :show-button="false"
             >
               <template #suffix>理智</template>

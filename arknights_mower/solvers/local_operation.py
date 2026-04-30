@@ -6,7 +6,7 @@ from tzlocal import get_localzone
 
 from arknights_mower.utils.datetime import get_server_time
 
-MAX_AP = 180
+MAX_AP = 210
 DEFAULT_STAGE_DURATION_SECONDS = 8 * 60
 FOLLOWUP_TASK_META = "本地刷关阈值复查"
 
