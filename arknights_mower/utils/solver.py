@@ -546,7 +546,9 @@ class BaseSolver:
                     self.back(2)
                 elif scene == Scene.LOGIN_CAPTCHA:
                     # 优先尝试点选验证码求解器
-                    from arknights_mower.solvers.captcha_solver import CaptchaClickSolver
+                    from arknights_mower.solvers.captcha_solver import (
+                        CaptchaClickSolver,
+                    )
 
                     click_solver = CaptchaClickSolver(self.device, self.recog)
                     click_solver.run()

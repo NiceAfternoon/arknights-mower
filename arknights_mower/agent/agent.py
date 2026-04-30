@@ -37,6 +37,8 @@ from arknights_mower.utils.log import logger
 model_name_map = {
     "deepseek": ["deepseek-chat", "https://api.deepseek.com/v1"],
     "deepseek_reasoner": ["deepseek-reasoner", "https://api.deepseek.com/v1"],
+    "deepseek_v4_pro": ["deepseek-v4-pro", "https://api.deepseek.com/v1"],
+    "deepseek_flash": ["deepseek-chat", "https://api.deepseek.com/v1"],
 }
 
 MISS_STATE_MARKER = "MOWER_MISS_STATE"
@@ -75,12 +77,16 @@ tool_message_map = {
 
 
 def build_llm(api_key, with_tools=False):
-    llm = ChatOpenAI(
+    kwargs = dict(
         model=model_name_map[config.conf.ai_type][0],
         base_url=model_name_map[config.conf.ai_type][1],
         api_key=api_key,
         temperature=0,
     )
+    if config.conf.ai_type == "deepseek_v4_pro":
+        kwargs["reasoning_effort"] = "high"
+        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+    llm = ChatOpenAI(**kwargs)
     if with_tools:
         return llm.bind_tools(tools=get_tools())
     return llm
