@@ -545,20 +545,28 @@ class BaseSolver:
                 elif scene == Scene.LOGIN_REGISTER:
                     self.back(2)
                 elif scene == Scene.LOGIN_CAPTCHA:
-                    captcha_times = 3
-                    while captcha_times > 0:
-                        self.solve_captcha(captcha_times < 3)
-                        self.sleep(5)
-                        if self.find("login_captcha"):
-                            captcha_times -= 1
-                        else:
-                            break
-                    if captcha_times <= 0:
-                        send_message(
-                            "验证码自动滑动失败，退出游戏，停止运行mower", level="ERROR"
-                        )
-                        self.device.exit()
-                        sys.exit()
+                    # 优先尝试点选验证码求解器
+                    from arknights_mower.solvers.captcha_solver import CaptchaClickSolver
+
+                    click_solver = CaptchaClickSolver(self.device, self.recog)
+                    click_solver.run()
+                    # 如果点选求解后场景未变，回退到滑动验证码
+                    if self.scene() == Scene.LOGIN_CAPTCHA:
+                        captcha_times = 3
+                        while captcha_times > 0:
+                            self.solve_captcha(captcha_times < 3)
+                            self.sleep(5)
+                            if self.find("login_captcha"):
+                                captcha_times -= 1
+                            else:
+                                break
+                        if captcha_times <= 0:
+                            send_message(
+                                "验证码自动滑动失败，退出游戏，停止运行mower",
+                                level="ERROR",
+                            )
+                            self.device.exit()
+                            sys.exit()
                 elif scene == Scene.LOGIN_INPUT:
                     input_area = self.find("login_username")
                     if input_area is not None:

@@ -29,7 +29,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
 
     def should_use_llm_navigation(self) -> bool:
         end_ts = self._activity_end_ts()
-        logger.info(
+        logger.debug(
             "判断是否使用LLM导航 | stageType=%s endTs=%s now=%s",
             self.stageType,
             end_ts,
@@ -42,7 +42,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         )
 
     def run(self, name: str):
-        logger.info("Start: 关卡导航")
+        logger.debug("Start: 关卡导航")
         self.success = False
         self.name = name
         self.stage_meta = next(
@@ -56,7 +56,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         self.stageType = (
             "UNKNOWN" if not self.stage_meta else self.stage_meta.get("stageType")
         )
-        logger.info(
+        logger.debug(
             "Navigation target=%s stageType=%s zone=%s subTitle=%s",
             self.name,
             self.stageType,
@@ -72,9 +72,9 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         self.scene_graph_navigation(Scene.TERMINAL_MAIN)
         # rapid OCR: 如果右下角显示“上次作战”的关卡名与目标相同，直接点击进入
         if self.name == "Annihilation":
-            logger.info("skip last battle OCR for annihilation navigation")
+            logger.debug("skip last battle OCR for annihilation navigation")
         else:
-            logger.info("尝试使用rapid OCR识别上次作战")
+            logger.debug("尝试使用rapid OCR识别上次作战")
         if rapidocr.engine and self.name != "Annihilation":
             x0, y0, x1, y1 = 1680, 840, 1895, 945
             region = self.recog.img[y0:y1, x0:x1]
@@ -91,14 +91,14 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                         and isinstance(item[1], str)
                     ):
                         txt = item[1]
-                        logger.info(f"ocr识别结果: {txt}")
+                        logger.debug(f"ocr识别结果: {txt}")
                     if txt:
                         texts.append(txt.strip())
                 except Exception:
                     continue
-            logger.info(f"上次作战OCR: {texts}")
+            logger.debug(f"上次作战OCR: {texts}")
             if self.name in texts:
-                logger.info("识别到上次作战与目标相同，尝试点击进入")
+                logger.debug("识别到上次作战与目标相同，尝试点击进入")
                 self.tap((self.recog.w * 0.88, self.recog.h * 0.81), interval=0.5)
                 self.success = True
 
@@ -109,7 +109,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
 
     def transition(self):
         if (scene := self.scene()) == Scene.TERMINAL_MAIN:
-            logger.info(
+            logger.debug(
                 f"TERMINAL_MAIN flags: done={self._activity_entry_done}, failed={self._activity_entry_failed}, "
                 f"stageType={self.stageType}, has_meta={self.stage_meta is not None}"
             )
@@ -124,7 +124,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 self.stage_meta is None
                 or self.stageType in {"ACTIVITY", "MAIN", "DAILY"}
             ):
-                logger.info("进入 try_activity_entry")
+                logger.debug("进入 try_activity_entry")
                 if self.try_activity_entry():
                     # Entry-building success means same-pattern page is reached.
                     # Exact stage positioning (left/right swipe) is the final step.
@@ -132,7 +132,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                         self.find_target_stage_after_entry(self.name, max_swipes=6)
                     return
             if self._activity_entry_failed:
-                logger.info("活动入口构建失败，终止本次导航，避免终端主界面循环")
+                logger.debug("活动入口构建失败，终止本次导航，避免终端主界面循环")
                 return True
             if self.stageType == "MAIN":
                 self.tap_terminal_button("main_theme")
@@ -149,7 +149,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         elif scene == Scene.OPERATOR_CHOOSE_LEVEL:
             non_black_count = cv2.countNonZero(thres2(self.recog.gray, 10))
             non_black_ratio = non_black_count / (1920 * 1080)
-            logger.info(f"{non_black_ratio=}")
+            logger.debug(f"{non_black_ratio=}")
             if non_black_ratio < 0.1:
                 self.sleep()
                 return
@@ -201,11 +201,11 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 continue
             matches.append({"text": text, "center": center, "score": score})
 
-        logger.info(
+        logger.debug(
             "annihilation terminal main raw OCR texts | candidates=%s",
             raw_candidates,
         )
-        logger.info(
+        logger.debug(
             "annihilation entry OCR matches on terminal main | matches=%s",
             [(m["text"], m["center"], round(m["score"], 3)) for m in matches],
         )
@@ -217,7 +217,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             return False
 
         chosen = max(matches, key=lambda x: x["score"])
-        logger.info(
+        logger.debug(
             "click annihilation entry by OCR | text=%s | center=%s | score=%.3f",
             chosen["text"],
             chosen["center"],
@@ -225,7 +225,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         )
         self.tap(chosen["center"], interval=0.5)
         self.wait_for_scene_stable(timeout_seconds=3, interval_seconds=0.2)
-        logger.info(
+        logger.debug(
             "annihilation entry click completed | text=%s | center=%s",
             chosen["text"],
             chosen["center"],
@@ -240,10 +240,10 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         3) 回放失败后在线构建一次并更新 json
         """
         if not rapidocr.engine:
-            logger.info("rapidocr 未初始化，跳过活动入口 OCR")
+            logger.debug("rapidocr 未初始化，跳过活动入口 OCR")
             return False
         self._activity_entry_done = True
-        logger.info(
+        logger.debug(
             "try_activity_entry: target=%s stageType=%s builder_attempted=%s",
             self.name,
             self.stageType,
@@ -251,18 +251,18 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         )
 
         if self.try_quick_entry_from_main():
-            logger.info("快速入口命中，导航成功")
+            logger.debug("快速入口命中，导航成功")
             self.success = True
             return True
 
         if self.try_replay_nav_steps():
-            logger.info("命中历史导航步骤，导航成功")
+            logger.debug("命中历史导航步骤，导航成功")
             self.success = True
             return True
 
         if not self._builder_attempted:
             self._builder_attempted = True
-            logger.info("历史回放失败，开始在线构建一次导航步骤")
+            logger.debug("历史回放失败，开始在线构建一次导航步骤")
             ok = self.try_build_nav_steps_once()
             if ok:
                 self.success = True
@@ -270,14 +270,14 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 return True
 
         self._activity_entry_failed = True
-        logger.info("在线构建失败，终止本次导航")
+        logger.debug("在线构建失败，终止本次导航")
         return False
 
     def try_quick_entry_from_main(self) -> bool:
         if self.scene() != Scene.TERMINAL_MAIN:
             return False
         if self.should_use_llm_navigation():
-            logger.info(
+            logger.debug(
                 "skip quick entry and use llm navigation | target=%s | stageType=%s | endTs=%s",
                 self.name,
                 self.stageType,
@@ -288,7 +288,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         self._suppress_nav_recording = True
         try:
             # Quick entry is runtime-only and should not be persisted into trie steps.
-            logger.info(
+            logger.debug(
                 "尝试快速入口: stageType=%s zone=%s",
                 self.stageType,
                 None if not self.stage_meta else self.stage_meta.get("zoneNameSecond"),
@@ -304,9 +304,9 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             if self.stageType == "DAILY":
                 zone_candidate = self.find_zone_candidate_with_swipe(zone, max_swipes=2)
                 if not zone_candidate:
-                    logger.info("快速入口未找到 DAILY zone OCR，进入后续策略")
+                    logger.debug("快速入口未找到 DAILY zone OCR，进入后续策略")
                     return False
-                logger.info(
+                logger.debug(
                     "快速入口 DAILY OCR命中: text=%s center=%s",
                     zone_candidate.get("text"),
                     zone_candidate.get("center"),
@@ -323,14 +323,14 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     return self.find_target_stage_after_entry(self.name, max_swipes=3)
                 return True
             key = f"navigation/stage/{zone}"
-            logger.info(f"快速入口图片匹配: key={key}")
+            logger.debug(f"快速入口图片匹配: key={key}")
             pos = self.find_stage_banner(zone)
             if not pos:
-                logger.info("快速入口未找到 zone 图片，进入后续策略")
+                logger.debug("快速入口未找到 zone 图片，进入后续策略")
                 return False
             moved = self.tap_and_detect_page_move(pos[0], zone, record_step=False)
             if not moved:
-                logger.info("快速入口图片命中但不可点击（页面未跳转）")
+                logger.debug("快速入口图片命中但不可点击（页面未跳转）")
                 return False
             # Quick entry may land on overview first; try subtitle/chapter entry once.
             self.click_subtitle_if_needed()
@@ -343,7 +343,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
     def try_build_nav_steps_once(self) -> bool:
         # Build navigation route (to pattern page) once.
         if self.should_use_llm_navigation():
-            logger.info(
+            logger.debug(
                 "use activity navigation builder | target=%s | stageType=%s | endTs=%s",
                 self.name,
                 self.stageType,
@@ -367,20 +367,20 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         # Stage A: from TERMINAL_MAIN enter event/main summary page.
         # Stage B: from summary select subtitle/entry page.
         # Stage C: verify pattern page reached (pattern_only=True).
-        logger.info("构建 UNKNOWN 导航步骤：MAIN OCR + LLM 排序入口")
+        logger.debug("构建 UNKNOWN 导航步骤：MAIN OCR + LLM 排序入口")
         if not self.back_to_terminal_main():
-            logger.info("UNKNOWN 导航失败：无法回到终端主界面")
+            logger.debug("UNKNOWN 导航失败：无法回到终端主界面")
             return False
 
         candidates = self.collect_terminal_ocr_candidates(save_shot=True)
         if not candidates:
-            logger.info("UNKNOWN 导航失败：MAIN OCR 为空")
+            logger.debug("UNKNOWN 导航失败：MAIN OCR 为空")
             return False
 
         ranked = self.rank_activity_candidates(
             candidates, top_k=min(max_attempts, len(candidates))
         )
-        logger.info(
+        logger.debug(
             f"UNKNOWN 导航候选数={len(candidates)} 尝试上限={max_attempts} top={[c.get('text', '') for c in ranked]}"
         )
         main_sig = self.ocr_signature(candidates)
@@ -393,32 +393,32 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             center = cand.get("center")
             main_key = (main_sig, self.normalize_stage_text(text))
             if main_key in failed_main_attempts:
-                logger.info(
+                logger.debug(
                     f"UNKNOWN MAIN入口尝试[{idx}] 跳过（同页同候选已失败） text={text}"
                 )
                 continue
-            logger.info(f"UNKNOWN MAIN入口尝试[{idx}/{max_attempts}] text={text}")
+            logger.debug(f"UNKNOWN MAIN入口尝试[{idx}/{max_attempts}] text={text}")
             moved = self.tap_and_detect_page_move(center, text, record_step=True)
             if not moved:
                 self.nav_steps = self.nav_steps[:main_checkpoint]
                 failed_main_attempts.add(main_key)
-                logger.info(f"UNKNOWN MAIN入口尝试[{idx}] 无跳转，换下一个候选")
+                logger.debug(f"UNKNOWN MAIN入口尝试[{idx}] 无跳转，换下一个候选")
                 continue
-            logger.info(f"UNKNOWN 已进入活动summary: by='{text}'")
+            logger.debug(f"UNKNOWN 已进入活动summary: by='{text}'")
 
             if self.is_stage_code(self.name) and self.find_target_stage_after_entry(
                 self.name, max_swipes=4, pattern_only=True
             ):
-                logger.info(f"UNKNOWN 导航成功：summary直检命中 {self.name}")
+                logger.debug(f"UNKNOWN 导航成功：summary直检命中 {self.name}")
                 return True
 
             sub_candidates = self.collect_terminal_ocr_candidates(save_shot=False)
             if not sub_candidates:
-                logger.info("UNKNOWN summary OCR 为空，切换下一个MAIN候选")
+                logger.debug("UNKNOWN summary OCR 为空，切换下一个MAIN候选")
                 self.nav_steps = self.nav_steps[:main_checkpoint]
                 failed_main_attempts.add(main_key)
                 if not self.back_to_terminal_main(max_back=4):
-                    logger.info("UNKNOWN 导航失败：无法回到终端主界面")
+                    logger.debug("UNKNOWN 导航失败：无法回到终端主界面")
                     return False
                 continue
 
@@ -426,7 +426,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 sub_candidates, top_k=min(max_attempts, len(sub_candidates))
             )
             sub_sig = self.ocr_signature(sub_candidates)
-            logger.info(
+            logger.debug(
                 f"UNKNOWN summary候选数={len(sub_candidates)} top={[c.get('text', '') for c in sub_ranked]}"
             )
             back_to_main_during_sub = False
@@ -436,11 +436,11 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 sub_center = sub_cand.get("center")
                 sub_key = (main_sig, sub_sig, self.normalize_stage_text(sub_text))
                 if sub_key in failed_sub_attempts:
-                    logger.info(
+                    logger.debug(
                         f"UNKNOWN subtitle尝试[{sub_idx}] 跳过（同页同候选已失败） text={sub_text}"
                     )
                     continue
-                logger.info(
+                logger.debug(
                     f"UNKNOWN subtitle尝试[{sub_idx}/{max_attempts}] text={sub_text}"
                 )
                 moved = self.tap_and_detect_page_move(
@@ -449,12 +449,14 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 if not moved:
                     self.nav_steps = self.nav_steps[:checkpoint]
                     failed_sub_attempts.add(sub_key)
-                    logger.info(f"UNKNOWN subtitle尝试[{sub_idx}] 无跳转，换下一个候选")
+                    logger.debug(
+                        f"UNKNOWN subtitle尝试[{sub_idx}] 无跳转，换下一个候选"
+                    )
                     continue
                 if self.is_stage_code(self.name) and self.find_target_stage_after_entry(
                     self.name, max_swipes=4, pattern_only=True
                 ):
-                    logger.info(
+                    logger.debug(
                         f"UNKNOWN 导航成功：subtitle候选[{sub_idx}] 命中 {self.name}"
                     )
                     return True
@@ -463,7 +465,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 self.back(0.4)
                 self.wait_for_scene_stable(timeout_seconds=2, interval_seconds=0.2)
                 if self.scene() == Scene.TERMINAL_MAIN:
-                    logger.info("UNKNOWN subtitle尝试后回到MAIN，切换下一个MAIN候选")
+                    logger.debug("UNKNOWN subtitle尝试后回到MAIN，切换下一个MAIN候选")
                     back_to_main_during_sub = True
                     failed_main_attempts.add(main_key)
                     break
@@ -475,10 +477,10 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             self.nav_steps = self.nav_steps[:main_checkpoint]
             failed_main_attempts.add(main_key)
             if not self.back_to_terminal_main(max_back=4):
-                logger.info("UNKNOWN 导航失败：无法回到终端主界面")
+                logger.debug("UNKNOWN 导航失败：无法回到终端主界面")
                 return False
 
-        logger.info("UNKNOWN 导航失败：MAIN候选与summary候选均未命中目标")
+        logger.debug("UNKNOWN 导航失败：MAIN候选与summary候选均未命中目标")
         return False
 
     def find_stage_banner(self, zone_name: str, scope=None):
@@ -491,7 +493,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             / f"{zone_name}.png"
         )
         if not template_path.exists():
-            logger.info(f"stage banner 模板不存在，跳过图片匹配: {template_path}")
+            logger.debug(f"stage banner 模板不存在，跳过图片匹配: {template_path}")
             return None
         # Baseline attempt first.
         try:
@@ -527,7 +529,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             )
             if rect:
                 self._stage_scale_hint[zone_name] = scale
-                logger.info(
+                logger.debug(
                     f"stage匹配成功 zone={zone_name} scale={scale:.2f} (hint updated)"
                 )
                 return rect
@@ -563,21 +565,21 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         return None
 
     def build_daily_nav_steps(self) -> bool:
-        logger.info("构建 DAILY 导航步骤")
+        logger.debug("构建 DAILY 导航步骤")
         if self.scene() != Scene.TERMINAL_MAIN:
             self.scene_graph_navigation(Scene.TERMINAL_MAIN)
         self.tap((800, 1014), interval=0.2)
         self.record_nav_step("tap", pos=(800, 1014), text="daily_entry")
         self.wait_for_scene_stable(timeout_seconds=5, interval_seconds=0.2)
         zone = (self.stage_meta or {}).get("zoneNameSecond")
-        logger.info("DAILY 导航目标: stage=%s zone=%s", self.name, zone)
+        logger.debug("DAILY 导航目标: stage=%s zone=%s", self.name, zone)
         if not zone:
             return False
         zone_candidate = self.find_zone_candidate_with_swipe(zone, max_swipes=2)
         if not zone_candidate:
-            logger.info("DAILY 未找到 zoneNameSecond")
+            logger.debug("DAILY 未找到 zoneNameSecond")
             return False
-        logger.info(
+        logger.debug(
             "DAILY 命中 zone 候选: text=%s center=%s",
             zone_candidate.get("text"),
             zone_candidate.get("center"),
@@ -608,31 +610,33 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
 
     def find_stage_image_and_enter(self, zone_name: str, max_swipes: int = 10) -> bool:
         key = f"navigation/stage/{zone_name}"
-        logger.info(
+        logger.debug(
             f"find_stage_image_and_enter start: zone={zone_name}, key={key}, max_swipes={max_swipes}"
         )
         last_view = None
         stagnant_rounds = 0
         for i in range(max_swipes + 1):
             pos = self.find_stage_banner(zone_name)
-            logger.info(f"find_stage_image_and_enter round={i}, pos_found={bool(pos)}")
+            logger.debug(f"find_stage_image_and_enter round={i}, pos_found={bool(pos)}")
             if pos:
                 moved = self.tap_and_detect_page_move(pos[0], zone_name)
-                logger.info(
+                logger.debug(
                     f"find_stage_image_and_enter tap result: moved={moved}, zone={zone_name}"
                 )
                 if moved:
-                    logger.info(f"find_stage_image_and_enter success: zone={zone_name}")
+                    logger.debug(
+                        f"find_stage_image_and_enter success: zone={zone_name}"
+                    )
                     return True
             if i < max_swipes:
                 # Overlap scan: primary + micro swipe to cover half-visible banners.
-                logger.info(
+                logger.debug(
                     f"find_stage_image_and_enter swipe down(primary): round={i}, zone={zone_name}"
                 )
                 self.swipe_noinertia((960, 700), (0, -910))
                 self.record_nav_step("swipe", start=(960, 700), vector=(0, -910))
                 self.wait_for_scene_stable(timeout_seconds=2, interval_seconds=0.2)
-                logger.info(
+                logger.debug(
                     f"find_stage_image_and_enter swipe down(micro): round={i}, zone={zone_name}"
                 )
                 self.swipe_noinertia((960, 700), (0, -280))
@@ -647,11 +651,11 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     stagnant_rounds = 0
                 last_view = current_view
                 if stagnant_rounds >= 2:
-                    logger.info(
+                    logger.debug(
                         "find_stage_image_and_enter stop: viewport stagnant, likely at bottom"
                     )
                     break
-        logger.info(f"find_stage_image_and_enter failed: zone={zone_name}")
+        logger.debug(f"find_stage_image_and_enter failed: zone={zone_name}")
         return False
 
     def click_subtitle_if_needed(self) -> None:
@@ -659,25 +663,25 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         # Prefer metadata subtitle match; fallback to LLM-ranked entry candidates.
         subtitle = (self.stage_meta or {}).get("subTitle")
         candidates = self.collect_terminal_ocr_candidates(save_shot=False)
-        logger.info(
+        logger.debug(
             "click_subtitle_if_needed: subtitle=%s candidate_count=%s",
             subtitle,
             len(candidates),
         )
         if not candidates:
-            logger.info("summary OCR 为空，无法选择第二入口")
+            logger.debug("summary OCR 为空，无法选择第二入口")
             return
 
         if not subtitle:
             # No metadata subtitle -> use LLM ranking directly.
             top_k = min(5, len(candidates))
             ranked = self.rank_activity_candidates(candidates, top_k=top_k)
-            logger.info(
+            logger.debug(
                 f"无 subtitle，使用LLM选择第二入口 top={[c.get('text', '') for c in ranked]}"
             )
             for idx, cand in enumerate(ranked, start=1):
                 moved = self.tap_and_detect_page_move(cand["center"], cand["text"])
-                logger.info(
+                logger.debug(
                     f"无 subtitle，LLM候选[{idx}/{top_k}] moved={moved} text={cand.get('text', '')}"
                 )
                 if moved:
@@ -687,7 +691,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         matched = [c for c in candidates if subtitle in c["text"]]
         if matched:
             chosen = max(matched, key=lambda x: x["score"])
-            logger.info(
+            logger.debug(
                 "subtitle 直接命中: subtitle=%s text=%s center=%s",
                 subtitle,
                 chosen.get("text"),
@@ -697,26 +701,26 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             self.record_nav_step("tap", pos=chosen["center"], text=chosen["text"])
             self.wait_for_scene_stable(timeout_seconds=3, interval_seconds=0.2)
             return
-        logger.info(f"有 subtitle={subtitle}，但OCR未命中，回退LLM尝试第二入口")
+        logger.debug(f"有 subtitle={subtitle}，但OCR未命中，回退LLM尝试第二入口")
         top_k = min(5, len(candidates))
         ranked = self.rank_activity_candidates(candidates, top_k=top_k)
         for idx, cand in enumerate(ranked, start=1):
             moved = self.tap_and_detect_page_move(cand["center"], cand["text"])
-            logger.info(
+            logger.debug(
                 f"subtitle fallback LLM候选[{idx}/{top_k}] moved={moved} text={cand.get('text', '')}"
             )
             if moved:
                 return
 
     def build_activity_or_main_nav_steps(self) -> bool:
-        logger.info("构建 ACTIVITY/MAIN 导航步骤")
+        logger.debug("构建 ACTIVITY/MAIN 导航步骤")
         if self.scene() != Scene.TERMINAL_MAIN:
             self.tap((120, 1014), interval=0.2)
         self.tap((490, 1014), interval=0.2)
         self.record_nav_step("tap", pos=(490, 1014), text="main_entry")
 
         zone = (self.stage_meta or {}).get("zoneNameSecond")
-        logger.info(
+        logger.debug(
             "ACTIVITY/MAIN 导航目标: stage=%s zone=%s subTitle=%s",
             self.name,
             zone,
@@ -736,10 +740,10 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         #             return True
 
         if not self.open_activity_overview_until_ready(max_taps=8):
-            logger.info("未进入 open_time 页面")
+            logger.debug("未进入 open_time 页面")
             return False
         if zone and not self.find_stage_image_and_enter(zone, max_swipes=10):
-            logger.info("stage 图片匹配失败")
+            logger.debug("stage 图片匹配失败")
             return False
         self.click_subtitle_if_needed()
         if self.is_stage_code(self.name):
@@ -811,7 +815,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     {"text": str(text).strip(), "center": center, "score": score}
                 )
 
-        logger.info(f"OCR候选 count={len(candidates)}")
+        logger.debug(f"OCR候选 count={len(candidates)}")
         return candidates
 
     def ocr_signature(self, candidates: list[dict]) -> tuple[str, ...]:
@@ -839,18 +843,18 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 api_key=config.conf.ai_key,
             )
         except Exception as e:
-            logger.info(f"LLM 入口排序不可用，回退规则打分: {e}")
+            logger.debug(f"LLM 入口排序不可用，回退规则打分: {e}")
         if llm_ranked_indices:
             llm_texts = [
                 candidates[i]["text"]
                 for i in llm_ranked_indices
                 if isinstance(i, int) and 0 <= i < len(candidates)
             ]
-            logger.info(
+            logger.debug(
                 f"LLM ranking indices={llm_ranked_indices} texts={llm_texts[:5]}"
             )
         else:
-            logger.info("LLM ranking 为空，使用规则分")
+            logger.debug("LLM ranking 为空，使用规则分")
 
         targets = {self.name}
         if self.stage_meta:
@@ -887,7 +891,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             self.wait_for_scene_stable(timeout_seconds=3, interval_seconds=0.2)
             candidates = self.collect_terminal_ocr_candidates(save_shot=False)
             texts = [c["text"] for c in candidates]
-            logger.info(
+            logger.debug(
                 "关卡定位: target=%s swipe_round=%s/%s pattern_only=%s ocr_count=%s sample=%s",
                 target_stage,
                 swipe_idx,
@@ -911,7 +915,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 )
                 # Mark route as successful only when final pattern-level target is reached.
                 self.nav_route_success = True
-                logger.info(f"OCR 直接命中目标关卡 {target_stage}，导航成功")
+                logger.debug(f"OCR 直接命中目标关卡 {target_stage}，导航成功")
                 # Persist immediately so successful path survives unexpected early exits.
                 if not self._suppress_nav_recording:
                     self.persist_nav_steps()
@@ -922,7 +926,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 for t in texts
             )
             if not has_same_pattern:
-                logger.info("当前页面未识别到同 pattern 关卡，停止继续滑动")
+                logger.debug("当前页面未识别到同 pattern 关卡，停止继续滑动")
                 return False
 
             if pattern_only:
@@ -932,7 +936,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     payload["success"] = True
                 if not self._suppress_nav_recording:
                     self.persist_nav_steps()
-                logger.info(
+                logger.debug(
                     f"命中同 pattern 页面，导航成功（pattern_only）：{target_stage}"
                 )
                 return True
@@ -964,13 +968,13 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     if (target_tail_num - cur_min) <= (cur_max - target_tail_num):
                         swipe_start = (500, 540)
                         swipe_vector = (800, 0)
-                logger.info(
+                logger.debug(
                     f"同pattern尾号范围=[{cur_min},{cur_max}] target={target_tail_num} "
                     f"swipe={swipe_vector}"
                 )
             self.swipe_noinertia(swipe_start, swipe_vector)
             self.record_nav_step("swipe", start=swipe_start, vector=swipe_vector)
-        logger.info(
+        logger.debug(
             "关卡定位失败: target=%s max_swipes=%s pattern_only=%s",
             target_stage,
             max_swipes,
@@ -1007,38 +1011,40 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         stage_entry = data["stages"].get(self.name, {})
         stage_steps = stage_entry.get("steps", [])
         if stage_steps and stage_entry.get("success") is True:
-            logger.info(
+            logger.debug(
                 f"找到精确关卡历史步骤: {self.name} steps={len(stage_steps)} success=true"
             )
             return stage_steps
         if stage_steps:
-            logger.info(f"忽略精确关卡历史步骤: {self.name}（缺少success=true）")
+            logger.debug(f"忽略精确关卡历史步骤: {self.name}（缺少success=true）")
         pattern_key = self.stage_pattern_key(self.name)
         if pattern_key:
             # Fallback to shared prefix path when exact stage path is absent.
             pattern_entry = data["patterns"].get(pattern_key, {})
             pattern_steps = pattern_entry.get("steps", [])
             if pattern_steps and pattern_entry.get("success") is True:
-                logger.info(
+                logger.debug(
                     f"找到同pattern历史步骤: {pattern_key} steps={len(pattern_steps)} success=true"
                 )
                 return pattern_steps
             if pattern_steps:
-                logger.info(f"忽略同pattern历史步骤: {pattern_key}（缺少success=true）")
+                logger.debug(
+                    f"忽略同pattern历史步骤: {pattern_key}（缺少success=true）"
+                )
         return []
 
     def try_replay_nav_steps(self) -> bool:
         if not self.back_to_terminal_main():
-            logger.info("历史回放失败：无法回到终端主界面")
+            logger.debug("历史回放失败：无法回到终端主界面")
             return False
         steps = self.get_replay_steps()
         if not steps:
             return False
-        logger.info(f"开始回放历史步骤 count={len(steps)}")
+        logger.debug(f"开始回放历史步骤 count={len(steps)}")
         for idx, step in enumerate(steps, start=1):
             action = step.get("action")
             payload = step.get("payload", {}) or {}
-            logger.info(
+            logger.debug(
                 "回放历史步骤[%s/%s]: action=%s payload=%s",
                 idx,
                 len(steps),
@@ -1079,7 +1085,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
 
     def persist_nav_steps(self):
         if not self.nav_route_success:
-            logger.info(
+            logger.debug(
                 "导航步骤未到达最终目标（success=false），不写入 nav_trie_steps.json"
             )
             return
@@ -1102,7 +1108,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 "steps": self.nav_steps,
             }
         path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info(f"导航步骤已写入: {path}")
+        logger.debug(f"导航步骤已写入: {path}")
 
     def auto_generate_nav_trie_steps(
         self,
@@ -1125,7 +1131,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 break
             count += 1
             try:
-                logger.info(
+                logger.debug(
                     f"[AUTO] build nav steps stage={stage_id} type={stage_type}"
                 )
                 ok = self.run(stage_id)
@@ -1137,7 +1143,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     )
             except Exception as e:
                 summary["failed"].append({"stage": stage_id, "reason": str(e)})
-        logger.info(
+        logger.debug(
             f"[AUTO] done ok={len(summary['ok'])} failed={len(summary['failed'])}"
         )
         return summary

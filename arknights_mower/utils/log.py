@@ -102,7 +102,7 @@ def screenshot_cleanup():
     start_time_ns = time.time_ns() - config.conf.screenshot * 3600 * 10**9
     for i in screenshot_folder.iterdir():
         if i.is_dir():
-            if i.name in ["run_order", "workshop"]:
+            if i.name in ["run_order", "workshop", "solve_captcha"]:
                 # 处理run_order文件夹，只保留最后100张图片
                 images = sorted(
                     [f for f in i.iterdir() if f.is_file() and f.stem.isnumeric()],
