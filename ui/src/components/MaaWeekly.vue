@@ -12,12 +12,24 @@ const { maa_weekly_plan, maa_enable, maa_expiring_medicine, exipring_medicine_on
 const mobile = inject('mobile')
 
 const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const weekdayIndices = { '周一': 0, '周二': 1, '周三': 2, '周四': 3, '周五': 4, '周六': 5, '周日': 6 }
+const weekdayIndices = { 周一: 0, 周二: 1, 周三: 2, 周四: 3, 周五: 4, 周六: 5, 周日: 6 }
 
 const general_important_stages = ['', 'Annihilation']
 const general_unimportant_stages = [
-  '1-7', 'LS-6', 'CE-6', 'AP-5', 'SK-5', 'CA-5',
-  'PR-A-2', 'PR-A-1', 'PR-B-2', 'PR-B-1', 'PR-C-2', 'PR-C-1', 'PR-D-2', 'PR-D-1'
+  '1-7',
+  'LS-6',
+  'CE-6',
+  'AP-5',
+  'SK-5',
+  'CA-5',
+  'PR-A-2',
+  'PR-A-1',
+  'PR-B-2',
+  'PR-B-1',
+  'PR-C-2',
+  'PR-C-1',
+  'PR-D-2',
+  'PR-D-1'
 ]
 const time_table = {
   CE: [1, 3, 5, 6],
@@ -46,11 +58,9 @@ const stageDisplayNames = {
   'PR-C-2': '先锋辅助2',
   'PR-D-1': '近卫特种1',
   'PR-D-2': '近卫特种2',
-  '1-7': '1-7',
+  '1-7': '1-7'
 }
-const stageValueMap = Object.fromEntries(
-  Object.entries(stageDisplayNames).map(([k, v]) => [v, k])
-)
+const stageValueMap = Object.fromEntries(Object.entries(stageDisplayNames).map(([k, v]) => [v, k]))
 
 const presetStages = Object.keys(stageDisplayNames)
 
@@ -83,7 +93,9 @@ const stageAvailability = computed(() => {
     for (const [prefix, days] of Object.entries(time_table)) {
       if (stage.startsWith(prefix)) {
         const weekAvailability = Array(7).fill(false)
-        days.forEach((dayIndex) => { weekAvailability[dayIndex] = true })
+        days.forEach((dayIndex) => {
+          weekAvailability[dayIndex] = true
+        })
         availableDays = weekAvailability
         break
       }
@@ -394,15 +406,17 @@ function cancelCopyDialogLongPress() {
         </n-checkbox>
         <n-checkbox-group v-model:value="copyTargetDays">
           <n-space vertical>
-            <n-checkbox
-              v-for="weekday in weekdays"
-              :key="weekday"
-              :value="weekday"
-            >
-              <span :class="{ 'stage-unavailable': !isStageAvailableOnWeekday(copyStageValue, weekday) }">
+            <n-checkbox v-for="weekday in weekdays" :key="weekday" :value="weekday">
+              <span
+                :class="{
+                  'stage-unavailable': !isStageAvailableOnWeekday(copyStageValue, weekday)
+                }"
+              >
                 {{ weekday }}
               </span>
-              <span v-if="!isStageAvailableOnWeekday(copyStageValue, weekday)" class="stage-hint"> (本日不开)</span>
+              <span v-if="!isStageAvailableOnWeekday(copyStageValue, weekday)" class="stage-hint">
+                (本日不开)</span
+              >
             </n-checkbox>
           </n-space>
         </n-checkbox-group>

@@ -42,7 +42,7 @@ def rank_activity_entries_with_agent(
     使用单次 LLM 调用返回 OCR 候选排序 index 列表。
     """
     if api_key is None:
-        api_key = config.conf.ai_key
+        api_key = config.conf.resolved_ai_key
     if not api_key or not api_key.strip():
         logger.info("rank_activity_entries_with_agent: missing api_key")
         return []

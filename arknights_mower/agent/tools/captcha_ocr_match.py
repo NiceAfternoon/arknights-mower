@@ -62,7 +62,7 @@ def match_captcha_order(
         HumanMessage(content=prompt),
     ]
 
-    key = api_key or config.conf.ai_key
+    key = api_key or config.conf.resolved_ai_key
     if not key:
         logger.error("未配置 API Key，无法进行 LLM 匹配")
         return []

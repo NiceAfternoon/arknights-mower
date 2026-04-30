@@ -892,7 +892,7 @@ def ws_chat(ws):
                 logger.debug(f"收到llm请求：{user_input}")
                 # 用流式生成器
                 for reply in ask_llm(
-                    user_input, context=context, api_key=config.conf.ai_key
+                    user_input, context=context, api_key=config.conf.resolved_ai_key
                 ):
                     ws.send(json.dumps({"reply": reply}))
                     last_reply = reply

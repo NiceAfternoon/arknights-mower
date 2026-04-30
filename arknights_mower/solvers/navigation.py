@@ -840,7 +840,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 target_stage=self.name,
                 stage_meta=self.stage_meta or {},
                 ocr_items=candidates,
-                api_key=config.conf.ai_key,
+                api_key=config.conf.resolved_ai_key,
             )
         except Exception as e:
             logger.debug(f"LLM 入口排序不可用，回退规则打分: {e}")

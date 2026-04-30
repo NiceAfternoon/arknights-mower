@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from pydantic import BaseModel, model_validator
 from pydantic_core import PydanticUndefined
+
+from arknights_mower import __rootdir__
 
 
 class ConfModel(BaseModel):
@@ -389,6 +393,15 @@ class AIAgentPart(ConfModel):
     "名称"
     ai_key: str = ""
     "密钥"
+
+    @property
+    def resolved_ai_key(self) -> str:
+        if self.ai_key:
+            return self.ai_key
+        token_path = Path(__rootdir__).parent / "token.txt"
+        if token_path.exists():
+            return token_path.read_text(encoding="utf-8").strip()
+        return ""
 
 
 class MaaRewardPart(ConfModel):
