@@ -13,619 +13,6 @@
     "endTs": -1
   },
   {
-    "id": "PA-1",
-    "name": "“卡托加区欢迎你”",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 2,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 9,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-2",
-    "name": "枷锁之中",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 2,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 9,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-3",
-    "name": "阳光照耀圣骏堡",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 12,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-4",
-    "name": "一墙之隔",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 12,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-5",
-    "name": "高尚的背叛",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 1,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 3,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 12,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-6",
-    "name": "各自流亡",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 1,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 21,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-7",
-    "name": "死结两端",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 2,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 21,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-8",
-    "name": "一千年后",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 1,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      },
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 21,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
-    "id": "PA-TR-1",
-    "name": "卑劣与繁荣",
-    "drop": [
-      {
-        "occPercent": 0,
-        "GetPercent": 0.0,
-        "CannotGetPercent": 0.0,
-        "Expectation": 0.0,
-        "SumOfCountWeight": 0.0,
-        "type": 0,
-        "id": null,
-        "dropType": 0
-      }
-    ],
-    "zoneId": "act51side_zone1",
-    "apCost": 0,
-    "difficulty": "NORMAL",
-    "diffGroup": "NONE",
-    "zoneNameSecond": "人们，我们",
-    "subTitle": "告别天真年代",
-    "stageType": "ACTIVITY",
-    "endTs": {
-      "startTs": 1775516400,
-      "endTs": 1776715199
-    }
-  },
-  {
     "id": "0-1",
     "name": "坍塌",
     "drop": null,
@@ -7609,6 +6996,402 @@
     "diffGroup": "NONE",
     "zoneNameSecond": "身先士卒",
     "stageType": "DAILY"
+  },
+  {
+    "id": "17-1",
+    "name": "大地的呼吸",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-2",
+    "name": "救赎迟来",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-2",
+    "name": "救赎迟来",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "TR-28",
+    "name": "无权责问",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-3",
+    "name": "良心之刺",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-3",
+    "name": "良心之刺",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-4",
+    "name": "沉默众生",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-4",
+    "name": "沉默众生",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-5",
+    "name": "不过空壳",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-5",
+    "name": "不过空壳",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-6",
+    "name": "风波暗涌",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-6",
+    "name": "风波暗涌",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-7",
+    "name": "理性失衡",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-7",
+    "name": "理性失衡",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-8",
+    "name": "历史洪流",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-8",
+    "name": "历史洪流",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-9",
+    "name": "永不祈祷",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-9",
+    "name": "永不祈祷",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-10",
+    "name": "爱的尺度",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-10",
+    "name": "爱的尺度",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-11",
+    "name": "孤寂生地",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-11",
+    "name": "孤寂生地",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-12",
+    "name": "初次握手",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-12",
+    "name": "初次握手",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-13",
+    "name": "并非独行",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-13",
+    "name": "并非独行",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-14",
+    "name": "难如雪覆",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-15",
+    "name": "人的价值",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-15",
+    "name": "人的价值",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 24,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-16",
+    "name": "唯有向前",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-17",
+    "name": "不曾怀疑",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-17",
+    "name": "不曾怀疑",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 21,
+    "difficulty": "SIX_STAR",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-18",
+    "name": "灵魂悄然",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-19",
+    "name": "面向旷野呼号",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-20",
+    "name": "罪与罚的先声",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
+  },
+  {
+    "id": "17-21",
+    "name": "在暗夜中燃烧",
+    "drop": null,
+    "zoneId": "act4mainss_zone1",
+    "apCost": 0,
+    "difficulty": "NORMAL",
+    "diffGroup": "NONE",
+    "zoneNameSecond": "相变临界",
+    "stageType": "MAIN"
   },
   {
     "id": "CG-1",
@@ -32391,7 +32174,7 @@
   },
   {
     "id": "MN-5",
-    "name": "斯沃玛视频",
+    "name": "斯沃玛食品",
     "drop": null,
     "zoneId": "act7sre_zone1",
     "apCost": 15,
