@@ -18,6 +18,7 @@ class TradingOrder:
         1500: loadres("price_1500", True),
         2000: loadres("price_2000", True),
         2500: loadres("price_2500", True),
+        1200: loadres("price_1200", True),
     }
 
     def __init__(self):
@@ -41,6 +42,9 @@ class TradingOrder:
                     self.buff = "佩佩"
                 elif np.count_nonzero(mask[225:260, 570:605]):
                     self.buff = "但书"
+                elif np.count_nonzero(mask[225:260, 520:555]):
+                    self.price = 1200
+                    self.buff = "可露希尔"
                 elif np.count_nonzero(mask[725:780, 700:740]):
                     self.price = 2500
                     self.buff = "龙舌兰"

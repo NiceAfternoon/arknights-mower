@@ -61,6 +61,9 @@ from arknights_mower.utils.image import cropimg, loadres, thres2
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.operators import Operator, Operators
 from arknights_mower.utils.path import get_path
+
+# 赤金交易订单干员常量
+TRADE_ORDER_AGENTS = ["但书", "龙舌兰", "佩佩", "可露希尔"]
 from arknights_mower.utils.plan import PlanTriggerTiming
 from arknights_mower.utils.recognize import Recognizer, Scene
 from arknights_mower.utils.scheduler_task import (
@@ -778,7 +781,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     or (
                         (
                             name in plan[key][idx].replacement
-                            and name not in ["但书", "龙舌兰", "佩佩"]
+                            and name not in TRADE_ORDER_AGENTS
                         )
                         and len(plan[key][idx].replacement) > 0
                     )
@@ -1388,7 +1391,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         for idx, x in enumerate(plan[room]):
             if any(
                 any(char in replacement_str for replacement_str in x.replacement)
-                for char in ["但书", "龙舌兰", "佩佩"]
+                for char in TRADE_ORDER_AGENTS
             ):
                 in_out_plan[room][idx] = x.replacement[0]
         self.tasks.append(
@@ -1837,7 +1840,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             and not self.op_data.operators[obj].is_resting()
                         )
                     )
-                    and obj not in ["但书", "龙舌兰", "佩佩"]
+                    and obj not in TRADE_ORDER_AGENTS
                     and obj not in exist_replacement
                     and obj not in __replacement
                     and self.op_data.operators[obj].current_room != x.room
@@ -3261,7 +3264,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if not checked:
                     if any(
                         any(char in item for item in plan[room])
-                        for char in ["但书", "龙舌兰", "佩佩"]
+                        for char in TRADE_ORDER_AGENTS
                     ) and not room.startswith("dormitory"):
                         new_plan[room] = self.refresh_current_room(room)
                     if "菲亚梅塔" in plan[room] and len(plan[room]) == 2:
@@ -3487,7 +3490,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             run_order_room = next(iter(new_plan))
             if any(
                 any(char in item for item in new_plan[run_order_room])
-                for char in ["但书", "龙舌兰", "佩佩"]
+                for char in TRADE_ORDER_AGENTS
             ):
                 new_plan[run_order_room] = [
                     data.agent for data in self.op_data.plan[room]

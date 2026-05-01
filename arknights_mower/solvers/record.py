@@ -481,7 +481,7 @@ def get_trading_history(start_date: str, end_date: str):
             # 构建每个记录的统计信息
             key = (
                 trade_type
-                if trade_type in ["佩佩", "龙舌兰"]
+                if trade_type in ["佩佩", "龙舌兰", "可露希尔"]
                 else f"{trade_type}_{price}"
             )
             result_dict[trade_date].append({key: count})
