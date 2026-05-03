@@ -535,7 +535,7 @@ class Arknights数据处理器:
             if 干员名 in recruit_list:
                 tag = 干员数据["tagList"]
                 # 数据中稀有度从0-5
-                干员数据["rarity"] = 干员数据["rarity"] + 1
+                干员数据["rarity"] = int(干员数据["rarity"].removeprefix("TIER_"))
                 if len(干员名) <= 4:
                     recruit_result_data[len(干员名)].append(干员代码)
                 else:
@@ -905,7 +905,7 @@ class Arknights数据处理器:
                         干员技能详情["skill_level"] = skill_level
                         skill_level += 1
                         干员技能详情["phase_level"] = (
-                            f"精{item2['cond']['phase']} {item2['cond']['level']}级"
+                            f"精{item2['cond']['phase'].removeprefix('PHASE_')} {item2['cond']['level']}级"
                         )
                         干员技能详情["skillname"] = buff_table[item2["buffId"]][0]
                         text = buff_table[item2["buffId"]][1]
