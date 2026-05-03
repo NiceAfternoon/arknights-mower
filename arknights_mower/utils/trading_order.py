@@ -37,20 +37,20 @@ class TradingOrder:
             mask = cv2.inRange(hsv, (0, 0, 200), (180, 100, 255))
             # 判断是否有“可交付”
             if np.count_nonzero(mask[675:700, 550:580]):
-                if np.count_nonzero(mask[225:260, 620:655]):
-                    self.price = 1000
-                    self.buff = "佩佩"
-                elif np.count_nonzero(mask[225:260, 570:605]):
-                    self.buff = "但书"
-                elif np.count_nonzero(mask[225:260, 520:555]):
-                    self.price = 1200
-                    self.buff = "可露希尔"
-                elif np.count_nonzero(mask[725:780, 700:740]):
-                    self.price = 2500
-                    self.buff = "龙舌兰"
-                elif not np.count_nonzero(mask[225:260, 540:560]):
-                    self.price = 20
-                    self.buff = "源石"
+                # 取亮度最高的区域对应的订单类型和价值作为输出
+                areas = {
+                    "佩佩": [mask[224:257, 610:640], 1000],
+                    "但书": [mask[224:257, 582:608], None],
+                    "可露希尔": [mask[220:269, 561:581], 1200],
+                    "龙舌兰": [mask[741:773, 694:717], 2500],
+                    "源石": [mask[755:764, 653:660], 20],
+                }
+                scores = {buff: np.mean(info[0]) for buff, info in areas.items()}
+                logger.debug(f"亮度均值: {scores}")
+                match = max(scores, key=scores.get)
+                if scores[match] > 40:
+                    self.buff = match
+                    self.price = areas[match][1]
                 if self.buff in ["漏单", "但书"]:
                     gray = cv2.cvtColor(img[705:790, 575:735], cv2.COLOR_BGR2GRAY)
                     _, img = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
