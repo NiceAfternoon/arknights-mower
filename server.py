@@ -756,16 +756,34 @@ def mastery_recommendation_debug():
                 cultivate_data = json.load(f)
             debug_info["cultivate_keys"] = list(cultivate_data.keys())
             data = cultivate_data.get("data", {})
-            debug_info["data_keys"] = list(data.keys()) if isinstance(data, dict) else str(type(data))
+            debug_info["data_keys"] = (
+                list(data.keys()) if isinstance(data, dict) else str(type(data))
+            )
             chars = data.get("characters", []) if isinstance(data, dict) else []
             items = data.get("items", []) if isinstance(data, dict) else []
-            debug_info["chars_count"] = len(chars) if isinstance(chars, list) else "not_list"
-            debug_info["items_count"] = len(items) if isinstance(items, list) else "not_list"
+            debug_info["chars_count"] = (
+                len(chars) if isinstance(chars, list) else "not_list"
+            )
+            debug_info["items_count"] = (
+                len(items) if isinstance(items, list) else "not_list"
+            )
             if isinstance(chars, list) and len(chars) > 0:
                 debug_info["first_char_keys"] = list(chars[0].keys())
-                debug_info["first_char"] = {k: chars[0][k] for k in ["id", "level", "evolvePhase", "mainSkillLevel", "potentialRank"] if k in chars[0]}
+                debug_info["first_char"] = {
+                    k: chars[0][k]
+                    for k in [
+                        "id",
+                        "level",
+                        "evolvePhase",
+                        "mainSkillLevel",
+                        "potentialRank",
+                    ]
+                    if k in chars[0]
+                }
                 skills = chars[0].get("skills", [])
-                debug_info["first_char_skills_count"] = len(skills) if isinstance(skills, list) else "not_list"
+                debug_info["first_char_skills_count"] = (
+                    len(skills) if isinstance(skills, list) else "not_list"
+                )
         except Exception as e:
             debug_info["cultivate_read_error"] = str(e)
 
