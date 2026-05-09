@@ -34,6 +34,10 @@ mimetypes.add_type("application/javascript", ".js")
 app = Flask(__name__, static_folder="ui/dist", static_url_path="")
 sock = Sock(app)
 CORS(app)
+
+tmp_dir = get_path("@app/tmp")
+tmp_dir.mkdir(parents=True, exist_ok=True)
+
 if token := config.conf.webview.token:
     app.token = token
 
@@ -148,9 +152,22 @@ def item_list():
 
 @app.route("/depot/readdepot")
 def read_depot():
+    from datetime import datetime as _dt
+
+    from arknights_mower.solvers.cultivate_depot import cultivate
     from arknights_mower.utils import depot
 
-    return depot.读取仓库()
+    cultivate_ok = False
+    cultivate_msg = ""
+    try:
+        cultivate().start()
+        cultivate_ok = True
+        cultivate_msg = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        cultivate_msg = str(e)
+
+    data = depot.读取仓库()
+    return {"depot": data, "cultivate_ok": cultivate_ok, "cultivate_msg": cultivate_msg}
 
 
 @app.route("/status")
@@ -708,6 +725,191 @@ def test_skland_sign():
     from arknights_mower.solvers.skland import SKLand
 
     return SKLand().test_sign()
+
+
+@app.route("/mastery-recommendation-debug")
+def mastery_recommendation_debug():
+    import json
+    import os
+
+    from arknights_mower.utils.mastery_recommendation import (
+        _find_skill_data,
+        get_mastery_recommendations,
+    )
+    from arknights_mower.utils.path import _install_dir, _internal_dir, get_path
+
+    cultivate_path = get_path("@app/tmp/cultivate.json")
+    skill_data_path = _find_skill_data()
+
+    debug_info = {
+        "install_dir": str(_install_dir),
+        "internal_dir": str(_internal_dir),
+        "cultivate_path": str(cultivate_path),
+        "cultivate_exists": os.path.exists(cultivate_path),
+        "skill_data_path": str(skill_data_path),
+        "skill_data_exists": os.path.exists(skill_data_path),
+    }
+
+    if os.path.exists(cultivate_path):
+        try:
+            with open(cultivate_path, "r", encoding="utf-8") as f:
+                cultivate_data = json.load(f)
+            debug_info["cultivate_keys"] = list(cultivate_data.keys())
+            data = cultivate_data.get("data", {})
+            debug_info["data_keys"] = list(data.keys()) if isinstance(data, dict) else str(type(data))
+            chars = data.get("characters", []) if isinstance(data, dict) else []
+            items = data.get("items", []) if isinstance(data, dict) else []
+            debug_info["chars_count"] = len(chars) if isinstance(chars, list) else "not_list"
+            debug_info["items_count"] = len(items) if isinstance(items, list) else "not_list"
+            if isinstance(chars, list) and len(chars) > 0:
+                debug_info["first_char_keys"] = list(chars[0].keys())
+                debug_info["first_char"] = {k: chars[0][k] for k in ["id", "level", "evolvePhase", "mainSkillLevel", "potentialRank"] if k in chars[0]}
+                skills = chars[0].get("skills", [])
+                debug_info["first_char_skills_count"] = len(skills) if isinstance(skills, list) else "not_list"
+        except Exception as e:
+            debug_info["cultivate_read_error"] = str(e)
+
+    if os.path.exists(skill_data_path):
+        try:
+            with open(skill_data_path, "r", encoding="utf-8") as f:
+                sd = json.load(f)
+            debug_info["skill_data_meta"] = sd.get("_meta", {})
+        except Exception as e:
+            debug_info["skill_data_read_error"] = str(e)
+
+    result = get_mastery_recommendations()
+    debug_info["result_error"] = result.get("error")
+    debug_info["result_has_data"] = result.get("has_data")
+    debug_info["result_ops_count"] = len(result.get("operators", []))
+
+    return debug_info
+
+
+@app.route("/mastery-recommendation")
+def mastery_recommendation():
+    from arknights_mower.utils.mastery_recommendation import get_mastery_recommendations
+
+    return get_mastery_recommendations()
+
+
+@app.route("/workshop-auto-config", methods=["POST"])
+def workshop_auto_config():
+    import json as _json
+
+    from arknights_mower.data import workshop_formula
+    from arknights_mower.utils.mastery_recommendation import (
+        _find_skill_data,
+        get_mastery_recommendations,
+    )
+
+    req = request.json or {}
+    planned_keys = req.get("planned_skills", [])
+
+    skill_data_path = _find_skill_data()
+    with open(skill_data_path, "r", encoding="utf-8") as f:
+        skill_data = _json.load(f)
+
+    items = skill_data.get("items", {})
+    composite = skill_data.get("composite", {})
+
+    t4_names = set()
+    for item_id, comp in composite.items():
+        if comp.get("rarity") == 4:
+            name = items.get(item_id, {}).get("name", "")
+            if name and name in workshop_formula:
+                t4_names.add(name)
+
+    for name in workshop_formula:
+        entry = workshop_formula[name]
+        if entry.get("tab") == "精英材料" and entry.get("apCost") == 4.0:
+            t4_names.add(name)
+
+    fodder_list = ["碳素", "碳素组", "家具零件_碳素组"]
+    fodder_items = [
+        {"item_names": [f], "children_lower_limit": 0, "self_upper_limit": 9999}
+        for f in fodder_list
+        if f in workshop_formula
+    ]
+
+    if not planned_keys:
+        default_items = [
+            {"item_names": [name], "children_lower_limit": 20, "self_upper_limit": 20}
+            for name in sorted(t4_names)
+        ]
+        return {
+            "workshop_settings": [
+                {
+                    "operator": "九色鹿",
+                    "enabled": True,
+                    "items": fodder_items + default_items,
+                }
+            ]
+        }
+
+    result = get_mastery_recommendations()
+    operators = result.get("operators", [])
+
+    plan_set = set()
+    for key in planned_keys:
+        parts = key.rsplit("_", 1)
+        if len(parts) == 2:
+            try:
+                plan_set.add((parts[0], int(parts[1])))
+            except ValueError:
+                pass
+
+    inventory = {}
+    cultivate_path = get_path("@app/tmp/cultivate.json")
+    if os.path.exists(cultivate_path):
+        with open(cultivate_path, "r", encoding="utf-8") as f:
+            cdata = _json.load(f)
+        for item in cdata.get("data", {}).get("items", []):
+            iid = item.get("id", "")
+            cnt = int(item.get("count", 0))
+            if cnt > 0:
+                inventory[iid] = cnt
+
+    missing_t4 = {}
+    for op in operators:
+        for rec in op.get("recommendations", []):
+            if (op["char_id"], rec["skill_index"]) not in plan_set:
+                continue
+            for mat in rec.get("chain_missing_materials", []):
+                if mat["name"] in t4_names:
+                    missing_t4[mat["name"]] = max(
+                        missing_t4.get(mat["name"], 0), mat["count"]
+                    )
+
+    planned_items = []
+    for name, count in sorted(missing_t4.items()):
+        planned_items.append(
+            {
+                "item_names": [name],
+                "children_lower_limit": 0,
+                "self_upper_limit": count,
+            }
+        )
+
+    return {
+        "workshop_settings": [
+            {
+                "operator": "九色鹿",
+                "enabled": True,
+                "items": fodder_items + planned_items,
+            }
+        ]
+    }
+
+
+@app.route("/cultivate-fetch")
+def cultivate_fetch():
+    from arknights_mower.solvers.cultivate_depot import cultivate
+
+    try:
+        cultivate().start()
+        return {"success": True, "message": "数据拉取成功"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @app.route("/task", methods=["GET", "POST"])
