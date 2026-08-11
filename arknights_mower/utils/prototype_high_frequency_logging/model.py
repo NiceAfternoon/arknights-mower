@@ -1,89 +1,68 @@
-"""Pure model for a THROWAWAY high-frequency logging policy prototype.
+"""Pure model for the THROWAWAY source-owned logging decision prototype.
 
-Question: which recognition/device observations become authority records,
-bounded aggregates, ephemeral breadcrumbs, frozen incident entries, or weak
-frame references when a retry recovers or finally fails?
-
-This is planning evidence only. It performs no logging, I/O, image capture, or
-production measurement.
+Low-level recognition/device primitives return facts. The owner that knows the
+final operation outcome decides whether one semantic event is authoritative.
+This file performs no logging, I/O, image capture, or production measurement.
 """
-
-from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from typing import Literal
 
-Family = Literal["color", "resource", "match", "screenshot", "input", "adb"]
-Module = Literal["recognition", "device"]
-Outcome = Literal["succeeded", "not_matched", "attempt_failed"]
+Method = Literal["color", "template", "feature", "screenshot", "input", "adb"]
 
 
 @dataclass(frozen=True)
-class FamilyPolicy:
-    family: Family
-    module: Module
-    event_name: str
-    sample_every: int
-
-
-FAMILY_POLICIES: dict[Family, FamilyPolicy] = {
-    "color": FamilyPolicy("color", "recognition", "recognition.color.compared", 100),
-    "resource": FamilyPolicy(
-        "resource", "recognition", "recognition.resource.looked_up", 100
-    ),
-    "match": FamilyPolicy("match", "recognition", "recognition.match.evaluated", 100),
-    "screenshot": FamilyPolicy(
-        "screenshot", "device", "device.screenshot.captured", 20
-    ),
-    "input": FamilyPolicy("input", "device", "device.input.executed", 1),
-    "adb": FamilyPolicy("adb", "device", "device.adb.command.executed", 1),
-}
-
-
-@dataclass(frozen=True)
-class Policy:
-    first_window_seconds: int = 5 * 60
-    steady_window_seconds: int = 15 * 60
-    aggregate_key_limit: int = 256
-    summary_top_groups: int = 10
-    ring_max_seconds: int = 30
-    ring_max_entries: int = 64
-    frame_pre: int = 2
-    frame_post: int = 2
-
-
-@dataclass(frozen=True)
-class AggregateStat:
-    family: Family
-    operation_key: str
-    outcome: Outcome
-    count: int = 0
-    sampled: int = 0
-    duration_total_ms: int = 0
-    duration_max_ms: int = 0
-
-
-@dataclass(frozen=True)
-class Breadcrumb:
-    breadcrumb_id: int
-    at_second: int
-    event_name: str
-    operation_key: str
-    outcome: str
-    ordinal: int
+class ProbeFact:
+    candidate: str
+    method: Method
+    matched: bool
+    score: float | None
+    threshold: float | None
+    duration_ms: int
     reason: str
 
+    @property
+    def margin(self) -> float:
+        if self.score is None or self.threshold is None:
+            return float("inf")
+        return abs(self.score - self.threshold)
+
+    @property
+    def modeled_legacy_fragments(self) -> int:
+        return {
+            "color": 3,
+            "template": 2,
+            "feature": 4,
+            "screenshot": 2,
+            "input": 2,
+            "adb": 2,
+        }[self.method]
+
 
 @dataclass(frozen=True)
-class FrameCandidate:
-    frame_id: int
+class AttemptSummary:
+    attempt: int
+    outcome: str
+    selected_candidate: str | None
+    attempted_count: int
+    method_counts: tuple[tuple[str, int], ...]
+    closest: tuple[ProbeFact, ...]
+    slowest: ProbeFact | None
+    first_invalid: ProbeFact | None
+    legacy_fragments_avoided: int
+
+
+@dataclass(frozen=True)
+class DiagnosticEntry:
+    entry_id: int
     at_second: int
-    role: str
-    persisted: bool = False
+    kind: str
+    summary: str
+    protected: bool = False
 
 
 @dataclass(frozen=True)
-class FrameArtifactRef:
+class FrameRef:
     ref: str
     role: str
     sensitivity: str = "S2"
@@ -93,17 +72,15 @@ class FrameArtifactRef:
 @dataclass(frozen=True)
 class FrameGroup:
     group_ref: str
-    reason: str
-    frames: tuple[FrameArtifactRef, ...]
+    frames: tuple[FrameRef, ...]
 
 
 @dataclass(frozen=True)
 class Incident:
     incident_ref: str
-    reason: str
-    breadcrumbs: tuple[Breadcrumb, ...]
-    ring_evicted_before_freeze: int
+    chain: tuple[DiagnosticEntry, ...]
     frame_group_ref: str | None
+    ordinary_entries_evicted: int
 
 
 @dataclass(frozen=True)
@@ -112,36 +89,47 @@ class AuthorityRecord:
     event_name: str
     level: str
     message: str
-    raw_count: int = 1
-    suppressed_count: int = 0
-    sampled_count: int = 0
-    groups: tuple[str, ...] = ()
+    attempts_count: int = 1
+    attempted_candidates: int = 0
+    legacy_fragments_avoided: int = 0
     incident_ref: str | None = None
     frame_group_ref: str | None = None
 
 
 @dataclass(frozen=True)
+class DomainAggregate:
+    domain: str
+    operations: int = 0
+    candidate_probes: int = 0
+    succeeded: int = 0
+    failed_attempts: int = 0
+    legacy_fragments_avoided: int = 0
+    duration_total_ms: int = 0
+    duration_max_ms: int = 0
+
+
+@dataclass(frozen=True)
 class PrototypeState:
-    policy: Policy
     scenario: str
-    now_second: int = 0
     current_scene: str = "INDEX"
-    raw_calls: int = 0
-    per_call_records_discarded: int = 0
-    aggregate_overflow_count: int = 0
-    aggregate: tuple[AggregateStat, ...] = ()
-    sample_ordinals: tuple[tuple[str, int], ...] = ()
-    ring: tuple[Breadcrumb, ...] = ()
-    ring_evicted: int = 0
-    pre_frames: tuple[FrameCandidate, ...] = ()
-    frame_candidates_discarded: int = 0
-    frame_groups: tuple[FrameGroup, ...] = ()
-    incidents: tuple[Incident, ...] = ()
+    now_second: int = 0
+    probe_facts_seen: int = 0
+    legacy_fragments_avoided: int = 0
     authority: tuple[AuthorityRecord, ...] = ()
-    next_breadcrumb_id: int = 1
-    next_frame_id: int = 1
+    aggregate: tuple[DomainAggregate, ...] = ()
+    last_attempt: AttemptSummary | None = None
+    anchors: tuple[DiagnosticEntry, ...] = ()
+    tail: tuple[DiagnosticEntry, ...] = ()
+    display_tail_budget: int = 12
+    ordinary_entries_evicted: int = 0
+    incidents: tuple[Incident, ...] = ()
+    pre_frames: tuple[int, ...] = ()
+    overwritten_frames: int = 0
+    frame_groups: tuple[FrameGroup, ...] = ()
+    next_entry_id: int = 1
     next_event_seq: int = 1
     next_incident_id: int = 1
+    next_frame_id: int = 1
     first_window_done: bool = False
     last_action: str = "prototype started"
     retained: tuple[str, ...] = ()
@@ -149,214 +137,76 @@ class PrototypeState:
 
 
 def new_state(scenario: str = "empty") -> PrototypeState:
-    return PrototypeState(policy=Policy(), scenario=scenario)
+    return PrototypeState(scenario=scenario)
 
 
-def _sample_key(family: Family, operation_key: str) -> str:
-    return f"{family}:{operation_key}"
-
-
-def _get_ordinal(state: PrototypeState, key: str) -> int:
-    return dict(state.sample_ordinals).get(key, 0)
-
-
-def _set_ordinal(
-    state: PrototypeState, key: str, ordinal: int
-) -> tuple[tuple[str, int], ...]:
-    values = dict(state.sample_ordinals)
-    values[key] = ordinal
-    return tuple(sorted(values.items()))
-
-
-def _trim_ring(
-    ring: tuple[Breadcrumb, ...], now_second: int, policy: Policy
-) -> tuple[tuple[Breadcrumb, ...], int]:
-    cutoff = now_second - policy.ring_max_seconds
-    recent = tuple(item for item in ring if item.at_second >= cutoff)
-    evicted = len(ring) - len(recent)
-    if len(recent) > policy.ring_max_entries:
-        evicted += len(recent) - policy.ring_max_entries
-        recent = recent[-policy.ring_max_entries :]
-    return recent, evicted
-
-
-def _append_breadcrumb(
-    state: PrototypeState,
-    *,
-    event_name: str,
-    operation_key: str,
-    outcome: str,
-    ordinal: int,
-    reason: str,
-) -> PrototypeState:
-    item = Breadcrumb(
-        breadcrumb_id=state.next_breadcrumb_id,
-        at_second=state.now_second,
-        event_name=event_name,
-        operation_key=operation_key,
-        outcome=outcome,
-        ordinal=ordinal,
-        reason=reason,
-    )
-    ring, evicted = _trim_ring(state.ring + (item,), state.now_second, state.policy)
-    return replace(
-        state,
-        ring=ring,
-        ring_evicted=state.ring_evicted + evicted,
-        next_breadcrumb_id=state.next_breadcrumb_id + 1,
-    )
-
-
-def _add_aggregate(
-    state: PrototypeState,
-    *,
-    family: Family,
-    operation_key: str,
-    outcome: Outcome,
-    duration_ms: int,
-    sampled: bool,
-) -> PrototypeState:
-    values = list(state.aggregate)
-    match_index = next(
-        (
-            index
-            for index, value in enumerate(values)
-            if (value.family, value.operation_key, value.outcome)
-            == (family, operation_key, outcome)
-        ),
+def _summarize_attempt(
+    facts: tuple[ProbeFact, ...], attempt: int, outcome: str
+) -> AttemptSummary:
+    methods: dict[str, int] = {}
+    for fact in facts:
+        methods[fact.method] = methods.get(fact.method, 0) + 1
+    selected = next((fact.candidate for fact in facts if fact.matched), None)
+    closest = tuple(sorted(facts, key=lambda fact: fact.margin)[:3])
+    slowest = max(facts, key=lambda fact: fact.duration_ms, default=None)
+    first_invalid = next(
+        (fact for fact in facts if fact.reason not in {"matched", "not_matched"}),
         None,
     )
-    overflow = state.aggregate_overflow_count
-    if match_index is None and len(values) >= state.policy.aggregate_key_limit:
-        operation_key = "other"
-        overflow += 1
-        match_index = next(
-            (
-                index
-                for index, value in enumerate(values)
-                if (value.family, value.operation_key, value.outcome)
-                == (family, operation_key, outcome)
-            ),
-            None,
-        )
-    if match_index is None:
-        values.append(
-            AggregateStat(
-                family=family,
-                operation_key=operation_key,
-                outcome=outcome,
-                count=1,
-                sampled=int(sampled),
-                duration_total_ms=duration_ms,
-                duration_max_ms=duration_ms,
-            )
-        )
-    else:
-        current = values[match_index]
-        values[match_index] = replace(
-            current,
-            count=current.count + 1,
-            sampled=current.sampled + int(sampled),
-            duration_total_ms=current.duration_total_ms + duration_ms,
-            duration_max_ms=max(current.duration_max_ms, duration_ms),
-        )
-    return replace(state, aggregate=tuple(values), aggregate_overflow_count=overflow)
-
-
-def _capture_pre_frame(state: PrototypeState) -> PrototypeState:
-    frame = FrameCandidate(
-        frame_id=state.next_frame_id,
-        at_second=state.now_second,
-        role="pre",
-    )
-    candidates = state.pre_frames + (frame,)
-    discarded = state.frame_candidates_discarded
-    if len(candidates) > state.policy.frame_pre:
-        discarded += len(candidates) - state.policy.frame_pre
-        candidates = candidates[-state.policy.frame_pre :]
-    return replace(
-        state,
-        pre_frames=candidates,
-        frame_candidates_discarded=discarded,
-        next_frame_id=state.next_frame_id + 1,
-    )
-
-
-def observe_routine(
-    state: PrototypeState,
-    family: Family,
-    operation_key: str,
-    *,
-    outcome: Outcome = "succeeded",
-    duration_ms: int = 8,
-    advance_seconds: int = 0,
-) -> PrototypeState:
-    """Observe one routine call without producing a per-call authority record."""
-
-    policy = FAMILY_POLICIES[family]
-    now = state.now_second + advance_seconds
-    state = replace(state, now_second=now)
-    key = _sample_key(family, operation_key)
-    ordinal = _get_ordinal(state, key) + 1
-    sampled = ordinal == 1 or ordinal % policy.sample_every == 0
-    state = replace(
-        state,
-        raw_calls=state.raw_calls + 1,
-        per_call_records_discarded=state.per_call_records_discarded + 1,
-        sample_ordinals=_set_ordinal(state, key, ordinal),
-    )
-    state = _add_aggregate(
-        state,
-        family=family,
-        operation_key=operation_key,
+    return AttemptSummary(
+        attempt=attempt,
         outcome=outcome,
-        duration_ms=duration_ms,
-        sampled=sampled,
+        selected_candidate=selected,
+        attempted_count=len(facts),
+        method_counts=tuple(sorted(methods.items())),
+        closest=closest,
+        slowest=slowest,
+        first_invalid=first_invalid,
+        legacy_fragments_avoided=sum(
+            fact.modeled_legacy_fragments for fact in facts
+        ),
     )
-    retained = ["aggregate count and bounded duration inputs"]
-    discarded = ["routine per-call authority record"]
-    if sampled:
-        if policy.sample_every == 1:
-            reason = "every observation"
-        else:
-            reason = (
-                "first observation"
-                if ordinal == 1
-                else f"every {policy.sample_every}th"
-            )
-        state = _append_breadcrumb(
+
+
+def _add_entry(
+    state: PrototypeState, kind: str, summary: str, *, protected: bool = False
+) -> PrototypeState:
+    entry = DiagnosticEntry(
+        entry_id=state.next_entry_id,
+        at_second=state.now_second,
+        kind=kind,
+        summary=summary,
+        protected=protected,
+    )
+    if protected:
+        anchors = tuple(item for item in state.anchors if item.kind != kind) + (entry,)
+        return replace(
             state,
-            event_name=policy.event_name,
-            operation_key=operation_key,
-            outcome=outcome,
-            ordinal=ordinal,
-            reason=reason,
+            anchors=anchors,
+            next_entry_id=state.next_entry_id + 1,
         )
-        retained.append(f"ephemeral breadcrumb ({reason})")
-    else:
-        discarded.append("unsampled per-call diagnostic detail")
-    if family == "screenshot" and outcome == "succeeded":
-        state = _capture_pre_frame(state)
-        retained.append("latest two frame candidates in memory")
-        discarded.append("older routine frame candidate after overwrite")
+    tail = state.tail + (entry,)
+    evicted = state.ordinary_entries_evicted
+    if len(tail) > state.display_tail_budget:
+        evicted += len(tail) - state.display_tail_budget
+        tail = tail[-state.display_tail_budget :]
     return replace(
         state,
-        last_action=f"routine {family}/{operation_key} {outcome} at ordinal {ordinal}",
-        retained=tuple(retained),
-        discarded=tuple(discarded),
+        tail=tail,
+        ordinary_entries_evicted=evicted,
+        next_entry_id=state.next_entry_id + 1,
     )
 
 
-def _append_authority(
+def _add_authority(
     state: PrototypeState,
-    *,
     event_name: str,
     level: str,
     message: str,
-    raw_count: int = 1,
-    suppressed_count: int = 0,
-    sampled_count: int = 0,
-    groups: tuple[str, ...] = (),
+    *,
+    attempts_count: int = 1,
+    attempted_candidates: int = 0,
+    legacy_fragments_avoided: int = 0,
     incident_ref: str | None = None,
     frame_group_ref: str | None = None,
 ) -> PrototypeState:
@@ -365,10 +215,9 @@ def _append_authority(
         event_name=event_name,
         level=level,
         message=message,
-        raw_count=raw_count,
-        suppressed_count=suppressed_count,
-        sampled_count=sampled_count,
-        groups=groups,
+        attempts_count=attempts_count,
+        attempted_candidates=attempted_candidates,
+        legacy_fragments_avoided=legacy_fragments_avoided,
         incident_ref=incident_ref,
         frame_group_ref=frame_group_ref,
     )
@@ -379,209 +228,172 @@ def _append_authority(
     )
 
 
-def flush_window(state: PrototypeState) -> PrototypeState:
-    """Flush at most one bounded summary per active domain."""
-
-    summary_count = 0
-    total_raw = sum(item.count for item in state.aggregate)
-    for module in ("recognition", "device"):
-        module_stats = [
-            item
-            for item in state.aggregate
-            if FAMILY_POLICIES[item.family].module == module
-        ]
-        if not module_stats:
-            continue
-        module_stats.sort(key=lambda item: (-item.count, item.operation_key, item.outcome))
-        top = module_stats[: state.policy.summary_top_groups]
-        hidden_groups = module_stats[state.policy.summary_top_groups :]
-        raw_count = sum(item.count for item in module_stats)
-        sampled_count = sum(item.sampled for item in module_stats)
-        hidden_count = sum(item.count for item in hidden_groups)
-        groups = tuple(
-            f"{item.family}/{item.operation_key}/{item.outcome}: count={item.count}, "
-            f"sampled={item.sampled}, avg_ms={item.duration_total_ms / item.count:.1f}, "
-            f"max_ms={item.duration_max_ms}"
-            for item in top
-        )
-        if hidden_count:
-            groups += (f"other displayed groups: count={hidden_count}",)
-        state = _append_authority(
-            state,
-            event_name=f"{module}.activity.summary",
-            level="INFO",
-            message=f"{module} high-frequency activity aggregated",
-            raw_count=raw_count,
-            suppressed_count=raw_count,
-            sampled_count=sampled_count,
-            groups=groups,
-        )
-        summary_count += 1
-    window = (
-        state.policy.first_window_seconds
-        if not state.first_window_done
-        else state.policy.steady_window_seconds
+def _add_aggregate(
+    state: PrototypeState,
+    domain: str,
+    summary: AttemptSummary,
+    duration_ms: int,
+) -> PrototypeState:
+    values = list(state.aggregate)
+    index = next(
+        (i for i, value in enumerate(values) if value.domain == domain), None
     )
-    return replace(
+    if index is None:
+        values.append(DomainAggregate(domain=domain))
+        index = len(values) - 1
+    current = values[index]
+    values[index] = replace(
+        current,
+        operations=current.operations + 1,
+        candidate_probes=current.candidate_probes + summary.attempted_count,
+        succeeded=current.succeeded + int(summary.outcome == "succeeded"),
+        failed_attempts=current.failed_attempts
+        + int(summary.outcome == "attempt_failed"),
+        legacy_fragments_avoided=current.legacy_fragments_avoided
+        + summary.legacy_fragments_avoided,
+        duration_total_ms=current.duration_total_ms + duration_ms,
+        duration_max_ms=max(current.duration_max_ms, duration_ms),
+    )
+    return replace(state, aggregate=tuple(values))
+
+
+def observe_scan_attempt(
+    state: PrototypeState,
+    facts: tuple[ProbeFact, ...],
+    *,
+    attempt: int,
+    result_scene: str | None,
+) -> PrototypeState:
+    outcome = "succeeded" if result_scene is not None else "attempt_failed"
+    summary = _summarize_attempt(facts, attempt, outcome)
+    duration_ms = sum(fact.duration_ms for fact in facts)
+    state = replace(
         state,
-        now_second=state.now_second + window,
-        aggregate=(),
-        aggregate_overflow_count=0,
-        first_window_done=True,
-        last_action=f"flushed {total_raw} calls into {summary_count} domain summaries",
-        retained=(f"{summary_count} bounded domain summary record(s)",),
-        discarded=(f"{total_raw} per-call authority records", "aggregate bucket after flush"),
+        now_second=state.now_second + max(1, duration_ms // 1000),
+        probe_facts_seen=state.probe_facts_seen + len(facts),
+        legacy_fragments_avoided=state.legacy_fragments_avoided
+        + summary.legacy_fragments_avoided,
+        last_attempt=summary,
     )
-
-
-def observe_scene(state: PrototypeState, scene: str) -> PrototypeState:
-    state = replace(state, raw_calls=state.raw_calls + 1)
-    if scene == state.current_scene:
-        state = _add_aggregate(
+    state = _add_aggregate(state, "recognition", summary, duration_ms)
+    state = _add_entry(
+        state,
+        "scan_tail",
+        f"attempt={attempt} outcome={outcome} candidates={len(facts)} "
+        f"closest={[fact.candidate for fact in summary.closest]}",
+    )
+    if result_scene is not None and result_scene != state.current_scene:
+        previous = state.current_scene
+        state = _add_entry(
             state,
-            family="match",
-            operation_key="scene.same",
-            outcome="succeeded",
-            duration_ms=0,
-            sampled=False,
+            "scene_anchor",
+            f"scene {previous} -> {result_scene}",
+            protected=True,
+        )
+        state = _add_authority(
+            state,
+            "recognition.scene.changed",
+            "INFO",
+            f"scene changed: {previous} -> {result_scene}",
+            attempted_candidates=len(facts),
+            legacy_fragments_avoided=summary.legacy_fragments_avoided,
         )
         return replace(
             state,
-            per_call_records_discarded=state.per_call_records_discarded + 1,
-            last_action=f"re-observed unchanged scene {scene}",
-            retained=("unchanged-scene aggregate count",),
-            discarded=("duplicate scene INFO",),
+            current_scene=result_scene,
+            last_action=f"scan changed scene from {previous} to {result_scene}",
+            retained=("one state-change INFO", "bounded attempt representatives"),
+            discarded=(
+                f"{summary.legacy_fragments_avoided} modeled low-level fragments",
+            ),
         )
-    previous = state.current_scene
-    state = _append_breadcrumb(
-        state,
-        event_name="recognition.scene.changed",
-        operation_key=f"{previous}->{scene}",
-        outcome="changed",
-        ordinal=1,
-        reason="state boundary",
-    )
-    state = _append_authority(
-        state,
-        event_name="recognition.scene.changed",
-        level="INFO",
-        message=f"scene changed: {previous} -> {scene}",
-    )
     return replace(
         state,
-        current_scene=scene,
-        last_action=f"scene changed from {previous} to {scene}",
-        retained=("one immediate INFO with from/to/reason", "diagnostic boundary"),
-        discarded=("no duplicate state record",),
-    )
-
-
-def _observe_retry_failure(
-    state: PrototypeState,
-    *,
-    family: Family,
-    operation_key: str,
-    attempt: int,
-) -> PrototypeState:
-    state = replace(
-        state,
-        raw_calls=state.raw_calls + 1,
-        per_call_records_discarded=state.per_call_records_discarded + 1,
-        now_second=state.now_second + 1,
-    )
-    state = _add_aggregate(
-        state,
-        family=family,
-        operation_key=operation_key,
-        outcome="attempt_failed",
-        duration_ms=120 * attempt,
-        sampled=True,
-    )
-    return _append_breadcrumb(
-        state,
-        event_name=f"{FAMILY_POLICIES[family].module}.{family}.attempt_failed",
-        operation_key=operation_key,
-        outcome="attempt_failed",
-        ordinal=attempt,
-        reason="retry evidence",
-    )
-
-
-def retry_recovered(
-    state: PrototypeState,
-    *,
-    family: Family = "screenshot",
-    operation_key: str = "mumu12",
-    failures: int = 2,
-) -> PrototypeState:
-    for attempt in range(1, failures + 1):
-        state = _observe_retry_failure(
-            state, family=family, operation_key=operation_key, attempt=attempt
-        )
-    state = replace(state, raw_calls=state.raw_calls + 1, now_second=state.now_second + 1)
-    state = _append_breadcrumb(
-        state,
-        event_name=f"{FAMILY_POLICIES[family].module}.{family}.recovered",
-        operation_key=operation_key,
-        outcome="recovered",
-        ordinal=failures + 1,
-        reason="recovery boundary",
-    )
-    state = _append_authority(
-        state,
-        event_name=f"{FAMILY_POLICIES[family].module}.{family}.recovered",
-        level="WARNING",
-        message=f"recovered after {failures} failed attempts",
-        raw_count=failures + 1,
-        suppressed_count=failures,
-        sampled_count=failures + 1,
-    )
-    return replace(
-        state,
-        last_action=f"{family}/{operation_key} recovered on attempt {failures + 1}",
-        retained=("one recovery WARNING", "attempt count and fingerprint summary"),
+        last_action=f"scan attempt {attempt} ended as {outcome}",
+        retained=("aggregate counters", "bounded attempt representatives"),
         discarded=(
-            f"{failures} per-attempt authority errors",
+            "routine authority record",
+            f"{summary.legacy_fragments_avoided} modeled low-level fragments",
+        ),
+    )
+
+
+def add_control_anchor(state: PrototypeState, operation: str) -> PrototypeState:
+    state = replace(state, now_second=state.now_second + 1)
+    return _add_entry(
+        state,
+        "control_anchor",
+        f"last control operation={operation}; raw command/body omitted",
+        protected=True,
+    )
+
+
+def recovered(
+    state: PrototypeState,
+    attempts: tuple[tuple[ProbeFact, ...], ...],
+    result_scene: str,
+) -> PrototypeState:
+    avoided = 0
+    candidates = 0
+    for number, facts in enumerate(attempts, 1):
+        outcome_scene = result_scene if number == len(attempts) else None
+        state = observe_scan_attempt(
+            state,
+            facts,
+            attempt=number,
+            result_scene=outcome_scene,
+        )
+        avoided += sum(fact.modeled_legacy_fragments for fact in facts)
+        candidates += len(facts)
+    state = _add_entry(
+        state,
+        "retry_anchor",
+        f"recovered after {len(attempts) - 1} failed attempts",
+        protected=True,
+    )
+    state = _add_authority(
+        state,
+        "recognition.scan.recovered",
+        "WARNING",
+        f"scan recovered on attempt {len(attempts)}",
+        attempts_count=len(attempts),
+        attempted_candidates=candidates,
+        legacy_fragments_avoided=avoided,
+    )
+    return replace(
+        state,
+        last_action="retry recovered",
+        retained=("one recovery WARNING", "attempt counts and representatives"),
+        discarded=(
+            f"{len(attempts) - 1} per-attempt authority errors",
             "incident freeze",
-            "persisted failure-frame group",
         ),
     )
 
 
 def _make_frame_group(
-    state: PrototypeState,
-    *,
-    reason: str,
-    post_frames: int,
+    state: PrototypeState, post_frames: int
 ) -> tuple[PrototypeState, FrameGroup]:
-    frames = list(state.pre_frames[-state.policy.frame_pre :])
-    trigger = FrameCandidate(
-        frame_id=state.next_frame_id,
-        at_second=state.now_second,
-        role="trigger",
-        persisted=True,
-    )
-    frames.append(trigger)
-    next_frame = state.next_frame_id + 1
-    for _ in range(min(post_frames, state.policy.frame_post)):
-        frames.append(
-            FrameCandidate(
-                frame_id=next_frame,
-                at_second=state.now_second + 1,
-                role="post",
-                persisted=True,
-            )
-        )
+    frame_ids = list(state.pre_frames[-2:])
+    trigger = state.next_frame_id
+    frame_ids.append(trigger)
+    next_frame = trigger + 1
+    roles = ["pre"] * (len(frame_ids) - 1) + ["trigger"]
+    for _ in range(min(post_frames, 2)):
+        frame_ids.append(next_frame)
+        roles.append("post")
         next_frame += 1
     group_ref = f"artifact://failure-frames/group-{state.next_incident_id:02d}"
-    refs = tuple(
-        FrameArtifactRef(
-            ref=f"artifact://failure-frames/frame-{item.frame_id:04d}",
-            role=item.role,
-        )
-        for item in frames
+    group = FrameGroup(
+        group_ref=group_ref,
+        frames=tuple(
+            FrameRef(
+                ref=f"artifact://failure-frames/frame-{frame_id:04d}",
+                role=role,
+            )
+            for frame_id, role in zip(frame_ids, roles)
+        ),
     )
-    group = FrameGroup(group_ref=group_ref, reason=reason, frames=refs)
     return (
         replace(
             state,
@@ -592,172 +404,266 @@ def _make_frame_group(
     )
 
 
-def retry_exhausted(
+def exhausted(
     state: PrototypeState,
+    attempts: tuple[tuple[ProbeFact, ...], ...],
     *,
-    family: Family = "screenshot",
-    operation_key: str = "mumu12",
-    failures: int = 3,
-    include_frames: bool = True,
+    with_frames: bool = True,
     post_frames: int = 2,
 ) -> PrototypeState:
-    for attempt in range(1, failures + 1):
-        state = _observe_retry_failure(
-            state, family=family, operation_key=operation_key, attempt=attempt
+    avoided = 0
+    candidates = 0
+    for number, facts in enumerate(attempts, 1):
+        state = observe_scan_attempt(
+            state, facts, attempt=number, result_scene=None
         )
+        avoided += sum(fact.modeled_legacy_fragments for fact in facts)
+        candidates += len(facts)
     frame_group = None
-    if include_frames:
-        state, frame_group = _make_frame_group(
-            state,
-            reason=f"{family}.{operation_key}.retry_exhausted",
-            post_frames=post_frames,
-        )
-    ring, newly_evicted = _trim_ring(state.ring, state.now_second, state.policy)
+    if with_frames:
+        state, frame_group = _make_frame_group(state, post_frames)
+    retry_anchor = DiagnosticEntry(
+        entry_id=state.next_entry_id,
+        at_second=state.now_second,
+        kind="retry_anchor",
+        summary=f"retry exhausted after {len(attempts)} attempts",
+        protected=True,
+    )
     state = replace(
         state,
-        ring=ring,
-        ring_evicted=state.ring_evicted + newly_evicted,
+        anchors=tuple(item for item in state.anchors if item.kind != "retry_anchor")
+        + (retry_anchor,),
+        next_entry_id=state.next_entry_id + 1,
     )
     incident_ref = f"incident://run/task/failure-{state.next_incident_id:02d}"
+    chain = tuple(sorted(state.anchors + state.tail, key=lambda item: item.entry_id))
     incident = Incident(
         incident_ref=incident_ref,
-        reason=f"{family}.{operation_key}.retry_exhausted",
-        breadcrumbs=state.ring,
-        ring_evicted_before_freeze=state.ring_evicted,
+        chain=chain,
         frame_group_ref=frame_group.group_ref if frame_group else None,
+        ordinary_entries_evicted=state.ordinary_entries_evicted,
     )
     state = replace(
         state,
         incidents=state.incidents + (incident,),
         next_incident_id=state.next_incident_id + 1,
     )
-    state = _append_authority(
+    state = _add_authority(
         state,
-        event_name=f"{FAMILY_POLICIES[family].module}.{family}.failed",
-        level="ERROR",
-        message=f"retry exhausted after {failures} attempts",
-        raw_count=failures,
-        suppressed_count=failures,
-        sampled_count=failures,
+        "recognition.scan.failed",
+        "ERROR",
+        f"scan retry exhausted after {len(attempts)} attempts",
+        attempts_count=len(attempts),
+        attempted_candidates=candidates,
+        legacy_fragments_avoided=avoided,
         incident_ref=incident_ref,
         frame_group_ref=frame_group.group_ref if frame_group else None,
     )
-    retained = [
-        "one final ERROR",
-        f"frozen incident chain with {len(incident.breadcrumbs)} entries",
-    ]
-    if frame_group:
-        retained.append(f"one weak frame-group reference with {len(frame_group.frames)} frames")
     return replace(
         state,
-        last_action=f"{family}/{operation_key} exhausted {failures} attempts",
-        retained=tuple(retained),
+        last_action="retry exhausted",
+        retained=(
+            "one final ERROR",
+            f"frozen semantic chain with {len(chain)} entries",
+            f"{len(frame_group.frames) if frame_group else 0} weak frame references",
+        ),
         discarded=(
-            f"{failures} per-attempt authority errors",
-            f"{state.ring_evicted} diagnostic entries outside ring bounds",
+            f"{len(attempts)} per-attempt authority errors",
+            f"{avoided} modeled low-level fragments",
             "raw screenshot bytes from LogEvent",
         ),
     )
 
 
-def success_scenario() -> PrototypeState:
+def capture_routine_frame(state: PrototypeState) -> PrototypeState:
+    frames = state.pre_frames + (state.next_frame_id,)
+    overwritten = state.overwritten_frames
+    if len(frames) > 2:
+        overwritten += len(frames) - 2
+        frames = frames[-2:]
     return replace(
-        observe_routine(new_state("successful silence"), "match", "template:confirm"),
-        scenario="successful silence",
+        state,
+        pre_frames=frames,
+        overwritten_frames=overwritten,
+        next_frame_id=state.next_frame_id + 1,
     )
 
 
-def sampling_scenario() -> PrototypeState:
-    state = new_state("repeated sampling")
-    for _ in range(205):
-        state = observe_routine(state, "color", "comparator:confirm")
+def flush_window(state: PrototypeState) -> PrototypeState:
+    summary_count = 0
+    for aggregate in state.aggregate:
+        state = _add_authority(
+            state,
+            f"{aggregate.domain}.activity.summary",
+            "INFO",
+            f"{aggregate.operations} operations / {aggregate.candidate_probes} probes",
+            attempted_candidates=aggregate.candidate_probes,
+            legacy_fragments_avoided=aggregate.legacy_fragments_avoided,
+        )
+        summary_count += 1
     return replace(
         state,
-        scenario="repeated sampling",
-        last_action="observed 205 identical color comparisons",
-        retained=("aggregate count=205", "breadcrumbs at ordinals 1, 100, 200"),
-        discarded=("205 per-call authority records", "202 unsampled diagnostic details"),
+        now_second=state.now_second + (300 if not state.first_window_done else 900),
+        aggregate=(),
+        first_window_done=True,
+        last_action=f"flushed {summary_count} bounded domain summaries",
+        retained=(f"{summary_count} domain summary record(s)",),
+        discarded=("all per-probe fragments", "completed aggregate bucket"),
+    )
+
+
+def sample_facts(
+    count: int,
+    *,
+    matched_at: int | None = None,
+    method: Method = "template",
+    prefix: str = "candidate",
+) -> tuple[ProbeFact, ...]:
+    facts = []
+    for index in range(count):
+        threshold = 0.90
+        score = 0.10 + ((index * 37) % 790) / 1000
+        matched = matched_at is not None and index == matched_at
+        if matched:
+            score = 0.94
+        facts.append(
+            ProbeFact(
+                candidate=f"{prefix}-{index + 1:03d}",
+                method=method,
+                matched=matched,
+                score=score,
+                threshold=threshold,
+                duration_ms=3 + (index * 11) % 29,
+                reason="matched" if matched else "not_matched",
+            )
+        )
+    return tuple(facts)
+
+
+def success_scenario() -> PrototypeState:
+    state = new_state("successful scan silence")
+    return replace(
+        observe_scan_attempt(
+            state,
+            sample_facts(18, matched_at=12),
+            attempt=1,
+            result_scene="INDEX",
+        ),
+        scenario="successful scan silence",
+    )
+
+
+def representative_scenario() -> PrototypeState:
+    state = new_state("diagnostic representatives")
+    facts = sample_facts(205, method="color", prefix="comparator")
+    state = observe_scan_attempt(state, facts, attempt=1, result_scene="INDEX")
+    return replace(
+        state,
+        scenario="diagnostic representatives",
+        last_action="evaluated 205 color facts without ordinal sampling",
+        retained=("three closest-to-threshold facts", "single slowest fact"),
+        discarded=("205 per-call records", "remaining raw fact details"),
     )
 
 
 def window_scenario() -> PrototypeState:
     state = new_state("window aggregation")
-    for _ in range(1200):
-        state = observe_routine(state, "match", "template:scene")
-    for _ in range(300):
-        state = observe_routine(state, "screenshot", "backend:mumu12", duration_ms=24)
-    state = flush_window(state)
-    return replace(state, scenario="window aggregation")
+    for _ in range(50):
+        state = observe_scan_attempt(
+            state,
+            sample_facts(24, matched_at=20),
+            attempt=1,
+            result_scene="INDEX",
+        )
+    screenshot_summary = _summarize_attempt(
+        sample_facts(300, method="screenshot", prefix="frame"), 1, "succeeded"
+    )
+    state = replace(
+        state,
+        probe_facts_seen=state.probe_facts_seen + 300,
+        legacy_fragments_avoided=state.legacy_fragments_avoided
+        + screenshot_summary.legacy_fragments_avoided,
+    )
+    state = _add_aggregate(state, "device", screenshot_summary, 7200)
+    return replace(flush_window(state), scenario="window aggregation")
 
 
 def state_scenario() -> PrototypeState:
     state = new_state("state change")
     for _ in range(10):
-        state = observe_scene(state, "INDEX")
-    state = observe_scene(state, "INFRA_MAIN")
+        state = observe_scan_attempt(
+            state,
+            sample_facts(12, matched_at=6),
+            attempt=1,
+            result_scene="INDEX",
+        )
+    state = observe_scan_attempt(
+        state,
+        sample_facts(16, matched_at=14),
+        attempt=1,
+        result_scene="INFRA_MAIN",
+    )
     return replace(state, scenario="state change")
 
 
 def recovered_scenario() -> PrototypeState:
-    state = new_state("retry recovered")
-    state = observe_routine(state, "screenshot", "backend:mumu12", advance_seconds=1)
-    return replace(retry_recovered(state), scenario="retry recovered")
+    attempts = (
+        sample_facts(20),
+        sample_facts(20),
+        sample_facts(15, matched_at=11),
+    )
+    return replace(
+        recovered(new_state("retry recovered"), attempts, "INDEX"),
+        scenario="retry recovered",
+    )
 
 
 def exhausted_scenario() -> PrototypeState:
     state = new_state("retry exhausted")
-    state = observe_scene(state, "INFRA_MAIN")
-    state = observe_routine(state, "input", "tap", advance_seconds=1)
-    state = observe_routine(state, "screenshot", "backend:mumu12", advance_seconds=1)
-    state = observe_routine(state, "screenshot", "backend:mumu12", advance_seconds=1)
-    return replace(retry_exhausted(state), scenario="retry exhausted")
-
-
-def ring_scenario() -> PrototypeState:
-    state = new_state("diagnostic ring freeze")
-    for index in range(70):
-        family: Family = "input" if index % 2 else "adb"
-        operation = "tap" if family == "input" else "focus_query"
-        state = observe_routine(
-            state,
-            family,
-            operation,
-            advance_seconds=1,
-        )
-    state = retry_exhausted(
-        state,
-        family="adb",
-        operation_key="focus_query",
-        include_frames=False,
+    state = _add_entry(
+        state, "scene_anchor", "scene INDEX", protected=True
     )
-    return replace(state, scenario="diagnostic ring freeze")
+    state = add_control_anchor(state, "tap:confirm")
+    for _ in range(3):
+        state = capture_routine_frame(state)
+    attempts = (sample_facts(20), sample_facts(20), sample_facts(20))
+    return replace(exhausted(state, attempts), scenario="retry exhausted")
+
+
+def anchors_scenario() -> PrototypeState:
+    state = new_state("protected causal anchors")
+    state = _add_entry(
+        state, "scene_anchor", "scene INDEX -> INFRA_MAIN", protected=True
+    )
+    state = add_control_anchor(state, "task-step:open-room")
+    for index in range(80):
+        state = replace(state, now_second=state.now_second + 1)
+        state = _add_entry(
+            state,
+            "scan_tail",
+            f"coalesced scan summary {index + 1}",
+        )
+    attempts = (sample_facts(8), sample_facts(8), sample_facts(8))
+    state = exhausted(state, attempts, with_frames=False)
+    return replace(state, scenario="protected causal anchors")
 
 
 def frames_scenario() -> PrototypeState:
     state = new_state("failure screenshot references")
     for _ in range(4):
-        state = observe_routine(
-            state,
-            "screenshot",
-            "backend:mumu12",
-            advance_seconds=1,
-        )
-    state = retry_exhausted(
-        state,
-        family="screenshot",
-        operation_key="backend:mumu12",
-        post_frames=2,
-    )
+        state = capture_routine_frame(state)
+    attempts = (sample_facts(6), sample_facts(6), sample_facts(6))
+    state = exhausted(state, attempts, post_frames=2)
     return replace(state, scenario="failure screenshot references")
 
 
 SCENARIOS = {
     "success": success_scenario,
-    "sampling": sampling_scenario,
+    "representatives": representative_scenario,
     "window": window_scenario,
     "state": state_scenario,
     "recovered": recovered_scenario,
     "exhausted": exhausted_scenario,
-    "ring": ring_scenario,
+    "anchors": anchors_scenario,
     "frames": frames_scenario,
 }
