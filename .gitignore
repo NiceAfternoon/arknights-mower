@@ -8,6 +8,7 @@ FZDYSK.TTF
 
 # Local debug output
 /debug/
+/.scratch/log-baseline/
 
 !main.spec
 *.yaml
