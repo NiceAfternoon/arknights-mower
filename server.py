@@ -1195,7 +1195,7 @@ def cultivate_fetch():
 @app.route("/task", methods=["GET", "POST"])
 def add_task():
     from arknights_mower.__main__ import base_scheduler
-    from arknights_mower.utils.mastery_db import get_route, has_train_group_plan
+    from arknights_mower.utils.mastery_db import get_route
     from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
 
     if request.method == "POST":
@@ -1226,8 +1226,6 @@ def add_task():
                     ):
                         raise Exception("找到同时间任务请勿重复添加")
                     if new_task.type == TaskTypes.SKILL_UPGRADE:
-                        if has_train_group_plan():
-                            raise Exception("训练室已设置小组轮换，无法添加专精任务")
                         pk = task.get("plan_key", "")
                         if not pk:
                             raise Exception("专精任务缺少 plan_key")

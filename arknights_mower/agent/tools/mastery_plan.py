@@ -1,22 +1,22 @@
+from arknights_mower.solvers.mastery import get_char_name
 from arknights_mower.utils.mastery_db import (
     get_all_plans,
     get_route,
-    has_train_group_plan,
     insert_plan,
-    retry_plan,
+    retry_failed_plans,
     save_route,
 )
 
 
 def add_mastery_plan(char_id: str, skill_index: int, skill_name: str = ""):
     """Add a new mastery plan for an operator skill."""
-    if has_train_group_plan():
-        return "训练室已设置小组轮换，无法添加专精计划"
     plan_id = insert_plan(
         char_id,
         skill_index,
-        "pending",
+        target_level=1,
         skill_name=skill_name or f"技能{skill_index + 1}",
+        # #53：补传干员名，否则计划 char_name 为 NULL，邮件读不出练谁
+        char_name=get_char_name(char_id),
     )
     if plan_id > 0:
         return f"已添加专精计划: {char_id} 技能{skill_index + 1}"
@@ -37,7 +37,7 @@ def list_plans(status_filter: str = ""):
             f"<tr><td>{p['char_id']}</td>"
             f"<td>{p.get('skill_name', '技能' + str(p['skill_index'] + 1))}</td>"
             f"<td>{p['status']}</td>"
-            f"<td>{p.get('level', 1)}</td>"
+            f"<td>{p.get('target_level', 1)}</td>"
             f"<td>{p.get('failed_reason', '')}</td>"
             f"<td>{p.get('created_at', '')}</td></tr>"
         )
@@ -60,11 +60,11 @@ def get_route_info(profession: str):
 
 
 def retry_plan_tool(char_id: str, skill_index: int):
-    """Retry a failed mastery plan by inserting a new pending row."""
-    plan_id = retry_plan(char_id, skill_index)
-    if plan_id > 0:
-        return f"已重试专精计划: {char_id} 技能{skill_index + 1}"
-    return f"重试专精计划失败: {char_id} 技能{skill_index + 1}"
+    """Retry failed mastery plans by resetting them to idle."""
+    count = retry_failed_plans()
+    if count > 0:
+        return f"已重置 {count} 个失败的专精计划为待执行"
+    return "没有失败的专精计划需要重试"
 
 
 add_mastery_plan_tool_def = {

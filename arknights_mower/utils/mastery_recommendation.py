@@ -2,6 +2,7 @@ import json
 import os
 
 from arknights_mower.utils.path import _install_dir, _internal_dir, get_path
+from arknights_mower.utils.skill_label import format_skill_label
 
 
 def _find_skill_data():
@@ -29,6 +30,24 @@ def get_skill_data():
         else:
             _skill_data_cache = {}
     return _skill_data_cache
+
+
+def get_skill_real_name(char_id: str, skill_index: int):
+    """从 skill_data.json 取干员技能的显示真名（如 飞翔瞪射）；查不到返回 None。
+
+    skill_data.json 由 auto_get_res_new.py 生成并并入真名（#63）。
+    """
+    try:
+        skills = (
+            get_skill_data().get("characters", {}).get(char_id, {}).get("skills", [])
+        )
+        if 0 <= skill_index < len(skills):
+            name = skills[skill_index].get("name")
+            if name:
+                return name
+    except Exception:
+        pass
+    return None
 
 
 def _decompose_to_t3(materials, composite, item_table, inventory):
@@ -242,7 +261,7 @@ def get_mastery_recommendations():
             recommendations.append(
                 {
                     "skill_index": i,
-                    "skill_name": f"技能{i + 1}",
+                    "skill_name": format_skill_label(i, skill_def.get("name")),
                     "skill_icon_id": skill_def.get("skillId", ""),
                     "current_level": current_level,
                     "target_level": 3,

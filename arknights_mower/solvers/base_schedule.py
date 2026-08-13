@@ -85,6 +85,15 @@ from arknights_mower.utils.trading_order import TradingOrder
 TRADE_ORDER_AGENTS = ["但书", "龙舌兰", "佩佩", "可露希尔"]
 
 
+def _is_mastery_busy(operator_name: str) -> bool:
+    try:
+        from arknights_mower.utils.mastery_db import is_operator_busy
+
+        return is_operator_busy(operator_name)
+    except Exception:
+        return False
+
+
 class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
     """
     收集基建的产物：物资、赤金、信赖
@@ -500,7 +509,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         if self.task is not None:
             try:
                 if self.task.type == TaskTypes.SKILL_UPGRADE:
-                    self.skill_upgrade(self.task.meta_data)
+                    from arknights_mower.solvers.mastery import run_mastery_task
+
+                    run_mastery_task(self)
+                elif self.task.type == TaskTypes.SWAP_SUPPORT:
+                    from arknights_mower.solvers.mastery import run_swap_support
+
+                    run_swap_support(self)
                 elif len(self.task.plan.keys()) > 0:
                     get_time = False
                     if TaskTypes.SHIFT_OFF == self.task.type:
@@ -691,11 +706,28 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 self.reload()
                 logger.info(f"记录本次补货时间为:{datetime.now()}")
             try:
-                from arknights_mower.utils.mastery_sync import MasterySync
+                from arknights_mower.utils.mastery_db import (
+                    get_active_plan,
+                    get_next_idle_plan,
+                )
 
-                MasterySync(self).sync_and_schedule()
+                # #63 重启恢复：active 或 idle 计划存在时确保有 SKILL_UPGRADE 触发，
+                # 修复「无 active 才自动入队」缺口（active 训练计划重启后失去重检）。
+                # 受全自动专精全局开关门控；find_next_task 去重避免每轮重复入队。
+                if config.conf.enable_mastery:
+                    if (
+                        get_active_plan() or get_next_idle_plan()
+                    ) and not find_next_task(
+                        self.tasks, task_type=TaskTypes.SKILL_UPGRADE
+                    ):
+                        self.tasks.append(
+                            SchedulerTask(
+                                time=datetime.now(),
+                                task_type=TaskTypes.SKILL_UPGRADE,
+                            )
+                        )
             except Exception as e:
-                logger.exception(f"MasterySync error: {e}")
+                logger.exception(f"Mastery schedule check error: {e}")
             self.todo_task = True
         elif not self.collect_notification:
             if self.no_pending_task(1):
@@ -2032,6 +2064,14 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             else len(self.op_data.dorm)
         )
         logger.debug(f"当前理想休息人数是{self.ideal_resting_count}")
+        # #59：训练室干员跳过休息规划改为「DB 有没有 active 计划」，
+        # 不再依赖队列里的 SKILL_UPGRADE（重启后队列可能没补回来 → 失真）。
+        try:
+            from arknights_mower.utils.mastery_db import get_active_plan
+
+            has_active_mastery = get_active_plan() is not None
+        except Exception:
+            has_active_mastery = False
         _replacement = []
         _plan = {}
         for op in self.total_agent:
@@ -2042,15 +2082,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 break
             if op.name in self.op_data.workaholic_agent:
                 continue
-            has_upgrade_task = (
-                self.find_next_task(task_type=TaskTypes.SKILL_UPGRADE) is not None
-            )
             if (
                 op.is_resting()
                 or op.current_room in ["factory"]
-                or (op.current_room in ["train"] and has_upgrade_task)
+                or (op.current_room in ["train"] and has_active_mastery)
                 or op.room in ["factory"]
-                or (op.room in ["train"] and has_upgrade_task)
+                or (op.room in ["train"] and has_active_mastery)
             ):
                 continue
             # 忽略掉心情太高的
@@ -2206,6 +2243,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         )
                     )
                     and obj not in TRADE_ORDER_AGENTS
+                    and not _is_mastery_busy(obj)
                     and obj not in exist_replacement
                     and obj not in __replacement
                     and self.op_data.operators[obj].current_room != x.room
@@ -3001,7 +3039,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     logger.debug(f"需要选择的desired干员：{desired}")
                     for idx, name in enumerate(desired):
                         if name == "Current":
-                            desired[idx] = scan_result[idx]
+                            # #53：替换为实际干员名（scan_result[idx] 是 dict，不能直接当名字）
+                            desired[idx] = scan_result[idx]["agent"]
                     select_targets = [
                         (idx, desired_name)
                         for idx, desired_name in enumerate(desired)
@@ -3010,6 +3049,26 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     if not select_targets:
                         tasks = []
                         return
+                    # #59 D4：训练位锁定跳过（截图权威）。训练中/待收取时 idx1 换不了人，
+                    # 提前剔除出 select_targets，避免空转 2 分钟超时。
+                    if any(idx == 1 for idx, _name in select_targets):
+                        try:
+                            from arknights_mower.solvers.mastery_reader import (
+                                train_slot_locked,
+                            )
+
+                            if train_slot_locked(self):
+                                logger.info(
+                                    "训练位锁定（训练中/待收取），跳过 idx1 更换"
+                                )
+                                select_targets = [
+                                    (i, n) for i, n in select_targets if i != 1
+                                ]
+                        except Exception as e:
+                            logger.warning(f"训练位锁定检测失败: {e}")
+                        if not select_targets:
+                            tasks = []
+                            return
                     tasks[0] = "select"
                     logger.debug(f"需要选择的干员：{select_targets}")
                 else:
@@ -3042,9 +3101,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 continue
                             tasks[0] = "scan"
                             continue
-                        self.choose_agent([agents[idx]], "train", fast_mode)
+                        # #53：选人用 desired[idx]（Current 已替换为实际干员名），
+                        # 不能用 agents[idx]——否则 Current 会被当干员名选人、必然失败
+                        self.choose_agent([desired[idx]], "train", fast_mode)
                     else:
-                        self.choose_train_ope(agents[idx])
+                        self.choose_train_ope(desired[idx])
                     self.tap_confirm("train")
                     select_targets.pop(0)
                     if select_targets:
@@ -3678,15 +3739,55 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             try:
                 error_count = 0
                 if not skip_enter:
-                    if room == "train" and self.find_next_task(
-                        task_type=TaskTypes.SKILL_UPGRADE
-                    ):
-                        if config.conf.assistant_follows_schedule:
-                            pass
-                        else:
+                    if room == "train":
+                        # #59 gate L0：DB active 预判（免进房）。active → 训练室占用，
+                        # assistant_follows_schedule=False 时整个训练室跳过（协助位+训练位
+                        # 都归专精系统管）。不再依赖 find_next_task(SKILL_UPGRADE)。
+                        from arknights_mower.utils.mastery_db import get_active_plan
+
+                        if (
+                            get_active_plan()
+                            and not config.conf.assistant_follows_schedule
+                        ):
                             del plan[room]
                             return new_plan
                     self.enter_room(room)
+                    if room == "train":
+                        # #59 gate L1：截图权威（进房后、开详情前读）。
+                        from arknights_mower.solvers.mastery_reader import (
+                            read_room_state,
+                            reconcile_short,
+                        )
+
+                        try:
+                            room_state = read_room_state(self, enter=False)
+                        except Exception as e:
+                            logger.warning(f"训练室状态读取失败: {e}")
+                            room_state = None
+                        if (
+                            room_state is not None
+                            and room_state.locked
+                            and config.conf.enable_mastery
+                        ):
+                            # #61 短动作排班路径内联：顺路核实/帮收/重置/对账（不开始训练）。
+                            # 退出训练室由本 gate 的跳过/冻结分支统一负责。
+                            try:
+                                reconcile_short(self, room_state)
+                            except Exception as e:
+                                logger.warning(f"训练室顺路对账失败: {e}")
+                            # 帮收后房间可能空出，重读状态决定 gate
+                            try:
+                                room_state = read_room_state(self, enter=False)
+                            except Exception:
+                                room_state = None
+                        if room_state is not None and room_state.locked:
+                            if config.conf.assistant_follows_schedule:
+                                if len(plan[room]) > 1:
+                                    plan[room][1] = "Current"
+                            else:
+                                del plan[room]
+                                self.back()
+                                return new_plan
                 self.turn_on_room_detail(room)
                 error_count = 0
                 if not checked:
@@ -3765,16 +3866,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             self.reset_room_time(room)
                             raise Exception("检测到漏单！")
                     if room == "train":
-                        if (
-                            config.conf.assistant_follows_schedule
-                            and self.find_next_task(task_type=TaskTypes.SKILL_UPGRADE)
-                            and len(plan[room]) > 1
-                        ):
-                            train_plan = list(plan[room])
-                            train_plan[1] = "Current"
-                            self.choose_train(train_plan, choose_error <= 0)
-                        else:
-                            self.choose_train(plan[room], choose_error <= 0)
+                        # #59：idx1 冻结已在 gate L1 按锁定状态处理好（Current），
+                        # 不再依赖 find_next_task(SKILL_UPGRADE) 的脆弱信号。
+                        self.choose_train(plan[room], choose_error <= 0)
                     else:
                         while self.find("confirm_blue") is None:
                             if error_count > 3:
@@ -4914,6 +5008,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def _auto_schedule_mastery_after_scan(self):
         try:
+            from arknights_mower.utils.mastery_db import retry_failed_plans
+
+            retried = retry_failed_plans()
+            if retried > 0:
+                logger.info(f"仓库扫描: 已重置 {retried} 个失败的专精计划为待执行")
+
             from arknights_mower.utils.mastery_recommendation import (
                 auto_schedule_mastery_tasks,
                 compute_workshop_config,
