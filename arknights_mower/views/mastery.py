@@ -9,6 +9,7 @@ from arknights_mower.utils.mastery_db import (
     get_all_history,
     get_all_plans,
     get_all_routes,
+    get_failed_plans,
     insert_plan,
     save_route,
     update_plan_priority,
@@ -41,7 +42,9 @@ class MasteryPlanView(MethodView):
     decorators = [_require_token]
 
     def get(self):
-        plans = get_all_plans()
+        # #69 展示：failed 计划也返回给前端（带 failed_reason），否则计划"凭空消失"。
+        # 仅展示用途；执行循环仍从 get_all_plans（不含 failed）读取。
+        plans = get_all_plans() + get_failed_plans()
         history = get_all_history()
         char_table = get_skill_data().get("characters", {})
         plans_list = []

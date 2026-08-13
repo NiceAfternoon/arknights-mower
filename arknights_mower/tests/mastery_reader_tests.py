@@ -80,30 +80,99 @@ class TestPanelParse(unittest.TestCase):
         self.assertEqual(reader._parse_panel_text(""), ("", ""))
 
 
-class TestCountLitIcons(unittest.TestCase):
-    def _region(self, lit_columns):
-        """构造 36x33 的图标区，lit_columns 里的槽位置亮。"""
-        img = np.zeros((33, 36, 3), dtype=np.uint8)
-        for col in lit_columns:
-            img[:, col * 12 : (col + 1) * 12] = 255
+class TestCountLitMainPanelIcons(unittest.TestCase):
+    """主面板专精图标逐框判亮（MASTERY_ICON_PIPS）。"""
+
+    def _canvas(self, lit_indexes):
+        """构造 1080p 画布，按 lit_indexes 点亮主面板三颗星。"""
+        img = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        for i, ((x0, y0), (x1, y1)) in enumerate(reader.MASTERY_ICON_PIPS):
+            color = (255, 200, 92) if i in lit_indexes else (0, 0, 0)
+            img[y0:y1, x0:x1] = color
         return img
 
-    def test_count_zero(self):
-        self.assertEqual(reader._count_lit_from_region(np.zeros((33, 36, 3))), 0)
+    def _solver(self, img):
+        s = unittest.mock.MagicMock()
+        s.recog.img = img
+        return s
 
-    def test_count_three(self):
-        self.assertEqual(reader._count_lit_from_region(self._region([0, 1, 2])), 3)
+    def test_zero(self):
+        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([]))), 0)
 
-    def test_count_two(self):
-        self.assertEqual(reader._count_lit_from_region(self._region([0, 2])), 2)
+    def test_one_top(self):
+        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0]))), 1)
 
-    def test_empty_region(self):
-        self.assertEqual(reader._count_lit_from_region(None), 0)
+    def test_two_top_and_second(self):
+        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1]))), 2)
 
-    def test_gray_input(self):
-        gray = np.zeros((33, 36), dtype=np.uint8)
-        gray[:, :12] = 255
-        self.assertEqual(reader._count_lit_from_region(gray), 1)
+    def test_three_all(self):
+        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1, 2]))), 3)
+
+    def test_no_img_zero(self):
+        self.assertEqual(reader._count_lit_mastery_icons(self._solver(None)), 0)
+
+
+def _draw_circle(img, cx, cy, r, color):
+    """在 RGB numpy 图上画实心圆（技能选择页星形测试用）。"""
+    h, w = img.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w]
+    mask = (xx - cx) ** 2 + (yy - cy) ** 2 <= r * r
+    img[mask] = color
+
+
+class TestReadSlotMasteryTier(unittest.TestCase):
+    def _canvas(self, lit_indexes, skill_index=0):
+        """构造覆盖该技能三颗星区域的画布，按 lit_indexes 画亮/灭圆。"""
+        boxes = reader.SKILL_SLOT_PIPS[skill_index]
+        img = np.zeros((900, 700, 3), dtype=np.uint8)
+        for i, ((x0, y0), (x1, y1)) in enumerate(boxes):
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            r = (x1 - x0) * 0.44
+            color = (255, 200, 92) if i in lit_indexes else (58, 64, 82)
+            _draw_circle(img, cx, cy, r, color)
+        return img
+
+    def _solver(self, img):
+        s = unittest.mock.MagicMock()
+        s.recog.img = img
+        return s
+
+    def test_unknown_skill_returns_none(self):
+        s = self._solver(self._canvas([]))
+        self.assertIsNone(reader._read_slot_mastery_tier(s, 3))
+
+    def test_no_img_returns_none(self):
+        self.assertIsNone(reader._read_slot_mastery_tier(self._solver(None), 0))
+
+    def test_tier_zero(self):
+        tier = reader._read_slot_mastery_tier(self._solver(self._canvas([])), 0)
+        self.assertEqual(tier, 0)
+
+    def test_tier_one_top_lit(self):
+        tier = reader._read_slot_mastery_tier(self._solver(self._canvas([0])), 0)
+        self.assertEqual(tier, 1)
+
+    def test_tier_two_top_and_second(self):
+        tier = reader._read_slot_mastery_tier(self._solver(self._canvas([0, 1])), 0)
+        self.assertEqual(tier, 2)
+
+    def test_tier_three_all_lit(self):
+        tier = reader._read_slot_mastery_tier(
+            self._solver(self._canvas([0, 1, 2])), 0
+        )
+        self.assertEqual(tier, 3)
+
+    def test_skill_two_uses_its_own_boxes(self):
+        # 技能2（index 1）的三颗星位于不同 y，独立定位不应串到技能1
+        tier = reader._read_slot_mastery_tier(
+            self._solver(self._canvas([0, 1], skill_index=1)), 1
+        )
+        self.assertEqual(tier, 2)
+        # 技能2 全亮时，技能1 区域保持空（各自独立）
+        tier0 = reader._read_slot_mastery_tier(
+            self._solver(self._canvas([0, 1], skill_index=1)), 0
+        )
+        self.assertEqual(tier0, 0)
 
 
 class TestClassifyRoom(unittest.TestCase):
@@ -472,6 +541,20 @@ class TestReconcileAfterCollect(unittest.TestCase):
             patch("arknights_mower.utils.mastery_db.get_next_idle_plan"),
         ):
             result = reader._reconcile_after_collect(MagicMock(), plan, panel)
+        upd.assert_called_once_with(1, "idle")
+        self.assertIs(result, plan)
+
+    def test_above_target_collect_not_completed(self):
+        # #67/B6：专二收取关掉专一计划 → 不得完成（档位高于目标时本次收取不属于该计划）
+        panel = make_panel(mastery_tier=2)
+        plan = make_plan(target_level=1)
+        with (
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch("arknights_mower.utils.mastery_db.get_next_idle_plan"),
+        ):
+            result = reader._reconcile_after_collect(MagicMock(), plan, panel)
+        statuses = [c.args[1] for c in upd.call_args_list]
+        self.assertNotIn("completed", statuses, "高于目标的收取不得把计划标记完成")
         upd.assert_called_once_with(1, "idle")
         self.assertIs(result, plan)
 

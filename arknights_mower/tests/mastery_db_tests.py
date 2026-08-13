@@ -7,6 +7,7 @@ from arknights_mower.utils.mastery_db import (
     delete_plan,
     get_active_plan,
     get_all_plans,
+    get_failed_plans,
     get_next_idle_plan,
     get_plan_by_id,
     get_route,
@@ -66,6 +67,16 @@ class TestMasteryDb(unittest.TestCase):
         insert_plan("char_b", 0, 1, priority=1, path=self.db_path)
         nxt = get_next_idle_plan(path=self.db_path)
         self.assertEqual(nxt["char_id"], "char_b")
+
+    def test_get_failed_plans(self):
+        # #69：failed 计划带失败原因单独可查（前端展示用），active 计划不混入
+        p1 = insert_plan("char_001", 0, 1, path=self.db_path)
+        p2 = insert_plan("char_002", 1, 2, path=self.db_path)
+        update_plan_status(p2, "failed", failed_reason="材料不足", path=self.db_path)
+        update_plan_status(p1, "training", path=self.db_path)
+        failed = get_failed_plans(path=self.db_path)
+        self.assertEqual([f["id"] for f in failed], [p2])
+        self.assertEqual(failed[0]["failed_reason"], "材料不足")
 
     def test_update_status(self):
         pid = insert_plan("char_001", 0, 1, path=self.db_path)

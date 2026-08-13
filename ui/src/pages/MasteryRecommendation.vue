@@ -425,7 +425,7 @@
             >
               {{ e.name }} {{ e.skill_name }}
               <template v-if="e.status && e.status !== 'idle'">
-                ({{ getStatusLabel(e.status) }})
+                ({{ getStatusLabel(e.status) }}{{ e.failed_reason ? '：' + e.failed_reason : '' }})
               </template>
             </n-tag>
           </template>
@@ -765,7 +765,8 @@ async function refreshPlanFromServer() {
     const ps = {}
     for (const item of data.plans || []) {
       const k = planKey(item.char_id, item.skill_index)
-      if (item.status !== 'completed' && item.status !== 'failed') {
+      // failed 计划也要显示（带失败原因），不能从列表凭空消失（#69）
+      if (item.status !== 'completed') {
         p[k] = true
       }
       ps[k] = {
@@ -773,7 +774,8 @@ async function refreshPlanFromServer() {
         status: item.status,
         target_level: item.target_level,
         priority: item.priority,
-        expires_at: item.expires_at
+        expires_at: item.expires_at,
+        failed_reason: item.failed_reason
       }
     }
     plan.value = p
@@ -804,11 +806,17 @@ const planEntries = computed(() => {
           name: op.name,
           skill_name: rec.skill_name,
           status: info.status || 'idle',
-          priority: info.priority || 0
+          priority: info.priority || 0,
+          failed_reason: info.failed_reason
         })
     }
   }
-  entries.sort((a, b) => a.priority - b.priority)
+  entries.sort((a, b) => {
+    // failed 计划排到列表底部（待重试，不参与正常优先级排序）
+    if (a.status === 'failed' && b.status !== 'failed') return 1
+    if (b.status === 'failed' && a.status !== 'failed') return -1
+    return a.priority - b.priority
+  })
   return entries
 })
 

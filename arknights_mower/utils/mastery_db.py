@@ -226,6 +226,22 @@ def get_next_idle_plan(path: Optional[str] = None) -> Optional[dict]:
         return None
 
 
+def get_failed_plans(path: Optional[str] = None) -> list[dict]:
+    """failed 状态的计划（含 failed_reason），供前端展示失败原因，避免计划"凭空消失"。
+
+    仅展示用途；执行循环仍走 get_all_plans（不含 failed，#4 SM-09）。
+    """
+    try:
+        with _conn(path) as conn:
+            rows = conn.execute(
+                "SELECT * FROM mastery_plan WHERE status='failed' ORDER BY priority, id"
+            ).fetchall()
+            return [lazy_fill_plan_names(dict(r), conn) for r in rows]
+    except Exception as e:
+        logger.error(f"get_failed_plans failed: {e}")
+        return []
+
+
 def update_plan_status(
     plan_id: int,
     status: str,

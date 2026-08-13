@@ -4,7 +4,10 @@ from datetime import datetime, timedelta
 from arknights_mower.solvers.mastery_reader import (
     RoomPanel,
     RoomState,
+    _count_lit_mastery_icons,
     _plan_label,
+    _plan_matches_room,
+    _read_panel_text,
     _read_train_countdown,
     _schedule_collect,
     _target_label,
@@ -424,6 +427,29 @@ def _scene_name(scene) -> str:
     return str(scene)
 
 
+def _exit_occupied(solver, plan, countdown, trigger="训练室占用"):
+    """训练室被占用 → 保持 idle + 重排 + 退出（#16/#69/B4/#70 共用）。
+
+    countdown 可读时重排到倒计时+缓冲；不可读（面板归属与计划不符 / 已到target
+    档位读取失败）时重排到 now+缓冲，避免占用期间每轮 dispatch 空转重试。
+    trigger 写进状态转换日志，区分退出原因。
+    """
+    from arknights_mower.solvers.mastery_reader import _upsert_skill_upgrade_task
+    from arknights_mower.utils.mastery_db import update_plan_status
+
+    if countdown is not None and countdown > datetime.now():
+        _wait_for_training(
+            solver, RoomState("training", RoomPanel(countdown=countdown))
+        )
+        reschedule = countdown + ARRANGING_RETRY_BUFFER
+    else:
+        reschedule = datetime.now() + ARRANGING_RETRY_BUFFER
+        _upsert_skill_upgrade_task(solver, reschedule)
+    _log_transition(plan, "idle", trigger, 重排到=reschedule.strftime("%H:%M:%S"))
+    update_plan_status(plan["id"], "idle")
+    solver.back()
+
+
 def _start_new_training(solver, plan, arrange_support=True):
     """开始新一级训练：IDLE → ARRANGING → TRAINING
 
@@ -451,6 +477,9 @@ def _start_new_training(solver, plan, arrange_support=True):
     tracker = _SceneTracker()
     checked_slot = False
     checked_target = False
+    # #72：数星星前的身份/归属确认。只在 TRAIN_MAIN 训练位校验通过并主动点开技能
+    # 选择页时置位；未置位就出现 219（运行页被误判成 219 等）→ 219 分支保守退出。
+    identity_confirmed = False
 
     solver.enter_room("train")
 
@@ -480,15 +509,7 @@ def _start_new_training(solver, plan, arrange_support=True):
             execute_time = _read_train_countdown(solver)
             if execute_time is not None and execute_time > datetime.now():
                 # 训练室使用中（#16 决议）：保持 idle，重排到倒计时+缓冲，退出
-                # （#62 Q3 收敛：复用读取器等待原语，不再重复实现重排逻辑）
-                _wait_for_training(
-                    solver, RoomState("training", RoomPanel(countdown=execute_time))
-                )
-                _log_transition(
-                    plan, "idle", "训练室占用", 重排到=execute_time.strftime("%H:%M:%S")
-                )
-                update_plan_status(plan["id"], "idle")
-                solver.back()
+                _exit_occupied(solver, plan, execute_time)
                 return
             if not checked_slot:
                 # 无倒计时：检查训练位是否坐错人（#16 决议）。
@@ -507,9 +528,24 @@ def _start_new_training(solver, plan, arrange_support=True):
                         return
                 solver.back()  # 关闭房间详情浮层，回到训练室主界面
                 continue
-            # 训练位已确认（空/已是计划干员）→ 正常开始
+            # 训练位已确认（空/已是计划干员）→ 身份确认成立，点开技能选择页。
+            # #72：数星星前唯一合法的身份/归属确认点——经训练位校验后主动进入技能
+            # 选择页；运行页被误判成 219（不经此路径）在 219 分支直接保守退出。
+            identity_confirmed = True
             solver.tap((solver.recog.w * 0.05, solver.recog.h * 0.95), interval=0.5)
         elif scene == Scene.TRAIN_SKILL_SELECT:
+            if not identity_confirmed:
+                # #72：真技能选择页只有 SKILL_SLOT_PIPS 星星可读，没有倒计时、读不到
+                # `[干员名]技能名`——不能在 219 上读主面板区域（COUNTDOWN/PANEL）当占用
+                # 探针（那只在"运行页被误判成 219"时才成立）。未经过 TRAIN_MAIN 训练位
+                # 校验就出现 219 → 数星星前无法确认干员身份，星星可能误读非零值
+                # （误开训练/误判完成，#70 只挡 None）→ 保守保持 idle 重排退出。
+                logger.info(
+                    f"{_plan_char_label(plan)} 技能选择页未经过训练位确认，"
+                    "无法确认星星归属，保持 idle 重排"
+                )
+                _exit_occupied(solver, plan, None, trigger="技能选择页归属未确认")
+                return
             if not checked_target:
                 # #63 已到target检测：读目标技能槽亮灯，≥target → 判 completed 级联（防 false-fail）
                 checked_target = True
@@ -524,6 +560,15 @@ def _start_new_training(solver, plan, arrange_support=True):
                     if next_plan:
                         _start_new_training(solver, next_plan, arrange_support=False)
                     solver.back()
+                    return
+                if tier is None:
+                    # #70/B5：档位读失败（无法判是否已到 target）→ 保守处理：保持
+                    # idle 重排退出，绝不盲点技能行（可能重训已完成的档位）。
+                    logger.info(
+                        f"{_plan_char_label(plan)} 技能{skill_index} 专精档位读取失败，"
+                        "无法确认是否已到目标档位，保持 idle 重排"
+                    )
+                    _exit_occupied(solver, plan, None, trigger="档位读取失败")
                     return
             height = (skill_index - 1) * 0.3 + 0.32
             solver.ctap((solver.recog.w * 0.33, solver.recog.h * height))
@@ -569,8 +614,8 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
     并入 #15 的全局 10 分钟 deadline（由调用方传入），不单独分段计时。
     返回 "started" / "failed" / "timeout"：
     - started: 已转入 TRAINING 并完成协助位/收取安排
-    - failed: 材料不足，已标记 failed + 通知 + 退出训练室
-    - timeout: deadline 内未读到倒计时，由调用方走统一超时出口
+    - failed: 材料不足 或 #69/B2 面板干员/技能与计划不符，已标记 failed + 通知 + 退出训练室
+    - timeout: deadline 内未确认训练开始（含面板不可读无法校验归属），由调用方走统一超时出口
     #63 减半守卫：arrange_support=False（收取后级联）不重新安排协助位。
     """
     from arknights_mower.utils.email import send_message
@@ -579,12 +624,30 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
     while datetime.now() < deadline:
         scene = solver.train_scene()
         # #53 实机：确认升级后训练已开始，但训练运行页会被识别成 TRAIN_SKILL_SELECT
-        # （页面含协助位 training_support、不匹配 train_main），因此这里在
-        # TRAIN_SKILL_SELECT 上也读倒计时——读到有效倒计时才算真正开始，读不到
-        # 就继续等（_read_train_countdown 读不到返回 now，>now+30min 判定必为假）。
+        # （页面含协助位 training_support、不匹配 train_main）。#72 页面模型：这里出现
+        # 的 219 是「运行页被误判」（物理上仍是主页面，倒计时/面板可读）——读倒计时是确认
+        # 训练开始的正当读取，不是探针；真技能选择页无倒计时，读不到返回 now，
+        # >now+30min 判定必为假 → 继续等（训练未开始），直到 deadline 走统一失败出口。
         if scene in (Scene.TRAIN_MAIN, Scene.TRAIN_SKILL_SELECT):
             execute_time = _read_train_countdown(solver)
             if execute_time and execute_time > datetime.now() + timedelta(minutes=30):
+                # #69/B2 归属校验：写入 training 前，面板干员/技能必须与计划一致。
+                # - 面板可读且不符 → 本次开始失败（绝不把陌生人的倒计时写进计划）；
+                # - 面板可读且匹配 → 确认训练开始；
+                # - 面板不可读（OCR 失败）→ 不写 training，继续等到 deadline（超时走
+                #   统一失败出口），避免在无法确认归属时宣布"错误干员开始训练"。
+                panel = _read_panel_text(solver)
+                if panel.operator_name and not _plan_matches_room(
+                    plan, RoomState("training", panel)
+                ):
+                    _exit_failed(solver, plan, "训练室面板干员/技能与计划不符，未开始训练")
+                    return "failed"
+                if not panel.operator_name:
+                    logger.debug(
+                        "训练室已出有效倒计时但面板干员名不可读，暂不写入 training，等待归属可读"
+                    )
+                    solver.sleep(1)
+                    continue
                 expires_at = execute_time.strftime("%Y-%m-%d %H:%M:%S")
                 _log_transition(plan, "training", "倒计时确认", 完成时间=expires_at)
                 update_plan_status(
@@ -604,7 +667,13 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
                 if arrange_support:
                     _arrange_support(solver, plan)
                 _schedule_swap_if_needed(solver, plan, execute_time)
-                _schedule_collect(solver, plan, execute_time)
+                tier = None
+                if scene == Scene.TRAIN_MAIN:
+                    try:
+                        tier = _count_lit_mastery_icons(solver)
+                    except Exception:
+                        tier = None
+                _schedule_collect(solver, plan, execute_time, tier=tier)
                 return "started"
         elif scene == Scene.TRAIN_SKILL_UPGRADE_ERROR:
             msg = f"{_plan_char_label(plan)} 技能{plan['skill_index'] + 1} 专{plan['target_level']} 材料不足"

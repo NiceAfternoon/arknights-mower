@@ -29,16 +29,39 @@ from arknights_mower.utils.skill_label import format_skill_label, panel_skill_ma
 PANEL_REGION = ((239, 878), (776, 977))  # `[干员名]技能名`
 COUNTDOWN_REGION = ((236, 978), (380, 1020))  # 训练位倒计时
 MASTERY_ICON_REGION = ((337, 833), (373, 866))  # 专精图标（亮N颗=在专N/专N完成）
+# 主面板专精图标区内三颗星（1080p 实测校准）。点亮顺序 顶→右下→左下。
+MASTERY_ICON_PIPS = [
+    ((346, 835), (358, 847)),  # 专一（顶）
+    ((353, 848), (365, 860)),  # 专二（右下）
+    ((338, 848), (350, 860)),  # 专三（左下）
+]
 
 ARRANGING_RETRY_BUFFER = timedelta(minutes=2)
 
-# 像素验证阈值（#63 待实现细节，实机校准待办）
-MASTERY_ICON_BRIGHTNESS = 150  # 专精图标"亮"的像素亮度下限
-MASTERY_ICON_LIT_RATIO = 0.30  # 一个图标槽内亮像素占比达到此值计为点亮
-
-# 技能选择页目标技能槽的专精星级显示区（已到target检测）。
-# 实机像素验证后填入 1080p 坐标，例如 ((430, 360), (560, 395))；未填入时检测停用。
-SKILL_SLOT_PIP_REGION = None
+# 技能选择页目标技能槽的专精星（已到target检测）。实机坐标已校准：
+# 每个技能 3 颗星，三角排列，点亮顺序 顶→右下→左下：专一=顶、专二=右下、
+# 专三=左下（专N 亮前 N 颗）。键为 skill_index（0/1/2）。
+SKILL_SLOT_PIPS = {
+    0: [
+        ((596, 167), (631, 202)),  # 专一（顶）
+        ((618, 203), (653, 238)),  # 专二（右下）
+        ((575, 203), (610, 238)),  # 专三（左下）
+    ],
+    1: [
+        ((596, 483), (631, 518)),
+        ((618, 518), (653, 553)),
+        ((575, 518), (610, 553)),
+    ],
+    2: [
+        ((596, 799), (631, 834)),
+        ((618, 835), (653, 870)),
+        ((575, 835), (610, 870)),
+    ],
+}
+# 单颗星判亮阈值（在框内缩进 PIP_INSET 的内核区域统计，避开抗锯齿边缘/框线）
+PIP_BRIGHTNESS = 150
+PIP_LIT_RATIO = 0.45
+PIP_INSET = 2
 
 
 @dataclass
@@ -78,32 +101,29 @@ def _parse_panel_text(text):
     return "", t
 
 
-def _count_lit_from_region(region, brightness=None, lit_ratio=None):
-    """专精图标亮灯计数：region 为 (h,w[,3]) 的图标区，按宽度分 3 槽。
+def _box_is_lit(img, box, brightness=None, lit_ratio=None, inset=PIP_INSET):
+    """单颗专精星判亮：在框内缩进 inset 像素的内核区域统计亮像素占比。
 
-    每槽亮像素占比 ≥ lit_ratio 计 1 颗。返回 0-3。阈值待实机像素验证。
+    35x35 的框只装一颗圆（占框约六成），缩进避开圆的抗锯齿边缘和框线；
+    亮像素占比 ≥ lit_ratio 计为点亮。
     """
     import numpy as np
 
-    if region is None or region.size == 0:
-        return 0
-    brightness = brightness if brightness is not None else MASTERY_ICON_BRIGHTNESS
-    lit_ratio = lit_ratio if lit_ratio is not None else MASTERY_ICON_LIT_RATIO
-    if region.ndim == 3:
-        gray = np.mean(region.astype(np.float32), axis=2)
+    (x0, y0), (x1, y1) = box
+    x0, y0 = x0 + inset, y0 + inset
+    x1, y1 = x1 - inset, y1 - inset
+    if x1 <= x0 or y1 <= y0:
+        return False
+    seg = img[y0:y1, x0:x1]
+    if seg.size == 0:
+        return False
+    brightness = brightness if brightness is not None else PIP_BRIGHTNESS
+    lit_ratio = lit_ratio if lit_ratio is not None else PIP_LIT_RATIO
+    if seg.ndim == 3:
+        gray = np.mean(seg.astype(np.float32), axis=2)
     else:
-        gray = region.astype(np.float32)
-    h, w = gray.shape
-    slot_w = max(1, w // 3)
-    count = 0
-    for i in range(3):
-        seg = gray[:, i * slot_w : (i + 1) * slot_w]
-        if seg.size == 0:
-            continue
-        lit = float((seg > brightness).mean())
-        if lit >= lit_ratio:
-            count += 1
-    return count
+        gray = seg.astype(np.float32)
+    return float((gray > brightness).mean()) >= lit_ratio
 
 
 def classify_room_state(scene, countdown) -> str:
@@ -136,24 +156,48 @@ def _count_lit_mastery_icons(solver, img=None) -> int:
         img = getattr(getattr(solver, "recog", None), "img", None)
     if img is None:
         return 0
-    (x0, y0), (x1, y1) = MASTERY_ICON_REGION
-    return _count_lit_from_region(img[y0:y1, x0:x1])
+    return sum(1 for box in MASTERY_ICON_PIPS if _box_is_lit(img, box))
 
 
 def _read_slot_mastery_tier(solver, skill_index):
     """读技能选择页目标技能槽的专精档位（亮灯计数），用于已到target检测。
 
-    SKILL_SLOT_PIP_REGION 为第 1 技能槽（index 0）的星级显示区，按槽位行距
-    0.3h 下移。未校准（None）/读不到 → 返回 None，调用方走正常开始（安全）。
+    按 SKILL_SLOT_PIPS[skill_index] 的三颗星（专一顶/专二右下/专三左下）逐框
+    判亮计数 → 0-3。读失败（无此技能/无截图/异常）→ 返回 None，#70 起调用方
+    保守处理：保持 idle 重排退出，绝不盲点技能行（可能重训已到 target 的档位）。
     """
-    if SKILL_SLOT_PIP_REGION is None:
+    boxes = SKILL_SLOT_PIPS.get(skill_index)
+    if boxes is None:
         return None
-    img = getattr(getattr(solver, "recog", None), "img", None)
+    try:
+        img = getattr(getattr(solver, "recog", None), "img", None)
+        if img is None:
+            return None
+        return sum(1 for box in boxes if _box_is_lit(img, box))
+    except Exception:
+        # 读不到（非数组/越界等）→ 返回 None，调用方保守处理（保持 idle 重排）
+        return None
+
+
+def _read_panel_text(solver, img=None) -> RoomPanel:
+    """读主面板 `[干员名]技能名` 文本；OCR 不可读 → 空面板（operator_name=""）。
+
+    只读文本、不读图标/倒计时，供确认开始等轻量归属校验用（避免依赖像素读取）。
+    """
     if img is None:
-        return None
-    (x0, y0), (x1, y1) = SKILL_SLOT_PIP_REGION
-    dy = int(solver.recog.h * 0.3) * skill_index
-    return _count_lit_from_region(img[y0 + dy : y1 + dy, x0:x1])
+        try:
+            solver.recog.update()
+            img = solver.recog.img
+        except Exception as e:
+            logger.debug(f"面板截图失败: {e}")
+            return RoomPanel()
+    try:
+        text = solver.read_screen(img, type="text", cord=PANEL_REGION)
+    except Exception as e:
+        logger.debug(f"面板 OCR 失败: {e}")
+        return RoomPanel()
+    operator_name, skill_name = _parse_panel_text(text)
+    return RoomPanel(operator_name=operator_name, skill_name=skill_name)
 
 
 def read_main_panel(solver, img=None) -> RoomPanel:
@@ -161,20 +205,10 @@ def read_main_panel(solver, img=None) -> RoomPanel:
     if img is None:
         solver.recog.update()
         img = solver.recog.img
-    try:
-        text = solver.read_screen(img, type="text", cord=PANEL_REGION)
-    except Exception as e:
-        logger.debug(f"面板 OCR 失败: {e}")
-        text = ""
-    operator_name, skill_name = _parse_panel_text(text)
-    tier = _count_lit_mastery_icons(solver, img)
-    countdown = _read_train_countdown(solver)
-    return RoomPanel(
-        operator_name=operator_name,
-        skill_name=skill_name,
-        mastery_tier=tier,
-        countdown=countdown,
-    )
+    panel = _read_panel_text(solver, img)
+    panel.mastery_tier = _count_lit_mastery_icons(solver, img)
+    panel.countdown = _read_train_countdown(solver)
+    return panel
 
 
 def _settle_in_room(solver, max_iters=15) -> int:
@@ -311,17 +345,21 @@ def _upsert_skill_upgrade_task(solver, target_time, meta_data="", plan_key=None)
 
 
 def _target_label(level: int) -> str:
-    """专精等级中文标签：1→专一、2→专二、3→专三。"""
-    return ("", "专一", "专二", "专三")[level]
+    """专精等级中文标签：0→未专精、1→专一、2→专二、3→专三。"""
+    return ("未专精", "专一", "专二", "专三")[level]
 
 
-def _schedule_collect(solver, plan, execute_time):
+def _schedule_collect(solver, plan, execute_time, tier=None):
     """安排某计划到点收取任务；同计划已有一条时原地改时间（#62 Q3 收敛：统一入队原语）。
 
-    去重按 plan_key=计划ID；meta_data 存描述性标签（技能名 + 目标专精等级），
-    替代原 plan_id 数字。图标亮灯数即目标等级，与标签中目标冗余，故不在标签展示。
+    去重按 plan_key=计划ID；meta_data 存描述性标签，如
+    `焰狐龙梓兰 二技能·飞翔瞪射 专一 → 专二`（当前 → 目标）。
+    图标亮灯数即目标等级（亮 2 颗 = 专一→专二），可读时作目标来源，
+    否则回退计划 target_level；当前档位 = 目标 - 1。
     """
-    label = f"{_plan_label(plan)} → {_target_label(plan['target_level'])}"
+    target = tier if isinstance(tier, int) and tier >= 1 else plan["target_level"]
+    current = max(0, target - 1)
+    label = f"{_plan_label(plan)} {_target_label(current)} → {_target_label(target)}"
     _upsert_skill_upgrade_task(
         solver, execute_time, meta_data=label, plan_key=str(plan["id"])
     )
@@ -361,7 +399,7 @@ def _update_expiry(solver, plan, room):
         return
     expires_at = countdown.strftime("%Y-%m-%d %H:%M:%S")
     update_plan_status(plan["id"], "training", expires_at=expires_at)
-    _schedule_collect(solver, plan, countdown)
+    _schedule_collect(solver, plan, countdown, tier=room.panel.mastery_tier)
 
 
 def _wait_for_training(solver, room):
@@ -435,7 +473,7 @@ def collect_flow(solver, plan, panel: RoomPanel):
     4. 点任意处 → 跳过动画 → 稳定页
     5. 截图（收集页不读文本）
     6. 档位==专3 → 邮件（截图 + 第1步信息）
-    7. 对账（用第1步档位）：N≥target completed级联 / <target 继续
+    7. 对账（用第1步档位）：档位==target completed级联 / ≠target 继续（#67，见 _reconcile_after_collect）
     8. 点勾确认
     """
     from arknights_mower.utils.email import send_message
@@ -461,21 +499,32 @@ def collect_flow(solver, plan, panel: RoomPanel):
 
 
 def _reconcile_after_collect(solver, plan, panel: RoomPanel):
-    """收集后对账：N≥target completed级联 / <target 继续。返回需要开始的计划或 None。"""
+    """收集后对账：档位==target completed级联 / ≠target 继续。
+
+    #67/B6：档位**高于**计划目标时，本次收取不属于该计划（计划早已满足），
+    不按"专{target} 完成"记账，保持 idle——由已到target检测按真实档位正确完成，
+    防止"专二收取关掉专一计划"的错记。返回需要开始的计划或 None。
+    """
     from arknights_mower.utils.mastery_db import get_next_idle_plan, update_plan_status
 
     if plan is None:
         return None
     tier = panel.mastery_tier
-    if tier >= plan["target_level"]:
+    if tier == plan["target_level"]:
         logger.info(
             f"{_plan_label(plan)} 专{plan['target_level']} 完成（收集档位 专{tier}）"
         )
         update_plan_status(plan["id"], "completed")
         return get_next_idle_plan()
-    logger.info(
-        f"{_plan_label(plan)} 收集档位 专{tier} < 目标专{plan['target_level']}，继续下一级"
-    )
+    if tier > plan["target_level"]:
+        logger.warning(
+            f"{_plan_label(plan)} 收集档位 专{tier} 高于目标专{plan['target_level']}，"
+            "不将本次收取记为该计划完成"
+        )
+    else:
+        logger.info(
+            f"{_plan_label(plan)} 收集档位 专{tier} < 目标专{plan['target_level']}，继续下一级"
+        )
     update_plan_status(plan["id"], "idle")
     return plan
 

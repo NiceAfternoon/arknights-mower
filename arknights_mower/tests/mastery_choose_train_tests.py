@@ -97,23 +97,49 @@ class TestChooseTrainCurrentReplacement(unittest.TestCase):
 
 
 class TestChooseTrainD4LockSkip(unittest.TestCase):
-    """#59 D4：训练位锁定（🔴 训练中 / 🟡 待收取）时跳过 idx1 更换，不空转 2 分钟超时。"""
+    """#59 D4 / #69 B3：训练位锁定（🔴 训练中 / 🟡 待收取）时不能换 idx1。
 
-    def test_skip_locked_trainer_slot(self):
+    - idx1 是唯一变更且锁定 → choose_train 必须明确抛异常（修复前静默 return
+      会让换人"看似成功"、流程继续点错干员开始）；
+    - 锁定但还有 idx0 变更 → 只换协助位、不换训练位、不空转 2 分钟超时。
+    """
+
+    def test_locked_trainer_swap_raises(self):
         solver = make_solver(
-            scenes=[Scene.INFRA_DETAILS, Scene.INFRA_DETAILS],
+            scenes=[Scene.INFRA_DETAILS],
             scan_results=[
-                [{"agent": "褐果"}, {"agent": "桃金娘"}],
                 [{"agent": "褐果"}, {"agent": "桃金娘"}],
             ],
             locked=True,
         )
-        choose_train(solver, ["Current", "若叶睦"])
+        with self.assertRaises(Exception) as ctx:
+            choose_train(solver, ["Current", "若叶睦"])
+        self.assertIn("训练位被锁定", str(ctx.exception))
         self.assertFalse(
-            solver.choose_train_ope.called,
-            "训练位锁定时应跳过 idx1，不尝试更换锁定的训练干员",
+            solver.choose_train_ope.called, "锁定的训练位不应尝试更换"
         )
         self.assertFalse(solver.choose_agent.called, "协助位 Current 保持原样")
+
+    def test_locked_trainer_keeps_assistant_then_raises(self):
+        """idx0 也要换：先换协助位成功，重扫后训练位仍锁定 → 明确失败而非静默成功。"""
+        solver = make_solver(
+            scenes=[
+                Scene.INFRA_DETAILS,
+                Scene.INFRA_DETAILS,
+                Scene.INFRA_ARRANGE_ORDER,
+                Scene.INFRA_DETAILS,
+            ],
+            scan_results=[
+                [{"agent": "褐果"}, {"agent": "桃金娘"}],
+                [{"agent": "夜莺"}, {"agent": "桃金娘"}],
+            ],
+            locked=True,
+        )
+        with self.assertRaises(Exception) as ctx:
+            choose_train(solver, ["夜莺", "若叶睦"])
+        self.assertIn("训练位被锁定", str(ctx.exception))
+        solver.choose_agent.assert_called_once_with(["夜莺"], "train", True)
+        self.assertFalse(solver.choose_train_ope.called, "锁定的训练位不应尝试更换")
 
     def test_not_locked_still_swaps_trainer(self):
         solver = make_solver(
