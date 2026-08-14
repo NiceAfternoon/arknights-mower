@@ -35,13 +35,19 @@ def make_panel(**overrides):
         skill_name="测试技能",
         mastery_tier=2,
         countdown=datetime.now() + timedelta(hours=2),
+        countdown_state="active",
     )
     panel.__dict__.update(overrides)
     return panel
 
 
-def make_room(state="empty", **panel_kwargs):
-    return reader.RoomState(state=state, panel=make_panel(**panel_kwargs))
+def make_room(state="empty", support_slot="", train_slot="", **panel_kwargs):
+    return reader.RoomState(
+        state=state,
+        panel=make_panel(**panel_kwargs),
+        support_slot=support_slot,
+        train_slot=train_slot,
+    )
 
 
 class TestSkillLabel(unittest.TestCase):
@@ -176,30 +182,64 @@ class TestReadSlotMasteryTier(unittest.TestCase):
 
 
 class TestClassifyRoom(unittest.TestCase):
+    """#73 状态矩阵（§16.2）：三态倒计时 × 干员/技能存在性 × 图标亮点。"""
+
     def test_train_finish_is_waiting_collect(self):
         self.assertEqual(
-            reader.classify_room_state(Scene.TRAIN_FINISH, None), "waiting_collect"
+            reader.classify_room_state(Scene.TRAIN_FINISH, "failed", False, False),
+            "waiting_collect",
         )
 
-    def test_main_with_countdown_training(self):
+    def test_zero_countdown_is_waiting_collect(self):
+        # §16.8：00:00:00 → 待收取（完成房间不再被当空房重置重开），与身份/图标无关
         self.assertEqual(
-            reader.classify_room_state(
-                Scene.TRAIN_MAIN, datetime.now() + timedelta(hours=1)
-            ),
+            reader.classify_room_state(Scene.TRAIN_MAIN, "zero", True, True),
+            "waiting_collect",
+        )
+        self.assertEqual(
+            reader.classify_room_state(Scene.TRAIN_MAIN, "zero", False, False),
+            "waiting_collect",
+        )
+
+    def test_active_countdown_with_identity_and_icon_training(self):
+        self.assertEqual(
+            reader.classify_room_state(Scene.TRAIN_MAIN, "active", True, True),
             "training",
         )
 
-    def test_main_no_countdown_empty(self):
-        self.assertEqual(reader.classify_room_state(Scene.TRAIN_MAIN, None), "empty")
+    def test_empty_countdown_no_identity_no_icon_empty(self):
+        # 倒计时为空 + 无名无亮点 → 空闲
         self.assertEqual(
-            reader.classify_room_state(Scene.TRAIN_MAIN, datetime.now()), "empty"
+            reader.classify_room_state(Scene.TRAIN_MAIN, "failed", False, False),
+            "empty",
         )
+
+    def test_inconsistent_combos_ocr_fail(self):
+        # 其余 6 种不一致组合 → OCR/亮点计算失败（读取器原地重试 5 次）
+        cases = [
+            ("active", False, False),  # 非0 + 无身份 + 无亮点
+            ("active", True, False),  # 非0 + 身份 + 无亮点
+            ("active", False, True),  # 非0 + 无身份 + 有亮点
+            ("failed", True, False),  # 空 + 身份 + 无亮点
+            ("failed", True, True),  # 空 + 身份 + 有亮点
+            ("failed", False, True),  # 空 + 无身份 + 有亮点
+        ]
+        for cd, ident, icon in cases:
+            self.assertEqual(
+                reader.classify_room_state(Scene.TRAIN_MAIN, cd, ident, icon),
+                "ocr_fail",
+                f"countdown={cd} identity={ident} icon={icon}",
+            )
 
     def test_other_scene_conservative(self):
         self.assertEqual(
-            reader.classify_room_state(Scene.TRAIN_SKILL_SELECT, None), "training"
+            reader.classify_room_state(Scene.TRAIN_SKILL_SELECT, "failed", False, False),
+            "training",
         )
-        self.assertEqual(reader.classify_room_state(Scene.UNKNOWN, None), "training")
+        self.assertEqual(
+            reader.classify_room_state(Scene.UNKNOWN, "failed", False, False),
+            "training",
+        )
 
 
 class TestMatchPlan(unittest.TestCase):
@@ -230,14 +270,15 @@ class TestMatchPlan(unittest.TestCase):
 
 
 class TestReadRoomState(unittest.TestCase):
-    """fake solver 驱动真实 read_room_state：进房读面板+倒计时+图标+分类。"""
+    """fake solver 驱动真实 read_room_state：进房读面板+三态倒计时+图标+分类。"""
 
     def _solver(
-        self, countdown, panel_text="[测试干员]测试技能", tier_columns=(0, 1, 2)
+        self, countdown_seconds, panel_text="[测试干员]测试技能", tier_columns=(0, 1, 2)
     ):
         solver = MagicMock()
         solver.train_scene.side_effect = [Scene.TRAIN_MAIN]
-        solver.double_read_time.return_value = countdown
+        # #73 三态倒计时：read_time 返回秒（None=读失败 / 0=00:00:00 / >0=有值）
+        solver.read_time.return_value = countdown_seconds
         solver.read_screen.return_value = panel_text
         solver.find.side_effect = lambda res, *a, **k: (
             None if res == "training_completed" else MagicMock()
@@ -255,23 +296,58 @@ class TestReadRoomState(unittest.TestCase):
         return solver
 
     def test_training_state_reads_panel(self):
-        solver = self._solver(datetime.now() + timedelta(hours=2))
+        solver = self._solver(7200)
         room = reader.read_room_state(solver)
         self.assertEqual(room.state, "training")
         self.assertEqual(room.panel.operator_name, "测试干员")
         self.assertEqual(room.panel.skill_name, "测试技能")
         self.assertEqual(room.panel.mastery_tier, 3)
+        self.assertEqual(room.panel.countdown_state, "active")
 
-    def test_empty_state_when_no_countdown(self):
-        solver = self._solver(datetime.now())
+    def test_empty_state_when_countdown_unreadable(self):
+        # 倒计时读失败 + 无名无亮点 → 空闲
+        solver = self._solver(None, panel_text="", tier_columns=())
         room = reader.read_room_state(solver)
         self.assertEqual(room.state, "empty")
 
+    def test_zero_countdown_is_waiting_collect(self):
+        # §16.8 修复点：完成房间（00:00:00）→ 待收取，不再被当空房重置重开
+        solver = self._solver(0)
+        room = reader.read_room_state(solver)
+        self.assertEqual(room.state, "waiting_collect")
+
     def test_waiting_collect_when_finish_scene(self):
-        solver = self._solver(datetime.now())
+        solver = self._solver(0)
         solver.train_scene.side_effect = [Scene.TRAIN_FINISH]
         room = reader.read_room_state(solver)
         self.assertEqual(room.state, "waiting_collect")
+
+    def test_ocr_fail_retries_then_conservative_training(self):
+        # §16.2：active+身份+无图标 → 每次重读都 ocr_fail → 5 次后保守训练中（read_failed）
+        solver = self._solver(7200, panel_text="[测试干员]测试技能", tier_columns=())
+        room = reader.read_room_state(solver)
+        self.assertEqual(room.state, "training")
+        self.assertTrue(room.read_failed)
+
+    def test_ocr_fail_resolves_on_retry(self):
+        # 重读过程中出现图标亮点 → 恢复训练中（非保守）
+        solver = self._solver(7200, panel_text="[测试干员]测试技能", tier_columns=())
+        base = solver.recog.img.copy()
+        lit = base.copy()
+        (x0, y0), (x1, y1) = reader.MASTERY_ICON_REGION
+        slot_w = (x1 - x0) // 3
+        for col in (0, 1, 2):
+            lit[y0:y1, x0 + col * slot_w : x0 + (col + 1) * slot_w] = 255
+        frames = [base, base, lit]
+        solver.recog.img = frames[0]
+
+        def _update():
+            solver.recog.img = frames.pop(0) if frames else solver.recog.img
+
+        solver.recog.update.side_effect = _update
+        room = reader.read_room_state(solver)
+        self.assertEqual(room.state, "training")
+        self.assertFalse(room.read_failed)
 
 
 class TestReconcileShort(unittest.TestCase):
@@ -307,6 +383,7 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
             ),
             patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan"),
         ):
             reader.reconcile_short(solver, room)
         cp.assert_called_once()
@@ -348,7 +425,17 @@ class TestReconcileMatrix(unittest.TestCase):
         for state in ("training", "waiting_collect", "empty"):
             room = make_room(state)
             active = make_plan(status="arranging")
-            with patch.object(reader, "_reset_to_idle") as ri:
+            with (
+                patch.object(reader, "_reset_to_idle") as ri,
+                patch.object(reader, "_update_expiry"),
+                patch.object(reader, "_collect_plan"),
+                patch.object(reader, "_collect_silent"),
+                patch.object(reader, "_promote_plan"),
+                patch(
+                    "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                    return_value=None,
+                ),
+            ):
                 reader._reconcile(solver, room, active, [active])
             ri.assert_called_once_with(solver, active)
 
@@ -414,12 +501,55 @@ class TestReconcileMatrix(unittest.TestCase):
             reader._reconcile(solver, room, None, [])
         nb.assert_called_once_with(solver, room)
 
+    def test_training_unmatched_schedules_one_future_recheck(self):
+        # #66/B1：计划外占用（无 active、无匹配计划）→ 通知① + 排一条未来重检
+        # （倒计时结束 + 2min）。队列不空则重启恢复 keepalive 不再每轮补 now-task，
+        # 死循环（每 ~4s 进出训练室）从根上消失。
+        solver = MagicMock()
+        solver.tasks = []
+        countdown = datetime.now() + timedelta(hours=2)
+        room = make_room("training", operator_name="路人", countdown=countdown)
+        with patch.object(reader, "_notify_blocked") as nb:
+            start, _ = reader._reconcile(solver, room, None, [])
+        nb.assert_called_once_with(solver, room)
+        self.assertIsNone(start)
+        self.assertEqual(len(solver.tasks), 1)
+        task = solver.tasks[0]
+        self.assertEqual(task.type, reader.TaskTypes.SKILL_UPGRADE)
+        self.assertEqual(task.time, countdown + reader.ARRANGING_RETRY_BUFFER)
+
+    def test_training_unmatched_recheck_converges_over_cycles(self):
+        # #66/B1 收敛：多轮 dispatch 循环不新增重检任务——占用未变（倒计时结束时间
+        # 不变）时每次改期同一条未来重检，队列恒 ≤1 条 SKILL_UPGRADE。
+        solver = MagicMock()
+        countdown = datetime.now() + timedelta(hours=2)
+        room = make_room("training", operator_name="路人", countdown=countdown)
+        with patch.object(reader, "_notify_blocked"):
+            # 第一轮：dispatch 的 now-task 正在执行（solver.task），重检入队
+            now_task = reader.SchedulerTask(
+                time=datetime.now(), task_type=reader.TaskTypes.SKILL_UPGRADE
+            )
+            solver.tasks = [now_task]
+            solver.task = now_task
+            reader._reconcile(solver, room, None, [])
+            solver.tasks.remove(now_task)  # dispatch 完成删除当前任务
+            solver.task = None
+            self.assertEqual(len(solver.tasks), 1)
+            # 第二轮：未来重检到点 dispatch → 占用未变 → 改期同一条，不新增
+            solver.task = solver.tasks[0]
+            reader._reconcile(solver, room, None, [])
+            solver.tasks.remove(solver.task)
+            solver.task = None
+        self.assertEqual(len(solver.tasks), 1)
+        self.assertEqual(solver.tasks[0].time, countdown + reader.ARRANGING_RETRY_BUFFER)
+
     def test_waiting_collect_matched_collects(self):
         solver = MagicMock()
         room = make_room("waiting_collect")
         plan = make_plan()
         with (
             patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan"),
         ):
             reader._reconcile(solver, room, None, [plan])
         cp.assert_called_once()
@@ -444,6 +574,279 @@ class TestReconcileMatrix(unittest.TestCase):
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         self.assertIsNotNone(start)
         self.assertFalse(arrange_support)
+
+
+class TestReconcile73(unittest.TestCase):
+    """#73 状态矩阵对账：待收取 7 格动作（§16.3）/ 保护检查（§16.4-16.5）/ 恢复流程（§16.6）。"""
+
+    # --- §16.3 待收取 7 格：图标 × 协助位 × 计划 ---
+
+    def test_waiting_collect_m3_unmatched_silent(self):
+        # 专三 + 无计划 → 正常收取，不通知④（③ 需计划；无计划专三静默）
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=3, operator_name="路人")
+        with (
+            patch.object(reader, "_notify_help_collect") as nh,
+            patch.object(reader, "_collect_plan") as cp,
+        ):
+            start, _ = reader._reconcile(solver, room, None, [])
+        nh.assert_not_called()
+        cp.assert_not_called()
+        self.assertIsNone(start)
+
+    def test_waiting_collect_m3_matched_completes_cascade(self):
+        # 专三 + 都在计划 → 正常收取对账（completed 级联）
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=3)
+        plan = make_plan(target_level=3)
+        with patch.object(reader, "_collect_plan", return_value=make_plan(id=2)) as cp:
+            start, arrange_support = reader._reconcile(solver, room, None, [plan])
+        cp.assert_called_once()
+        self.assertFalse(arrange_support, "收集级联 → 减半守卫不重排协助位")
+        self.assertIsNotNone(start)
+
+    def test_waiting_collect_below_m3_unmatched_help_collect(self):
+        # 非专三 + 不在计划 → 收取 + 通知④帮收
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=2, operator_name="路人")
+        with (
+            patch.object(reader, "_notify_help_collect") as nh,
+            patch.object(reader, "_collect_plan") as cp,
+        ):
+            reader._reconcile(solver, room, None, [])
+        nh.assert_called_once_with(solver, room)
+        cp.assert_not_called()
+
+    def test_waiting_collect_below_m3_matched_recovers_and_promotes(self):
+        # 非专三 + 都在计划 → 恢复流程（§16.6）：收取 + 优先级排前 + 保持 idle 级联
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=2)
+        plan = make_plan(target_level=3)
+        with (
+            patch.object(reader, "_collect_plan", return_value=make_plan()) as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            start, arrange_support = reader._reconcile(solver, room, None, [plan])
+        cp.assert_called_once()
+        pp.assert_called_once()
+        self.assertFalse(arrange_support)
+        self.assertIsNotNone(start)
+
+    def test_waiting_collect_m3_completed_does_not_promote(self):
+        # 专三完成（_collect_plan 返回级联的下一个计划，非本级）→ 不排前
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=3)
+        plan = make_plan(target_level=3)
+        with (
+            patch.object(reader, "_collect_plan", return_value=make_plan(id=2)),
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            reader._reconcile(solver, room, None, [plan])
+        pp.assert_not_called()
+
+    def test_waiting_collect_operator_only_partial_still_help_collect(self):
+        # 干员在计划、技能不在 → 也走帮收④（§16.3 干员在、技能不在格）
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=2, skill_name="别的技能")
+        plan = make_plan()  # 干员匹配但技能不匹配
+        with (
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_notify_help_collect") as nh,
+        ):
+            reader._reconcile(solver, room, None, [plan])
+        cp.assert_not_called()
+        nh.assert_called_once_with(solver, room)
+
+    def test_waiting_collect_unreadable_panel_still_reconciles_active(self):
+        # 面板 OCR 不可读（operator=""）：_match_plan 判不了命中，但 active 计划
+        # 视为匹配（稳为先），照常对账收取——不得退化成帮收④ 或丢掉对账
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=2, operator_name="")
+        active = make_plan(status="training")
+        with (
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_collect_silent") as cs,
+            patch.object(reader, "_notify_help_collect") as nh,
+        ):
+            reader._reconcile(solver, room, active, [active])
+        cp.assert_called_once()
+        cs.assert_not_called()
+        nh.assert_not_called()
+
+    # --- §16.4/§16.5 保护检查 ---
+
+    def test_protected_empty_with_idle_plan_notifies_and_holds(self):
+        # 空闲 + 受保护 + 有待开始计划 → mower 不能开始：⑤ + 保持 idle，不主动轮询
+        # （保护解除靠「排班进训练室重读重判」，§16.5）
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("empty", support_slot="逻各斯", train_slot="能天使")
+        room.protected = True
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                return_value=make_plan(),
+            ),
+            patch.object(reader, "_notify_protected") as np_,
+        ):
+            start, _ = reader._reconcile(solver, room, None, [make_plan()])
+        self.assertIsNone(start, "受保护时空闲房间不得开始训练")
+        np_.assert_called_once_with(solver, room)
+        self.assertEqual(solver.tasks, [], "受保护不主动轮询重试，等排班自然进房重判")
+
+    def test_protected_empty_no_idle_plan_no_notify_no_poll(self):
+        # 受保护但没有待开始计划 → 不通知⑤、不轮询
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("empty", support_slot="逻各斯", train_slot="能天使")
+        room.protected = True
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None
+            ),
+            patch.object(reader, "_notify_protected") as np_,
+        ):
+            reader._reconcile(solver, room, None, [])
+        np_.assert_not_called()
+        self.assertEqual(solver.tasks, [])
+
+    def test_empty_not_protected_starts(self):
+        # 空闲未受保护 → 正常返回待开始计划
+        solver = MagicMock()
+        room = make_room("empty")
+        with patch(
+            "arknights_mower.utils.mastery_db.get_next_idle_plan",
+            return_value=make_plan(),
+        ) as g:
+            start, arrange_support = reader._reconcile(solver, room, None, [])
+        self.assertIs(start, g.return_value)
+        self.assertTrue(arrange_support)
+
+    def test_ocr_fail_conservative_reschedules(self):
+        # §16.2 保守训练中：不动 + 重排到 now+2min + 记日志
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training")
+        room.read_failed = True
+        with patch.object(reader, "_collect_silent") as cs:
+            start, _ = reader._reconcile(solver, room, None, [])
+        self.assertIsNone(start)
+        cs.assert_not_called()
+        self.assertEqual(len(solver.tasks), 1)
+        delta = solver.tasks[0].time - datetime.now()
+        self.assertGreater(delta, reader.ARRANGING_RETRY_BUFFER - timedelta(seconds=5))
+        self.assertLess(delta, reader.ARRANGING_RETRY_BUFFER + timedelta(seconds=5))
+
+
+class TestComputeProtected(unittest.TestCase):
+    """§16.5 保护检查（现读现判）：逻各斯/艾丽妮 + 待收取/空闲的判定。"""
+
+    def _room(self, state, support, train, tier):
+        return reader.RoomState(
+            state=state,
+            panel=make_panel(mastery_tier=tier),
+            support_slot=support,
+            train_slot=train,
+        )
+
+    def test_waiting_collect_m3_not_protected(self):
+        # §16.3 第1格：专三完成 → 无论如何不保护 → 可排班
+        with patch.object(reader.config.conf, "enable_mastery", True):
+            room = self._room("waiting_collect", "逻各斯", "", 3)
+            self.assertFalse(reader._compute_protected(MagicMock(), room))
+
+    def test_waiting_collect_below_m3_protected(self):
+        # 非专三（链未走完）+ 逻各斯/艾丽妮 → 保护
+        with patch.object(reader.config.conf, "enable_mastery", True):
+            room = self._room("waiting_collect", "艾丽妮", "", 2)
+            self.assertTrue(reader._compute_protected(MagicMock(), room))
+
+    def test_empty_with_occupant_deep_read(self):
+        # 空闲 + 逻各斯 + 训练位有人 → 深读技能页（有专一/专二 → 保护）
+        with (
+            patch.object(reader.config.conf, "enable_mastery", True),
+            patch.object(reader, "_train_slot_has_mastery", return_value=True),
+        ):
+            room = self._room("empty", "逻各斯", "能天使", 0)
+            self.assertTrue(reader._compute_protected(MagicMock(), room))
+        with (
+            patch.object(reader.config.conf, "enable_mastery", True),
+            patch.object(reader, "_train_slot_has_mastery", return_value=False),
+        ):
+            room = self._room("empty", "逻各斯", "能天使", 0)
+            self.assertFalse(reader._compute_protected(MagicMock(), room))
+
+    def test_empty_no_train_slot_not_protected(self):
+        # 空闲 + 逻各斯 + 训练位没人 → 可排班
+        with patch.object(reader.config.conf, "enable_mastery", True):
+            room = self._room("empty", "逻各斯", "", 0)
+            self.assertFalse(reader._compute_protected(MagicMock(), room))
+
+    def test_off_no_protection(self):
+        # §16.11 OFF：保护全停
+        with patch.object(reader.config.conf, "enable_mastery", False):
+            room = self._room("waiting_collect", "逻各斯", "", 2)
+            self.assertFalse(reader._compute_protected(MagicMock(), room))
+
+
+class TestPromotePlan(unittest.TestCase):
+    """§16.6 恢复流程插队：已最前不动；未最前插到最前、原最前计划后移一位。"""
+
+    def test_already_front_no_change(self):
+        solver = MagicMock()
+        plan = make_plan(priority=0)
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[make_plan(priority=0), make_plan(id=2, priority=3)],
+            ),
+            patch("arknights_mower.utils.mastery_db.update_plan_priority") as upd,
+        ):
+            reader._promote_plan(solver, plan)
+        upd.assert_not_called()
+
+    def test_insert_front_bumps_existing_front(self):
+        solver = MagicMock()
+        plan = make_plan(priority=3)  # 非最前
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[make_plan(id=2, priority=0), make_plan(id=3, priority=1)],
+            ),
+            patch("arknights_mower.utils.mastery_db.update_plan_priority") as upd,
+        ):
+            reader._promote_plan(solver, plan)
+        calls = [(c.args[0], c.args[1]) for c in upd.call_args_list]
+        self.assertIn((1, 0), calls, "本计划应插到最前（优先级 0）")
+        self.assertIn((2, 1), calls, "原最前计划(id=2, priority=0) 应后移到 1")
+        self.assertNotIn((3, 2), calls, "priority=1 的计划不受影响")
+
+
+class TestReconcileAndAct(unittest.TestCase):
+    """reconcile_and_act：读房 → 矩阵对账 → 原样透传开始计划（无材料门控）。"""
+
+    def _solver(self):
+        solver = MagicMock()
+        solver.train_scene.return_value = Scene.TRAIN_MAIN
+        solver.back = MagicMock()
+        return solver
+
+    def _enable(self):
+        # 测试环境配置 enable_mastery=False（用户本地配置），这里显式开启
+        return patch.object(reader.config.conf, "enable_mastery", True)
+
+    def test_returns_reconcile_plan_unchanged(self):
+        solver = self._solver()
+        plan = make_plan()
+        with (
+            self._enable(),
+            patch.object(reader, "read_room_state", return_value=make_room("empty")),
+            patch.object(reader, "_reconcile", return_value=(plan, True)),
+        ):
+            result, arrange_support = reader.reconcile_and_act(solver)
+        self.assertIs(result, plan, "对账返回的开始计划应原样透传给 dispatch 开始")
+        self.assertTrue(arrange_support)
+        solver.back.assert_not_called()
 
 
 class TestCollectFlow(unittest.TestCase):

@@ -387,6 +387,129 @@ class TestBaseScheduler(unittest.TestCase):
             any(task.type == TaskTypes.SELF_CORRECTION for task in solver.tasks)
         )
 
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_skill_upgrade_just_dispatched_guard(self):
+        # #66/B1：keepalive 守卫——无历史 dispatch（重启场景）放行，窗口内挡，过期恢复
+        solver = BaseSchedulerSolver()
+        self.assertFalse(solver._skill_upgrade_just_dispatched())
+        solver._last_skill_upgrade_dispatch = datetime.now()
+        self.assertTrue(solver._skill_upgrade_just_dispatched())
+        solver._last_skill_upgrade_dispatch = datetime.now() - timedelta(seconds=120)
+        self.assertFalse(solver._skill_upgrade_just_dispatched())
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_mastery_keepalive_guard_blocks_reenqueue_after_dispatch(self):
+        # #66/B1：重启恢复 keepalive 在刚 dispatch 过 SKILL_UPGRADE 后不再补 now-task，
+        # 防「占用训练被拒 → 队列空 → 每轮补 now-task」的每 ~4s 进出训练室死循环。
+        solver = self._empty_infra_solver()
+        solver._last_skill_upgrade_dispatch = datetime.now()  # 刚 dispatch 过
+        with (
+            patch.object(base_schedule.config.conf, "enable_mastery", True),
+            patch.object(BaseSchedulerSolver, "find", return_value=True),
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                return_value={"id": 1},
+            ),
+        ):
+            solver.infra_main()
+        self.assertEqual(len(solver.tasks), 0, "刚 dispatch 过 → keepalive 不得补 now-task")
+
+        # 窗口过期后恢复重启恢复语义：补 now-task
+        solver._last_skill_upgrade_dispatch = datetime.now() - timedelta(seconds=120)
+        solver.todo_task = False
+        with (
+            patch.object(base_schedule.config.conf, "enable_mastery", True),
+            patch.object(BaseSchedulerSolver, "find", return_value=True),
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                return_value={"id": 1},
+            ),
+        ):
+            solver.infra_main()
+        self.assertEqual(len(solver.tasks), 1)
+        self.assertEqual(solver.tasks[0].type, TaskTypes.SKILL_UPGRADE)
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_mastery_occupied_keepalive_converges_one_future_recheck(self):
+        # #66/B1 验收：占用训练 × 无 active × 不匹配 → 多轮循环后队列收敛为恰好一条
+        # 未来 SKILL_UPGRADE 重检（倒计时结束 + 缓冲），不再每 ~4s 进出训练室。
+        from arknights_mower.solvers.mastery_reader import (
+            ARRANGING_RETRY_BUFFER,
+            _upsert_skill_upgrade_task,
+        )
+        from arknights_mower.utils.scheduler_task import SchedulerTask
+
+        solver = self._empty_infra_solver()
+        solver.task = None
+        solver.tasks = []
+        countdown_end = datetime.now() + timedelta(hours=2)
+
+        def reader_occupied_blocked(s):
+            # 模拟 #66 读取器占用路径：排一条未来重检（倒计时结束 + 缓冲）
+            _upsert_skill_upgrade_task(s, countdown_end + ARRANGING_RETRY_BUFFER)
+
+        with (
+            patch.object(base_schedule.config.conf, "enable_mastery", True),
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                return_value={"id": 1},
+            ),
+            patch(
+                "arknights_mower.solvers.mastery.run_mastery_task",
+                side_effect=reader_occupied_blocked,
+            ) as rmt,
+        ):
+            for _ in range(20):
+                # 与 mower 主循环一致：先 dispatch 到期的 SKILL_UPGRADE，队列空再走 keepalive
+                due = [
+                    t
+                    for t in solver.tasks
+                    if t.type == TaskTypes.SKILL_UPGRADE
+                    and t.time <= datetime.now() + timedelta(seconds=1)
+                ]
+                if due:
+                    task = min(due, key=lambda t: t.time)
+                    solver.task = task
+                    solver._last_skill_upgrade_dispatch = datetime.now()
+                    rmt(solver)
+                    solver.tasks.remove(task)
+                    solver.task = None
+                elif (
+                    not find_next_task(solver.tasks, task_type=TaskTypes.SKILL_UPGRADE)
+                    and not solver._skill_upgrade_just_dispatched()
+                ):
+                    solver.tasks.append(
+                        SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
+                    )
+
+        upgrades = [t for t in solver.tasks if t.type == TaskTypes.SKILL_UPGRADE]
+        self.assertEqual(len(upgrades), 1)
+        self.assertEqual(upgrades[0].time, countdown_end + ARRANGING_RETRY_BUFFER)
+
+    def _empty_infra_solver(self):
+        """构造进入 infra_main 的 `elif not self.todo_task`（keepalive）分支所需的空状态。
+
+        __init__ 已由调用方 patch 掉，这里补齐 keepalive 块依赖的属性。
+        """
+        solver = BaseSchedulerSolver()
+        solver.task = None
+        solver.tasks = []
+        solver.planned = True
+        solver.todo_task = False
+        solver.collect_notification = True
+        solver.enable_party = False
+        solver.last_clue = None
+        solver.drone_room = None
+        solver.drone_time = None
+        solver.reload_room = None
+        solver.reload_time = None
+        solver.op_data = MagicMock()
+        solver.op_data.run_order_rooms = []
+        return solver
+
 
 if __name__ == "__main__":
     unittest.main()

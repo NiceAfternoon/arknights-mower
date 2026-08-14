@@ -5,6 +5,7 @@ from arknights_mower.solvers.mastery_reader import (
     RoomPanel,
     RoomState,
     _count_lit_mastery_icons,
+    _notify_at_target,
     _plan_label,
     _plan_matches_room,
     _read_panel_text,
@@ -18,6 +19,10 @@ from arknights_mower.utils.scene import Scene
 
 ARRANGING_DEADLINE = timedelta(minutes=10)
 ARRANGING_RETRY_BUFFER = timedelta(minutes=2)
+# d（2026-08-14 用户拍板）：SWAP 换人失败最多重试次数与间隔（每次重试都重读倒计时
+# 判断还值不值得换，倒计时只会减少，终会到「不足 5 小时」放弃）
+SWAP_RETRY_LIMIT = 5
+SWAP_RETRY_INTERVAL = timedelta(minutes=5)
 
 DEFAULT_ROUTES = {
     "先锋": {
@@ -267,7 +272,7 @@ def calc_swap_threshold(
     threshold = target_minutes * swap_total / current_total
 
     real_time_after_swap = remaining_minutes * current_total / swap_total
-    if real_time_after_swap < 300:
+    if real_time_after_swap < 301:
         return False, threshold
 
     return remaining_minutes <= threshold, threshold
@@ -556,6 +561,7 @@ def _start_new_training(solver, plan, arrange_support=True):
                     )
                     _log_transition(plan, "completed", "已到target检测", 档位=tier)
                     update_plan_status(plan["id"], "completed")
+                    _notify_at_target(solver, plan, tier)  # §16.9 ⑥
                     next_plan = get_next_idle_plan()
                     if next_plan:
                         _start_new_training(solver, next_plan, arrange_support=False)
@@ -666,14 +672,16 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
 
                 if arrange_support:
                     _arrange_support(solver, plan)
-                _schedule_swap_if_needed(solver, plan, execute_time)
+                # §16.10：排了换人任务则不排收取；等 SWAP_SUPPORT 完成后重读倒计时再排收取。
+                swap_scheduled = _schedule_swap_if_needed(solver, plan, execute_time)
                 tier = None
                 if scene == Scene.TRAIN_MAIN:
                     try:
                         tier = _count_lit_mastery_icons(solver)
                     except Exception:
                         tier = None
-                _schedule_collect(solver, plan, execute_time, tier=tier)
+                if not swap_scheduled:
+                    _schedule_collect(solver, plan, execute_time, tier=tier)
                 return "started"
         elif scene == Scene.TRAIN_SKILL_UPGRADE_ERROR:
             msg = f"{_plan_char_label(plan)} 技能{plan['skill_index'] + 1} 专{plan['target_level']} 材料不足"
@@ -708,20 +716,22 @@ def _arrange_support(solver, plan):
         logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=失败 err={e}")
 
 
-def _schedule_swap_if_needed(solver, plan, execute_time):
-    """训练开始后计算是否需要换人，如果需要则插入 SWAP_SUPPORT 任务"""
+def _schedule_swap_if_needed(solver, plan, execute_time) -> bool:
+    """训练开始后计算是否需要换人，需要则插入 SWAP_SUPPORT 任务。
+
+    §16.10：返回是否排了换人任务——排了则不排收取（等 SWAP_SUPPORT 完成后重读
+    倒计时再排收取）。立即换人（remaining ≤ threshold）也排任务（修旧 silent-drop）。
+    """
     from arknights_mower.utils import config
 
     if config.conf.assistant_follows_schedule:
-        return
+        return False
     if plan["target_level"] == 3:
-        return
+        return False
 
     route = _get_plan_route(plan)
     if not route or not route.get("swap_target"):
-        return
-
-    from arknights_mower.utils import config
+        return False
 
     central_bonus = route.get("central_bonus", 5)
     buffer = config.conf.mastery_swap_buffer
@@ -740,23 +750,30 @@ def _schedule_swap_if_needed(solver, plan, execute_time):
         f"剩余分钟={remaining:.0f} 阈值={threshold:.0f} 换人={should_swap}"
     )
 
-    if not should_swap and remaining > threshold:
-        from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
-
+    if should_swap:
+        swap_time = datetime.now()
+    elif remaining > threshold:
         swap_delay_seconds = (remaining - threshold) * 60
-        if swap_delay_seconds > 0:
-            swap_time = datetime.now() + timedelta(seconds=swap_delay_seconds)
-            solver.tasks.append(
-                SchedulerTask(
-                    time=swap_time,
-                    task_type=TaskTypes.SWAP_SUPPORT,
-                    meta_data=(
-                        f"{_plan_label(plan)} → {_target_label(plan['target_level'])} "
-                        f"换入{route['swap_target']}"
-                    ),
-                )
-            )
-            logger.info(f"已安排换人任务，预计 {swap_time.strftime('%H:%M:%S')} 执行")
+        if swap_delay_seconds <= 0:
+            return False
+        swap_time = datetime.now() + timedelta(seconds=swap_delay_seconds)
+    else:
+        return False
+
+    from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+
+    solver.tasks.append(
+        SchedulerTask(
+            time=swap_time,
+            task_type=TaskTypes.SWAP_SUPPORT,
+            meta_data=(
+                f"{_plan_label(plan)} → {_target_label(plan['target_level'])} "
+                f"换入{route['swap_target']}"
+            ),
+        )
+    )
+    logger.info(f"已安排换人任务，预计 {swap_time.strftime('%H:%M:%S')} 执行")
+    return True
 
 
 def run_swap_support(solver):
@@ -797,6 +814,98 @@ def run_swap_support(solver):
     except Exception as e:
         logger.warning(f"换人失败: {e}")
         logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=失败 err={e}")
+        # d：换人失败 → 重读倒计时判断还值不值得继续换（不足 5 小时就放弃）；值得则重试
+        _retry_swap_if_worthwhile(solver, plan, route, swap_target)
+    # §16.10：无论换人成功与否，重读倒计时再排收取——开始训练时「排了换人任务则
+    # 不排收取」，收集只能靠这里补；换人失败也不丢收集（旧代码开始时无条件排收取）。
+    _schedule_collect_after_swap(solver, plan)
+
+
+def _retry_swap_if_worthwhile(solver, plan, route, swap_target):
+    """换人失败：重读倒计时判断还值不值得继续换（换后真实剩余不足 5 小时就放弃）。
+
+    值得 → 重排 SWAP_SUPPORT 重试（最多 SWAP_RETRY_LIMIT 次）；不值得 → 放弃减半
+    （不减半，按全时长收取，收取任务由 _schedule_collect_after_swap 保证）。
+    每次重试都重读倒计时——倒计时只会减少，终会到「不足 5 小时」而放弃。
+    """
+    task = getattr(solver, "task", None)
+    retries = getattr(task, "swap_retries", 0) if task is not None else 0
+    if retries >= SWAP_RETRY_LIMIT:
+        logger.warning("换人重试已达上限，放弃减半换人（不减半，按全时长收取）")
+        return
+    if not _swap_still_worthwhile(solver, plan, route):
+        logger.info("剩余时间不足 5 小时，放弃减半换人（不减半，按全时长收取）")
+        return
+    retries += 1
+    from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+
+    task = SchedulerTask(
+        time=datetime.now() + SWAP_RETRY_INTERVAL,
+        task_type=TaskTypes.SWAP_SUPPORT,
+        meta_data=(
+            f"{_plan_label(plan)} → {_target_label(plan['target_level'])} "
+            f"换入{swap_target}（重试{retries}）"
+        ),
+    )
+    task.swap_retries = retries
+    solver.tasks.append(task)
+    logger.info(
+        f"换人失败将重试（{retries}/{SWAP_RETRY_LIMIT}），"
+        f"{SWAP_RETRY_INTERVAL.seconds // 60} 分钟后再试"
+    )
+
+
+def _swap_still_worthwhile(solver, plan, route) -> bool:
+    """重读倒计时判断换人后真实剩余时间是否 ≥ 301（不足 5 小时就不值得继续换）。
+
+    读倒计时前先确认在训练室主页面（TRAIN_MAIN）；INFRA_DETAILS 先关浮窗再读。
+    与 calc_swap_threshold 的 real_time_after_swap 同式；读不到/不在主页 → 保守
+    按「还值得」继续重试（下次重试再判）。
+    """
+    try:
+        scene = solver.train_scene()
+        if scene == Scene.INFRA_DETAILS:
+            solver.back()
+            scene = solver.train_scene()
+        if scene != Scene.TRAIN_MAIN:
+            return True
+        countdown = _read_train_countdown(solver)
+        if countdown is None:
+            return True
+        remaining = (countdown - datetime.now()).total_seconds() / 60
+        central_bonus = route.get("central_bonus", 5)
+        swap_total = 100 + 5 + (30 if route.get("job_match") else 0) + central_bonus
+        current_total = 100 + route["efficiency"] + 5 + central_bonus
+        real_time_after_swap = remaining * current_total / swap_total
+        return real_time_after_swap >= 301
+    except Exception:
+        return True
+
+
+def _schedule_collect_after_swap(solver, plan):
+    """§16.10：SWAP_SUPPORT 完成后重读倒计时再排收取。
+
+    读倒计时前先确认在训练室主页面（TRAIN_MAIN）；若是主页面带进驻详情浮窗
+    （INFRA_DETAILS），先关浮窗再读。最多原地重试 5 次；仍读不到 → 保守重排到
+    now+缓冲（下次进房再读）。
+    """
+    countdown = None
+    for _ in range(5):
+        try:
+            scene = solver.train_scene()
+            if scene == Scene.INFRA_DETAILS:
+                solver.back()
+                scene = solver.train_scene()
+            if scene == Scene.TRAIN_MAIN:
+                countdown = _read_train_countdown(solver)
+                if countdown is not None:
+                    break
+        except Exception:
+            pass
+        solver.sleep(1)
+    if countdown is None:
+        countdown = datetime.now() + ARRANGING_RETRY_BUFFER
+    _schedule_collect(solver, plan, countdown)
 
 
 def _get_plan_route(plan) -> dict | None:

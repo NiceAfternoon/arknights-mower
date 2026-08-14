@@ -1,6 +1,5 @@
 import sys
 import unittest
-from datetime import datetime
 from unittest.mock import MagicMock
 
 # base_schedule 导入链（cultivate_depot→skland）会在 skland 模块加载时调用
@@ -34,9 +33,8 @@ def make_solver(scenes, scan_results, locked=False):
 
     solver.find.side_effect = fake_find
     solver.train_scene.return_value = Scene.TRAIN_MAIN
-    solver.double_read_time.return_value = (
-        datetime.now().replace(year=2099) if locked else datetime.now()
-    )
+    # #73 三态倒计时：train_slot_locked 改读 read_time（秒），locked=True 给未来倒计时
+    solver.read_time.return_value = 7200 if locked else None
     solver.recog.w = 1920
     solver.recog.h = 1080
     solver.tasks = []

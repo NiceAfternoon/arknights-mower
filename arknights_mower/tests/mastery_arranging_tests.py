@@ -6,6 +6,8 @@ import numpy as np
 
 import arknights_mower.solvers.mastery as mastery
 from arknights_mower.solvers import mastery_reader
+from arknights_mower.utils import config as config_mod
+from arknights_mower.utils.scheduler_task import TaskTypes
 from arknights_mower.utils.scene import Scene
 
 START = datetime(2026, 7, 31, 12, 0, 0)
@@ -23,6 +25,17 @@ def make_plan(**overrides):
     }
     plan.update(overrides)
     return plan
+
+
+def _to_seconds(dt):
+    """fake execute_time(datetime) → read_time 秒；None → None（倒计时读失败）。
+
+    #73 三态倒计时：_read_train_countdown3 改读 read_time 返回秒（None/0/正数），
+    START(=now) 即 00:00:00 语义 → 0（为0 → 不占用，同读失败效果）。
+    """
+    if dt is None:
+        return None
+    return max(0, int((dt - START).total_seconds()))
 
 
 class FixedDateTime(datetime):
@@ -65,6 +78,9 @@ class TestArrangingConvergence(unittest.TestCase):
         clock = Clock if advance else FixedDateTime
         with (
             patch.object(mastery, "datetime", clock),
+            # #73 三态倒计时在 reader 层算结束时刻（datetime.now()+秒）→ reader 的
+            # datetime 也要冻结，否则占用重排时间用真实时钟、断言时间漂移
+            patch.object(mastery_reader, "datetime", clock),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch("arknights_mower.utils.email.send_message"),
         ):
@@ -94,7 +110,8 @@ class TestArrangingConvergence(unittest.TestCase):
             solver.train_scene.side_effect = self._seq(scenes, scene_fallback)
         else:
             solver.train_scene.return_value = scene
-        solver.double_read_time.return_value = execute_time if execute_time else START
+        # #73 三态倒计时：读 read_time 返回秒（None=读失败 / 0=00:00:00 / >0=有值）
+        solver.read_time.return_value = _to_seconds(execute_time)
         solver.get_agent_from_room.return_value = (
             slots if slots else [{"agent": ""}, {"agent": ""}]
         )
@@ -187,11 +204,11 @@ class TestArrangingConvergence(unittest.TestCase):
     def test_free_room_starts_normally(self):
         read_count = {"n": 0}
 
-        def fake_double_read(*args, **kwargs):
+        def fake_read(*args, **kwargs):
             read_count["n"] += 1
-            # 前两次（读占用×2）无倒计时；第三次起是确认流程（第一次无倒计时继续等，
-            # 第二次读到有效倒计时确认开始）——219 不再读倒计时（#72）
-            return START if read_count["n"] <= 3 else START + timedelta(hours=2)
+            # 前两次（读占用×2）无倒计时（00:00:00 语义 =0 → 不占用）；第三次起是
+            # 确认流程（第一次无倒计时继续等，第二次读到有效倒计时确认开始）——219 不再读倒计时（#72）
+            return 0 if read_count["n"] <= 3 else 7200
 
         scenes = [
             Scene.TRAIN_MAIN,  # 迭代1：读倒计时(无) → 读槽位(空) → back
@@ -200,7 +217,7 @@ class TestArrangingConvergence(unittest.TestCase):
             Scene.TRAIN_SKILL_UPGRADE,  # 迭代4：tap 确认 → 进入确认流程
         ]
         solver = self.make_solver(scenes=scenes, scene_fallback=Scene.TRAIN_MAIN)
-        solver.double_read_time.side_effect = fake_double_read
+        solver.read_time.side_effect = fake_read
         plan = make_plan()
         _, upd = self.run_arranging(solver, plan)
 
@@ -219,7 +236,7 @@ class TestArrangingConvergence(unittest.TestCase):
             Scene.TRAIN_SKILL_UPGRADE,
             Scene.TRAIN_MAIN,
         ]
-        solver.double_read_time.return_value = START + timedelta(hours=2)
+        solver.read_time.return_value = 7200
         solver.read_screen.return_value = "[测试干员]测试技能"
         solver.tasks = []
         solver.task = None
@@ -255,7 +272,7 @@ class TestArrangingConvergence(unittest.TestCase):
             Scene.TRAIN_SKILL_UPGRADE,  # 确认页 → tap 确认
             Scene.TRAIN_SKILL_SELECT,  # 训练运行页（被误识别成选择技能页）
         ]
-        solver.double_read_time.return_value = START + timedelta(hours=2)
+        solver.read_time.return_value = 7200
         solver.read_screen.return_value = "[测试干员]测试技能"
         solver.tasks = []
         solver.task = None
@@ -486,10 +503,10 @@ class TestArrangingConvergence(unittest.TestCase):
     def test_arranging_no_wrong_start_on_mismatch(self):
         """#69/B2 全流程（#72 真实页面模型）：219 经训练位确认进入、不读面板文字，
         确认页读到陌生干员面板 → 计划 failed，绝不写 training。"""
-        reads = iter([START, START, START + timedelta(hours=2)])
+        reads = iter([0, 0, 7200])
 
-        def fake_double_read(*args, **kwargs):
-            return next(reads, START)
+        def fake_read(*args, **kwargs):
+            return next(reads, 0)
 
         scenes = [
             Scene.TRAIN_MAIN,  # 读占用(无) → 读槽位(空) → back
@@ -498,7 +515,7 @@ class TestArrangingConvergence(unittest.TestCase):
             Scene.TRAIN_SKILL_UPGRADE,  # tap 确认 → 确认页读到陌生干员面板
         ]
         solver = self.make_solver(scenes=scenes, scene_fallback=Scene.TRAIN_MAIN)
-        solver.double_read_time.side_effect = fake_double_read
+        solver.read_time.side_effect = fake_read
         solver.read_screen.return_value = "[错误干员]其他技能"  # 真 219 不读面板；确认页才读
         plan = make_plan()
         _, upd = self.run_arranging(solver, plan)
@@ -518,7 +535,7 @@ class TestMasteryMailOperatorName(unittest.TestCase):
     def make_solver(self, panel_text="[测试干员]测试技能"):
         solver = MagicMock()
         solver.train_scene.return_value = Scene.TRAIN_MAIN
-        solver.double_read_time.return_value = START + timedelta(hours=2)
+        solver.read_time.return_value = 7200
         solver.read_screen.return_value = panel_text
         solver.tasks = []
         solver.task = None
@@ -564,6 +581,312 @@ class TestMasteryMailOperatorName(unittest.TestCase):
         self.assertEqual(result, "started")
         self.assertIn("兜底干员", send.call_args[0][0])
         gcn.assert_called_once_with("char_test")
+
+
+class TestSwapCollectGating(unittest.TestCase):
+    """#73 §16.10：排了换人任务则不排收取；SWAP_SUPPORT 完成后重读倒计时再排收取。"""
+
+    def setUp(self):
+        FixedDateTime.now_value = START
+
+    def _solver(self):
+        solver = MagicMock()
+        solver.train_scene.return_value = Scene.TRAIN_MAIN
+        solver.read_time.return_value = 7200
+        solver.read_screen.return_value = "[测试干员]测试技能"
+        solver.recog.w = 1920
+        solver.recog.h = 1080
+        solver.tasks = []
+        solver.task = None
+        solver.recog.img = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        solver.recog.update = MagicMock()
+        return solver
+
+    def _confirm(self, swap_scheduled, **kw):
+        solver = self._solver()
+        plan = make_plan()
+        with (
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch("arknights_mower.utils.email.send_message"),
+            patch.object(mastery, "_arrange_support"),
+            patch.object(mastery, "_schedule_swap_if_needed", return_value=swap_scheduled),
+            patch.object(mastery, "_schedule_collect") as sc,
+        ):
+            result = mastery._confirm_training_started(
+                solver, plan, START + timedelta(minutes=10)
+            )
+        return result, sc
+
+    def test_swap_scheduled_skips_collect(self):
+        # §16.10：排了换人任务 → 不排收取（等 SWAP_SUPPORT 完成后重读倒计时再排收取）
+        result, sc = self._confirm(swap_scheduled=True)
+        self.assertEqual(result, "started")
+        sc.assert_not_called()
+
+    def test_no_swap_schedules_collect(self):
+        result, sc = self._confirm(swap_scheduled=False)
+        self.assertEqual(result, "started")
+        sc.assert_called_once()
+
+    def test_schedule_swap_immediate_schedules_now(self):
+        # should_swap（remaining ≤ threshold）→ 立即排 SWAP_SUPPORT（修旧 silent-drop）
+        solver = self._solver()
+        plan = make_plan(target_level=2)
+        with (
+            patch.object(mastery, "_get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 100, "job_match": True,
+            }),
+            patch.object(mastery, "calc_swap_threshold", return_value=(True, 100.0)),
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+        ):
+            scheduled = mastery._schedule_swap_if_needed(solver, plan, START + timedelta(hours=2))
+        self.assertTrue(scheduled, "立即换人应排 SWAP_SUPPORT")
+        self.assertEqual(len(solver.tasks), 1)
+        self.assertEqual(solver.tasks[0].type, TaskTypes.SWAP_SUPPORT)
+
+    def test_schedule_swap_delayed_returns_true(self):
+        solver = self._solver()
+        plan = make_plan(target_level=2)
+        with (
+            patch.object(mastery, "_get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
+            }),
+            patch.object(mastery, "calc_swap_threshold", return_value=(False, 100.0)),
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(mastery, "datetime", FixedDateTime),
+        ):
+            scheduled = mastery._schedule_swap_if_needed(solver, plan, START + timedelta(hours=2))
+        self.assertTrue(scheduled)
+        self.assertEqual(len(solver.tasks), 1)
+        self.assertEqual(solver.tasks[0].type, TaskTypes.SWAP_SUPPORT)
+
+    def test_schedule_swap_skips_m3(self):
+        solver = self._solver()
+        plan = make_plan(target_level=3)
+        with patch.object(config_mod.conf, "assistant_follows_schedule", False):
+            scheduled = mastery._schedule_swap_if_needed(solver, plan, START + timedelta(hours=2))
+        self.assertFalse(scheduled, "专三永不换人")
+
+    def test_run_swap_support_schedules_collect_after_swap(self):
+        # §16.10：SWAP_SUPPORT 完成后重读倒计时再排收取
+        solver = self._solver()
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
+            }),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+        ):
+            mastery.run_swap_support(solver)
+        solver.choose_train.assert_called_once_with(["逻各斯", "Current"])
+        sc.assert_called_once()
+        self.assertIsNotNone(sc.call_args.args[1], "换人后应排收取任务（重读倒计时时刻）")
+
+    def test_run_swap_support_unreadable_countdown_schedules_retry(self):
+        solver = self._solver()
+        solver.read_time.return_value = None  # 换人后倒计时读不到
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
+            }),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        sc.assert_called_once()
+        self.assertEqual(
+            sc.call_args.args[2], START + mastery.ARRANGING_RETRY_BUFFER,
+            "倒计时读不到时保守重排到 now+2min",
+        )
+
+    def _fail_solver(self, read_seconds, task=None):
+        """换人失败的 solver：choose_train 抛异常 + 指定倒计时读取。"""
+        solver = self._solver()
+        solver.read_time.return_value = read_seconds
+        solver.task = task
+        solver.choose_train.side_effect = Exception("选人流程超时")
+        return solver
+
+    def _swap_route(self):
+        return {
+            "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
+        }
+
+    def test_swap_failure_worthwhile_reschedules(self):
+        # d：换人失败 + 剩余还够（换后真实剩余 ≥ 301）→ 重排 SWAP_SUPPORT 重试
+        solver = self._fail_solver(read_seconds=15000)  # 250 分钟，换后真实 ≈ 330 分钟
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        swaps = [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1, "换人失败且仍值得换 → 应重排 SWAP_SUPPORT")
+        self.assertEqual(swaps[0].swap_retries, 1)
+        self.assertEqual(swaps[0].time, START + mastery.SWAP_RETRY_INTERVAL)
+        sc.assert_called_once()  # 收集任务仍保证
+
+    def test_swap_failure_not_worthwhile_gives_up(self):
+        # d：换人失败 + 剩余不足 5 小时（换后真实 < 301）→ 放弃换人，只排收取
+        solver = self._fail_solver(read_seconds=3600)  # 60 分钟，换后真实 ≈ 79 分钟
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        self.assertFalse(
+            [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
+            "剩余不足 5 小时 → 不重试换人",
+        )
+        sc.assert_called_once()  # 收集任务仍保证
+
+    def test_swap_failure_max_retries_gives_up(self):
+        # d：已达重试上限 → 不再重试，只排收取
+        task = MagicMock()
+        task.swap_retries = 5
+        solver = self._fail_solver(read_seconds=15000, task=task)
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        self.assertFalse(
+            [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
+            "重试达上限 → 不再重试",
+        )
+        sc.assert_called_once()
+
+
+    def test_schedule_collect_after_swap_closes_detail_before_read(self):
+        # 读倒计时前若停在主页面带进驻详情浮窗（INFRA_DETAILS）→ 先关浮窗回主页面再读
+        solver = self._solver()
+        solver.train_scene.side_effect = [Scene.INFRA_DETAILS, Scene.TRAIN_MAIN]
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        solver.back.assert_called_once()  # 关掉进驻详情浮窗
+        sc.assert_called_once()
+
+
+class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
+    """#73 §16.9 ⑥ 已到target 通知 / 已到target 级联开始下一个计划。"""
+
+    def setUp(self):
+        FixedDateTime.now_value = START
+
+    def _lit_solver(self):
+        solver = MagicMock()
+        solver.train_scene.side_effect = [
+            Scene.TRAIN_MAIN,  # 读占用(无) → 读槽位(空) → back
+            Scene.TRAIN_MAIN,  # tap 选择技能（身份确认）
+            Scene.TRAIN_SKILL_SELECT,  # 读档位 → 3（已到target）
+        ]
+        solver.read_time.return_value = None
+        solver.read_screen.return_value = "[测试干员]测试技能"
+        solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": ""}]
+        solver.recog.w = 1920
+        solver.recog.h = 1080
+        solver.tasks = []
+        solver.task = None
+        solver.recog.update = MagicMock()
+        img = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        for (x0, y0), (x1, y1) in mastery_reader.SKILL_SLOT_PIPS[1]:
+            img[y0:y1, x0:x1] = 255
+        solver.recog.img = img
+        return solver
+
+    def test_at_target_notifies_06(self):
+        # 已到target（专3）→ 邮件⑥ + DB 标完成
+        solver = self._lit_solver()
+        plan = make_plan(skill_index=1, target_level=3)
+        with (
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch("arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None),
+            patch("arknights_mower.utils.email.send_message"),
+            patch.object(mastery, "_notify_at_target") as nat,
+        ):
+            mastery._start_new_training(solver, plan)
+        nat.assert_called_once()
+        statuses = [c.args[1] for c in upd.call_args_list]
+        self.assertIn("completed", statuses)
+
+    def test_at_target_cascade_starts_next(self):
+        # 已到target 完成 → 级联开始下一个 idle 计划（arranging），随后因房间被占用
+        # 走 idle 重排退出（不再深跑整个开始流程）
+        solver = MagicMock()
+        scenes = iter([
+            Scene.TRAIN_MAIN,  # 外层：读占用(无) → 槽位 → back
+            Scene.TRAIN_MAIN,  # 外层：tap 技能选择（身份确认）
+            Scene.TRAIN_SKILL_SELECT,  # 外层：读档位 → 3（已到target → 完成 → 级联）
+            Scene.TRAIN_MAIN,  # 级联：读占用(有) → 占用 → 退出
+        ])
+        solver.train_scene.side_effect = lambda: next(scenes, Scene.TRAIN_MAIN)
+        reads = iter([None, None, None, 7200])  # 前 3 次无倒计时，级联时读到占用倒计时
+        solver.read_time.side_effect = lambda *a, **k: next(reads, None)
+        solver.read_screen.return_value = "[测试干员]测试技能"
+        solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": ""}]
+        solver.recog.w = 1920
+        solver.recog.h = 1080
+        solver.tasks = []
+        solver.task = None
+        solver.recog.update = MagicMock()
+        img = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        for (x0, y0), (x1, y1) in mastery_reader.SKILL_SLOT_PIPS[1]:
+            img[y0:y1, x0:x1] = 255
+        solver.recog.img = img
+        plan = make_plan(skill_index=1, target_level=3)
+        next_plan = make_plan(id=2)
+        with (
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch("arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=next_plan),
+            patch("arknights_mower.utils.email.send_message"),
+        ):
+            mastery._start_new_training(solver, plan)
+        statuses = [c.args[1] for c in upd.call_args_list]
+        self.assertIn("arranging", statuses, "级联计划应开始（arranging）")
+        self.assertTrue(solver.back.called, "级联被占用重排后应退出训练室")
 
 
 if __name__ == "__main__":

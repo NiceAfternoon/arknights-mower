@@ -511,6 +511,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if self.task.type == TaskTypes.SKILL_UPGRADE:
                     from arknights_mower.solvers.mastery import run_mastery_task
 
+                    # #66/B1：记录本次 dispatch，重启恢复 keepalive 据此不再每轮补
+                    # now-task（占用训练被拒后队列空 → 刚 dispatch 过则静默等待）。
+                    self._last_skill_upgrade_dispatch = datetime.now()
                     run_mastery_task(self)
                 elif self.task.type == TaskTypes.SWAP_SUPPORT:
                     from arknights_mower.solvers.mastery import run_swap_support
@@ -711,12 +714,14 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 # #63 重启恢复：active 或 idle 计划存在时确保有 SKILL_UPGRADE 触发，
                 # 修复「无 active 才自动入队」缺口（active 训练计划重启后失去重检）。
                 # 受全自动专精全局开关门控；find_next_task 去重避免每轮重复入队。
+                # #66/B1：刚 dispatch 过 SKILL_UPGRADE（本窗口内）则不再补 now-task，
+                # 防占用训练被拒 → 队列空 → 每轮补 now-task 的每 ~4s 进出训练室死循环。
                 if config.conf.enable_mastery:
                     if (
                         get_active_plan() or get_next_idle_plan()
                     ) and not find_next_task(
                         self.tasks, task_type=TaskTypes.SKILL_UPGRADE
-                    ):
+                    ) and not self._skill_upgrade_just_dispatched():
                         self.tasks.append(
                             SchedulerTask(
                                 time=datetime.now(),
@@ -737,6 +742,19 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.collect_notification = True
         else:
             return self.handle_error()
+
+    def _skill_upgrade_just_dispatched(self, window=60) -> bool:
+        """#66/B1：重启恢复 keepalive 守卫——`window` 秒内刚 dispatch 过 SKILL_UPGRADE。
+
+        占用训练被拒后 dispatch 删除当前任务、队列空，若 keepalive 每轮立即补
+        now-task 会每 ~4s 进出训练室死循环。读取器已在占用路径排未来重检
+        （mastery_reader._reconcile_training），此处兜底防任何 dispatch 后队列空时
+        被立刻重补。无历史 dispatch（重启场景）返回 False，恢复立即触发不受影响。
+        """
+        last = getattr(self, "_last_skill_upgrade_dispatch", None)
+        if last is None:
+            return False
+        return (datetime.now() - last).total_seconds() < window
 
     def translate_room(self, room):
         translations = {
@@ -3275,7 +3293,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 room_state = read_room_state(self, enter=False)
                             except Exception:
                                 room_state = None
-                        if room_state is not None and room_state.locked:
+                        # §16.5 保护检查：locked（训练中/待收取）或 protected（逻各斯/
+                        # 艾丽妮 保护训练室）都算「不能排班」→ 冻结/跳过。
+                        if room_state is not None and (
+                            room_state.locked or room_state.protected
+                        ):
                             if config.conf.assistant_follows_schedule:
                                 if len(plan[room]) > 1:
                                     plan[room][1] = "Current"

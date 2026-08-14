@@ -39,15 +39,14 @@ class TestSwapFormula(unittest.TestCase):
         self.assertFalse(should_100)
 
     def test_exact_5_hours_boundary(self):
-        # 换入后真实时间刚好300分钟 → 可以换 (< 300 才不换)
+        # 换入后真实时间刚好300分钟，仍不足301 → 不换（#73 用户拍板：底线 301）
         # real_time = remaining * (100+75+5) / (100+5) = remaining * 180 / 105
         # 300 = remaining * 180/105 → remaining = 300*105/180 = 175
-        # threshold = 310*105/180 = 180.83, 175 < 180.83 → should swap
         should, _ = calc_swap_threshold(75, False, 0, 175)
-        self.assertTrue(should)
+        self.assertFalse(should)
 
     def test_just_above_5_hours(self):
-        # remaining = 176 → real_time = 176*180/105 = 301.7 > 300, 可以换
+        # remaining = 176 → real_time = 176*180/105 = 301.7 >= 301, 够（≥301 才换）
         # 但还要看是否到了阈值
         # threshold = 310*105/180 = 180.83
         # 176 < 180.83 → should swap = True
