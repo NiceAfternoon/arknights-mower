@@ -176,6 +176,55 @@ def insert_plan(
         return -1
 
 
+DEFAULT_TARGET_LEVEL = 3  # 与推荐层一致（R-03：推荐恒专三），#65/B7 统一计划创建目标
+
+
+def add_plan_checked(
+    char_id: str,
+    skill_index: int,
+    target_level: Optional[int] = None,
+    skill_name: Optional[str] = None,
+    char_name: Optional[str] = None,
+    priority: int = 0,
+    path: Optional[str] = None,
+) -> tuple[int, Optional[str]]:
+    """统一计划创建入口（#65/B7）：校验 target_level 范围 + 干员当前等级。
+
+    target_level 缺省 = 专三（与推荐一致，消除「推荐专三、创建专一」分歧）。
+    返回 (plan_id, error)：成功 (id>0, None)；拒绝/失败 (<=0, 错误文案)。
+    干员当前等级取自 cultivate.json，读不到（文件缺失/干员不在）则跳过该校验——
+    执行层已到target检测按截图兜底，#70 档位读失败保守化不回退。
+    """
+    if target_level is None:
+        target_level = DEFAULT_TARGET_LEVEL
+    # bool 是 int 子类（True==1），JSON true 不得被当作 target=1 静默接受
+    if (
+        isinstance(target_level, bool)
+        or not isinstance(target_level, int)
+        or target_level not in (1, 2, 3)
+    ):
+        return -1, f"目标专精等级无效: {target_level}（需 1/2/3）"
+    from arknights_mower.utils.mastery_recommendation import (
+        get_current_mastery_level,
+    )
+
+    current_level = get_current_mastery_level(char_id, skill_index)
+    if current_level is not None and current_level >= target_level:
+        return -1, f"该干员技能已专{current_level}，无需再练到专{target_level}"
+    plan_id = insert_plan(
+        char_id=char_id,
+        skill_index=skill_index,
+        target_level=target_level,
+        skill_name=skill_name,
+        char_name=char_name,
+        priority=priority,
+        path=path,
+    )
+    if plan_id > 0:
+        return plan_id, None
+    return -1, "插入失败"
+
+
 def get_all_plans(path: Optional[str] = None) -> list[dict]:
     try:
         with _conn(path) as conn:

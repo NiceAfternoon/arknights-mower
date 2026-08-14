@@ -5,12 +5,12 @@ from flask import Blueprint, abort, current_app, request
 from flask.views import MethodView
 
 from arknights_mower.utils.mastery_db import (
+    add_plan_checked,
     delete_plan,
     get_all_history,
     get_all_plans,
     get_all_routes,
     get_failed_plans,
-    insert_plan,
     save_route,
     update_plan_priority,
 )
@@ -101,7 +101,7 @@ class MasteryPlanView(MethodView):
             for item in items:
                 name = item.get("name", "")
                 skill_index = item.get("skill_index", 0)
-                target_level = item.get("target_level", 1)
+                target_level = item.get("target_level")
                 char_id = name_to_id.get(name)
                 if char_id is None:
                     results.append(
@@ -115,7 +115,7 @@ class MasteryPlanView(MethodView):
                     if len(skills) > skill_index
                     else f"技能{skill_index + 1}"
                 )
-                plan_id = insert_plan(
+                plan_id, reason = add_plan_checked(
                     char_id=char_id,
                     skill_index=skill_index,
                     target_level=target_level,
@@ -126,7 +126,7 @@ class MasteryPlanView(MethodView):
                     results.append({"key": name, "status": "added", "id": plan_id})
                 else:
                     results.append(
-                        {"key": name, "status": "error", "reason": "insert failed"}
+                        {"key": name, "status": "error", "reason": reason}
                     )
         else:
             for name, skill_index in data.items():
@@ -152,10 +152,9 @@ class MasteryPlanView(MethodView):
                     if len(skills) > skill_index
                     else f"技能{skill_index + 1}"
                 )
-                plan_id = insert_plan(
+                plan_id, reason = add_plan_checked(
                     char_id=char_id,
                     skill_index=skill_index,
-                    target_level=1,
                     skill_name=skill_name,
                     char_name=name,
                 )
@@ -163,7 +162,7 @@ class MasteryPlanView(MethodView):
                     results.append({"key": name, "status": "added", "id": plan_id})
                 else:
                     results.append(
-                        {"key": name, "status": "error", "reason": "insert failed"}
+                        {"key": name, "status": "error", "reason": reason}
                     )
         return {"results": results}
 

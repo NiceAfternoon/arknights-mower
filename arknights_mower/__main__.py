@@ -156,9 +156,6 @@ def simulate(saved, restart_after_mood_read=False):
             base_scheduler.daily_skland = saved["daily_skland"]
             base_scheduler.daily_mail = saved["daily_mail"]
             base_scheduler.task_count = saved["task_count"]
-            base_scheduler.op_data.skill_upgrade_supports = saved[
-                "skill_upgrade_supports"
-            ]
             base_scheduler.tasks = tasks
             if len(base_scheduler.op_data.backup_plans) > 0:
                 # 启动的时候按照条件触发副表

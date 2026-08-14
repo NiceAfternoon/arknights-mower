@@ -505,7 +505,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   NAlert,
   NAvatar,
@@ -677,12 +677,13 @@ async function toggleSkillPlan(op, rec) {
   } else {
     // 添加计划
     try {
-      const body = { items: [{ name: op.name, skill_index: rec.skill_index, target_level: 1 }] }
+      const body = { items: [{ name: op.name, skill_index: rec.skill_index }] }
       const r = await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan`, body)
       const results = r.data?.results || []
       if (results[0]?.status === 'added') {
         plan.value[k] = true
-        planStatus.value[k] = { id: results[0].id, status: 'idle', target_level: 1, priority: 0 }
+        // #65：target_level 由服务端默认专三（与推荐一致）
+        planStatus.value[k] = { id: results[0].id, status: 'idle', target_level: 3, priority: 0 }
       } else {
         message.warning(results[0]?.reason || '添加失败')
       }
@@ -735,7 +736,8 @@ async function savePlanFn() {
     const op = store.recommendations.find((o) => o.char_id === cid)
     if (op && si !== undefined) {
       if (!planStatus.value[k]?.id) {
-        items.push({ name: op.name, skill_index: parseInt(si), target_level: 1 })
+        // #65：不传 target_level，服务端默认专三
+        items.push({ name: op.name, skill_index: parseInt(si) })
       }
     }
   }
@@ -1277,35 +1279,20 @@ function confirmSkill(op, rec) {
 
 async function doAddTask() {
   showConfirm.value = false
-  const { op, rec, supports } = cd
-  const p = profMap[op.profession] || '近卫'
-  const firstSupport = routeSettings[p]?.supports?.[0]?.name || ''
-  const skillNum = rec.skill_index + 1
+  const { op, rec } = cd
   try {
-    const r1 = await axios.post(`${import.meta.env.VITE_HTTP_URL}/task`, {
-      task: {
-        time: new Date(Date.now() + 60000).toISOString(),
-        plan: { train: [firstSupport, op.name] },
-        task_type: '上班',
-        meta_data: ''
-      }
+    // #71：一键专精走 DB 计划创建 API（POST /mastery-plan），不再发原始 /task「技能专精」
+    // （死流：server 只认 DB 计划）。target_level 由服务端默认专三，与确认弹窗「→ M3」一致。
+    const r = await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan`, {
+      items: [{ name: op.name, skill_index: rec.skill_index }]
     })
-    if (r1.data !== '添加任务成功！') {
-      message.warning(r1.data)
-      return
+    const results = r.data?.results || []
+    if (results[0]?.status === 'added') {
+      message.success(`${op.name} ${rec.skill_name} 专精任务已添加！`)
+      await refreshPlanFromServer()
+    } else {
+      message.warning(results[0]?.reason || '添加失败')
     }
-    const r2 = await axios.post(`${import.meta.env.VITE_HTTP_URL}/task`, {
-      task: {
-        time: new Date(Date.now() + 120000).toISOString(),
-        plan: {},
-        task_type: '技能专精',
-        meta_data: '' + skillNum
-      },
-      upgrade_support: supports
-    })
-    r2.data === '添加任务成功！'
-      ? message.success(`${op.name} ${rec.skill_name} 专精任务已添加！`)
-      : message.warning(r2.data)
   } catch (e) {
     message.error(`添加失败: ${e.message}`)
   }

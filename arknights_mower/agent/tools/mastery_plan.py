@@ -1,26 +1,28 @@
 from arknights_mower.solvers.mastery import get_char_name
 from arknights_mower.utils.mastery_db import (
+    add_plan_checked,
     get_all_plans,
     get_route,
-    insert_plan,
     retry_failed_plans,
     save_route,
 )
 
 
-def add_mastery_plan(char_id: str, skill_index: int, skill_name: str = ""):
+def add_mastery_plan(
+    char_id: str, skill_index: int, skill_name: str = "", target_level: int = 3
+):
     """Add a new mastery plan for an operator skill."""
-    plan_id = insert_plan(
+    plan_id, reason = add_plan_checked(
         char_id,
         skill_index,
-        target_level=1,
+        target_level=target_level,
         skill_name=skill_name or f"技能{skill_index + 1}",
         # #53：补传干员名，否则计划 char_name 为 NULL，邮件读不出练谁
         char_name=get_char_name(char_id),
     )
     if plan_id > 0:
-        return f"已添加专精计划: {char_id} 技能{skill_index + 1}"
-    return f"添加专精计划失败: {char_id} 技能{skill_index + 1}"
+        return f"已添加专精计划: {char_id} 技能{skill_index + 1} 专{target_level}"
+    return f"添加专精计划失败: {char_id} 技能{skill_index + 1}（{reason}）"
 
 
 def list_plans(status_filter: str = ""):
@@ -81,6 +83,11 @@ add_mastery_plan_tool_def = {
                 },
                 "skill_index": {"type": "integer", "description": "技能索引 0/1/2"},
                 "skill_name": {"type": "string", "description": "技能名称（可选）"},
+                "target_level": {
+                    "type": "integer",
+                    "description": "目标专精等级 1/2/3，缺省 3",
+                    "enum": [1, 2, 3],
+                },
             },
             "required": ["char_id", "skill_index"],
         },

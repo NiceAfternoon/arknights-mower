@@ -477,6 +477,20 @@ def _match_plan(plans, room: RoomState):
     return None
 
 
+def _can_adopt_expiry(plan, room: RoomState) -> bool:
+    """B8：倒计时采纳门——面板**干员名与技能名都可读且匹配**才采纳倒计时。
+
+    复用 `_plan_matches_room`（干员匹配 + 技能匹配）再叠加「两者都可读」：
+    与 reset/通知守卫的「不可读=匹配」（C-36）语义相反——任一名不可读 → 不采纳
+    （幻影/外人倒计时不得「祝福」计划，也不能认不可读的技能）。
+    """
+    return (
+        bool(room.panel.operator_name)
+        and bool(room.panel.skill_name)
+        and _plan_matches_room(plan, room)
+    )
+
+
 def _plan_label(plan) -> str:
     name = plan.get("char_name") or plan.get("char_id")
     return f"{name} {plan.get('skill_name') or format_skill_label(plan.get('skill_index', 0))}"
@@ -626,7 +640,12 @@ def _reset_fake(solver, plan, room):
 
 
 def _update_expiry(solver, plan, room):
-    """training×🔴 一致：静默重读倒计时、更新 expires_at、重排收取。"""
+    """training×🔴 一致：静默重读倒计时、更新 expires_at、重排收取。
+
+    B8：本函数不校验采纳条件——两个调用点（active/hit）都先过 `_can_adopt_expiry`
+    （面板干员名+技能名可读且匹配）。任一采纳漏掉该门，不可读的外人倒计时会持续
+    「祝福」计划、或把 waiting_collect 无校验降回 training。
+    """
     from arknights_mower.utils.mastery_db import update_plan_status
 
     countdown = room.panel.countdown
@@ -906,10 +925,10 @@ def _reconcile(solver, room: RoomState, active, plans, scan_plan=None, defer_col
         _reset_to_idle(solver, active)
         active = None
 
-    # §16.2 OCR 失败 5 次仍不一致 → 保守训练中：不动 + 重排到 now+2min + 记日志
+    # §16.2 OCR 失败 5 次仍不一致 → 保守训练中：不动 + 记日志。
+    # 用户 08-15 定案：读不出不排重检——等排班系统下次自然进房重读。
     if room.read_failed:
-        _log_judgment(solver, room, "ocr_fail", "保守训练中，重排到 now+2min")
-        _upsert_skill_upgrade_task(solver, datetime.now() + ARRANGING_RETRY_BUFFER)
+        _log_judgment(solver, room, "ocr_fail", "保守训练中，不排重检（等排班自然重读）")
         return None, True
 
     if room.state == "empty":
@@ -946,38 +965,55 @@ def _reconcile_training(solver, room, active, plans):
     """§16.4 训练中（倒计时非 0）：
     跟随排班 → 训练位冻结（gate 负责）；未开跟随排班 + 计划匹配 → 静默重读+重排收取
     （保护训练室）；不匹配 → 通知① blocked（不动房间，下次排班再看）。
+
+    B8：采纳倒计时（`_update_expiry`）只在 `_can_adopt_expiry` 通过时发生——面板
+    干员名+技能名任一不可读 → 不采纳（不刷新、不改写状态）、不排重检，静默等排班
+    系统下次自然进房重读（用户 08-15 定案）。
     """
     hit = _match_plan(plans, room)
     if active is not None:
-        if _plan_matches_room(active, room):
+        if _can_adopt_expiry(active, room):
             _log_judgment(solver, room, "training", "训练中×一致，静默更新到期时间")
             _update_expiry(solver, active, room)
             return None, True
-        # active 与截图不一致 → 假记录 → 重置 + 通知②
-        _reset_fake(solver, active, room)
+        if not _plan_matches_room(active, room):
+            # 干员/技能可读但不匹配 → 假记录 → 重置 + 通知②
+            _reset_fake(solver, active, room)
+        else:
+            # B8：面板名/技能名不可读 → 不采纳、不重置、不重检——让排班下次自然进房重读
+            logger.debug("训练室占用但面板不可读，不采纳倒计时，静默等待")
+            return None, True
 
     if hit is not None:
         if hit["status"] == "idle":
-            # idle×🔴 命中：静默等它练完（级联靠后续收取），不打断
-            _wait_for_training(solver, room)
+            if room.panel.skill_name:
+                # idle×🔴 命中：静默等它练完（级联靠后续收取），不打断
+                _wait_for_training(solver, room)
+            else:
+                # B8：命中但技能不可读 → 不排重检，静默等排班下次自然进房重读
+                logger.debug("命中计划但面板技能不可读，不排重检，静默等待")
             return None, True
-        # hit 为另一条 active 状态计划（active 重置后）
-        _update_expiry(solver, hit, room)
+        if _can_adopt_expiry(hit, room):
+            # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
+            _update_expiry(solver, hit, room)
+            return None, True
+        # hit 技能名不可读 → 不采纳（不判计划外、不重检），静默等待
+        logger.debug("命中计划但面板技能不可读，不采纳倒计时，静默等待")
         return None, True
 
     if room.panel.operator_name:
-        # 计划外训练 → 通知①。干员名不可读（OCR 失败）时不判计划外，静默等待。
+        # 计划外训练 → 通知① + #66/B1 未来重检（倒计时结束 + 缓冲），否则 dispatch
+        # 删除当前任务后队列空，计划外训练要等到下次排班进房才被注意到。
+        # _upsert_skill_upgrade_task 按 plan_key 去重，多轮不新增。
         _notify_blocked(solver, room)
+        countdown = room.panel.countdown
+        if countdown is not None:
+            _wait_for_training(solver, room)
+        else:
+            _upsert_skill_upgrade_task(solver, datetime.now() + ARRANGING_RETRY_BUFFER)
     else:
-        logger.debug("训练室占用但面板干员名不可读，静默等待")
-    # #66/B1：计划外占用也排一条未来重检（倒计时结束 + 缓冲），否则 dispatch 删除
-    # 当前任务后队列空，计划外训练要等到下次排班进房才被注意到。
-    # _upsert_skill_upgrade_task 按 plan_key 去重，多轮不新增。
-    countdown = room.panel.countdown
-    if countdown is not None:
-        _wait_for_training(solver, room)
-    else:
-        _upsert_skill_upgrade_task(solver, datetime.now() + ARRANGING_RETRY_BUFFER)
+        # 干员名不可读（B8）：不判计划外、不排重检，静默等排班下次自然进房重读
+        logger.debug("训练室占用但面板干员名不可读，不排重检，静默等待")
     return None, True
 
 

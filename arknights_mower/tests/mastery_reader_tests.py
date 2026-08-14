@@ -269,6 +269,37 @@ class TestMatchPlan(unittest.TestCase):
         self.assertIsNone(reader._match_plan([done], room))
 
 
+class TestCanAdoptExpiry(unittest.TestCase):
+    """B8 采纳门：只有面板干员名可读且匹配时才可采纳倒计时。"""
+
+    def test_readable_and_matching_adopts(self):
+        room = make_room("training")
+        plan = make_plan()
+        self.assertTrue(reader._can_adopt_expiry(plan, room))
+
+    def test_unreadable_operator_rejects(self):
+        # 与 _plan_matches_room（不可读=匹配）相反：采纳门不可读 → 不采纳
+        room = make_room("training", operator_name="")
+        plan = make_plan()
+        self.assertFalse(reader._can_adopt_expiry(plan, room))
+
+    def test_operator_mismatch_rejects(self):
+        room = make_room("training", operator_name="别的干员")
+        plan = make_plan()
+        self.assertFalse(reader._can_adopt_expiry(plan, room))
+
+    def test_skill_unreadable_rejects(self):
+        # 用户 08-15 定案：采纳倒计时必须技能名也可读且匹配（不能认不可读的技能）
+        room = make_room("training", skill_name="")
+        plan = make_plan()
+        self.assertFalse(reader._can_adopt_expiry(plan, room))
+
+    def test_skill_mismatch_rejects(self):
+        room = make_room("training", skill_name="别的技能")
+        plan = make_plan()
+        self.assertFalse(reader._can_adopt_expiry(plan, room))
+
+
 class TestReadRoomState(unittest.TestCase):
     """fake solver 驱动真实 read_room_state：进房读面板+三态倒计时+图标+分类。"""
 
@@ -684,18 +715,61 @@ class TestReconcileMatrix(unittest.TestCase):
         rf.assert_called_once()
         self.assertIsNone(plan)
 
-    def test_training_unreadable_panel_not_fake(self):
-        # 干员名不可读（OCR 失败）时不判「假记录」重置，走静默更新过期时间
+    def test_training_unreadable_panel_no_adoption(self):
+        # B8：面板干员名不可读 → 不采纳倒计时（不刷新、不改写状态），也不判「假记录」、
+        # 不排重检——让排班系统下次自然进房重读（用户 08-15 定案）
         solver = MagicMock()
+        solver.tasks = []
         room = make_room("training", operator_name="")
         active = make_plan(status="training")
         with (
             patch.object(reader, "_reset_fake") as rf,
             patch.object(reader, "_update_expiry") as ue,
+            patch.object(reader, "_notify_blocked") as nb,
         ):
-            reader._reconcile(solver, room, active, [active])
+            start, arrange_support = reader._reconcile(solver, room, active, [active])
         rf.assert_not_called()
-        ue.assert_called_once()
+        ue.assert_not_called()
+        nb.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+        self.assertEqual(solver.tasks, [], "不可读不排重检，等排班自然重读")
+
+    def test_training_skill_unreadable_panel_no_adoption(self):
+        # B8：干员名可读且匹配、但技能名不可读 → 不采纳（不认不可读技能）、
+        # 不判假记录（干员对得上）、不排重检
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training", skill_name="")
+        active = make_plan(status="training")
+        with (
+            patch.object(reader, "_reset_fake") as rf,
+            patch.object(reader, "_update_expiry") as ue,
+        ):
+            start, arrange_support = reader._reconcile(solver, room, active, [active])
+        rf.assert_not_called()
+        ue.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+        self.assertEqual(solver.tasks, [], "技能不可读不排重检")
+
+    def test_training_unreadable_no_downgrade_waiting_collect(self):
+        # B8：DB 计划 status=waiting_collect + 面板干员名不可读 → 不被无校验刷新降回
+        # training（update_plan_status 不写）。若有人回退成「不可读=匹配」采纳，
+        # 真实 _update_expiry 会调用 update_plan_status(id,'training',...) → 本测试失败。
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training", operator_name="")
+        active = make_plan(status="waiting_collect")
+        with (
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch.object(reader, "_reset_fake") as rf,
+        ):
+            start, arrange_support = reader._reconcile(solver, room, active, [active])
+        rf.assert_not_called()
+        upd.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
 
     def test_training_unreadable_no_notify_blocked(self):
         # 干员名不可读时不判计划外训练，不通知①
@@ -707,6 +781,20 @@ class TestReconcileMatrix(unittest.TestCase):
             reader._reconcile(solver, room, None, [])
         nb.assert_not_called()
 
+    def test_training_unreadable_blocked_no_recheck(self):
+        # B8：无 active、无命中 + 干员名不可读 → 不判计划外、不排重检（排班自然重读）
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training", operator_name="")
+        with (
+            patch.object(reader, "_notify_blocked") as nb,
+        ):
+            start, arrange_support = reader._reconcile(solver, room, None, [])
+        nb.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+        self.assertEqual(solver.tasks, [], "干员名不可读不排重检")
+
     def test_training_idle_hit_waits(self):
         solver = MagicMock()
         room = make_room("training")
@@ -714,6 +802,47 @@ class TestReconcileMatrix(unittest.TestCase):
         with patch.object(reader, "_wait_for_training") as wt:
             reader._reconcile(solver, room, None, [idle_plan])
         wt.assert_called_once_with(solver, room)
+
+    def test_training_idle_hit_skill_unreadable_no_recheck(self):
+        # B8：idle×🔴 命中但技能不可读 → 不排重检（排班下次自然进房重读）
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training", skill_name="")
+        idle_plan = make_plan()
+        with patch.object(reader, "_wait_for_training") as wt:
+            start, arrange_support = reader._reconcile(solver, room, None, [idle_plan])
+        wt.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+        self.assertEqual(solver.tasks, [], "技能不可读不排重检")
+
+    def test_training_hit_plan_updates_expiry(self):
+        # 无 active、但另一条 training 状态计划命中（面板可读且匹配）→ 采纳倒计时。
+        # 正控制：B8 只挡「不可读」，可读匹配的正常刷新必须保留。
+        solver = MagicMock()
+        room = make_room("training")
+        plan = make_plan(status="training")
+        with patch.object(reader, "_update_expiry") as ue:
+            reader._reconcile(solver, room, None, [plan])
+        ue.assert_called_once_with(solver, plan, room)
+
+    def test_training_hit_skill_unreadable_no_adoption(self):
+        # B8：hit 命中（干员可读且匹配）但技能不可读 → 不采纳、不判计划外（不发①）、
+        # 不排重检——_match_plan 把技能不可读当匹配，采纳门把它挡掉
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("training", skill_name="")
+        plan = make_plan(status="training")
+        with (
+            patch.object(reader, "_update_expiry") as ue,
+            patch.object(reader, "_notify_blocked") as nb,
+        ):
+            start, arrange_support = reader._reconcile(solver, room, None, [plan])
+        ue.assert_not_called()
+        nb.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+        self.assertEqual(solver.tasks, [], "技能不可读不排重检")
 
     def test_training_unmatched_notifies_blocked(self):
         solver = MagicMock()
@@ -948,20 +1077,19 @@ class TestReconcile73(unittest.TestCase):
         self.assertIsNone(start, "空闲未受保护不再直开，交还排班")
         self.assertTrue(arrange_support)
 
-    def test_ocr_fail_conservative_reschedules(self):
-        # §16.2 保守训练中：不动 + 重排到 now+2min + 记日志
+    def test_ocr_fail_conservative_no_recheck(self):
+        # 用户 08-15 定案：读不出（5 次重试仍不一致）→ 保守训练中，不排重检，
+        # 静默等排班系统下次自然进房重读
         solver = MagicMock()
         solver.tasks = []
         room = make_room("training")
         room.read_failed = True
         with patch.object(reader, "_collect_silent") as cs:
-            start, _ = reader._reconcile(solver, room, None, [])
+            start, arrange_support = reader._reconcile(solver, room, None, [])
         self.assertIsNone(start)
+        self.assertTrue(arrange_support)
         cs.assert_not_called()
-        self.assertEqual(len(solver.tasks), 1)
-        delta = solver.tasks[0].time - datetime.now()
-        self.assertGreater(delta, reader.ARRANGING_RETRY_BUFFER - timedelta(seconds=5))
-        self.assertLess(delta, reader.ARRANGING_RETRY_BUFFER + timedelta(seconds=5))
+        self.assertEqual(solver.tasks, [], "读失败不排重检")
 
 
 class TestComputeProtected(unittest.TestCase):

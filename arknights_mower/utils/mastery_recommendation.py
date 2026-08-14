@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional
 
 from arknights_mower.utils.path import _install_dir, _internal_dir, get_path
 from arknights_mower.utils.skill_label import format_skill_label
@@ -47,6 +48,32 @@ def get_skill_real_name(char_id: str, skill_index: int):
                 return name
     except Exception:
         pass
+    return None
+
+
+def get_current_mastery_level(char_id: str, skill_index: int) -> Optional[int]:
+    """cultivate.json 中干员技能当前专精等级；文件缺失/干员不在/读失败 → None。
+
+    #65/B7：计划创建校验当前等级用。与 get_mastery_recommendations 同读
+    cultivate.json 的 skills[i].level；推荐层把缺失当 0，本函数缺失/读不到
+    返回 None 跳过校验（创建不误拒，执行层已到target检测按截图兜底）。
+    """
+    cultivate_path = get_path("@app/tmp/cultivate.json")
+    if not os.path.exists(cultivate_path):
+        return None
+    try:
+        with open(cultivate_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return None
+    for char in data.get("data", {}).get("characters", []):
+        if char.get("id") != char_id:
+            continue
+        skills = char.get("skills", [])
+        if not 0 <= skill_index < len(skills):
+            return None
+        level = skills[skill_index].get("level")
+        return level if isinstance(level, int) else None
     return None
 
 
@@ -535,65 +562,6 @@ def _load_default_route():
     else:
         _default_route_cache = {}
     return _default_route_cache
-
-
-def _build_route_supports(profession, control_center="none"):
-    prof_cn = PROF_MAP.get(profession, "???")
-    supports_data = None
-    cc = control_center
-    try:
-        from arknights_mower.utils.mastery_db import get_route
-
-        route = get_route(prof_cn)
-        if route:
-            import json as _json
-
-            route_data = _json.loads(route["supports"])
-            supports_data = (
-                route_data.get("supports")
-                if isinstance(route_data, dict)
-                else route_data
-            )
-            cc = cc or (
-                route_data.get("controlCenter", "none")
-                if isinstance(route_data, dict)
-                else "none"
-            )
-    except Exception:
-        pass
-    if supports_data is None:
-        defaults = _load_default_route()
-        prof_default = defaults.get(prof_cn, {})
-        supports_data = prof_default.get("supports", [])
-    bonus = 0 if cc == "none" else 5
-    supports = []
-    for s in supports_data:
-        supports.append(
-            {
-                "name": s["name"],
-                "skill_level": s["skill_level"],
-                "efficiency": min(100, s["efficiency"] + bonus),
-                "match": s.get("match", False),
-                "swap_name": s.get("swap_name") if s.get("swap") else s["name"],
-            }
-        )
-    return supports
-
-
-def _supports_from_dicts(supports_data):
-    from arknights_mower.utils.operators import SkillUpgradeSupport
-
-    supports = []
-    for s in supports_data:
-        sup = SkillUpgradeSupport(
-            name=s["name"],
-            skill_level=s["skill_level"],
-            efficiency=s["efficiency"],
-            match=s.get("match", False),
-            swap_name=s.get("swap_name", s["name"]),
-        )
-        supports.append(sup)
-    return supports
 
 
 def auto_schedule_mastery_tasks():

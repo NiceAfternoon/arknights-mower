@@ -1,9 +1,12 @@
+import json
 import os
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from arknights_mower.utils.mastery_db import (
+    add_plan_checked,
     delete_plan,
     get_active_plan,
     get_all_plans,
@@ -18,6 +21,7 @@ from arknights_mower.utils.mastery_db import (
     update_plan_priority,
     update_plan_status,
 )
+from arknights_mower.utils.mastery_recommendation import get_current_mastery_level
 
 
 class TestMasteryDb(unittest.TestCase):
@@ -247,6 +251,98 @@ class TestMasteryDb(unittest.TestCase):
             conn.close()
         self.assertIn("optimal", columns)
         self.assertIn("half_off", columns)
+
+    # --- #65/B7 统一计划创建校验 ---
+
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
+    def test_add_plan_checked_rejects_already_at_target(self, get_level, insert):
+        # 干员已到目标档位 → 拒绝并给清晰文案，不落库
+        get_level.return_value = 2
+        plan_id, reason = add_plan_checked(
+            "char_001", 0, target_level=2, path=self.db_path
+        )
+        self.assertLessEqual(plan_id, 0)
+        self.assertIn("无需再练", reason)
+        insert.assert_not_called()
+
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    def test_add_plan_checked_rejects_invalid_target(self, insert):
+        # target_level 越界/非整数/布尔（True==1，不得静默当专一）拒绝，不落库
+        for bad in (0, 4, -1, "3", True):
+            plan_id, reason = add_plan_checked(
+                "char_001", 0, target_level=bad, path=self.db_path
+            )
+            self.assertLessEqual(plan_id, 0)
+            self.assertIn("无效", reason)
+        insert.assert_not_called()
+
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
+    def test_add_plan_checked_defaults_target_to_three(self, get_level, insert):
+        # target_level 缺省 = 专三（与推荐一致）
+        get_level.return_value = 1
+        insert.return_value = 9
+        plan_id, reason = add_plan_checked("char_001", 0, path=self.db_path)
+        self.assertEqual(plan_id, 9)
+        self.assertIsNone(reason)
+        self.assertEqual(insert.call_args.kwargs["target_level"], 3)
+
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
+    def test_add_plan_checked_skips_check_when_level_unknown(self, get_level, insert):
+        # cultivate.json 读不到当前等级（None）→ 跳过等级校验仍落库
+        get_level.return_value = None
+        insert.return_value = 10
+        plan_id, reason = add_plan_checked(
+            "char_001", 0, target_level=3, path=self.db_path
+        )
+        self.assertEqual(plan_id, 10)
+        self.assertIsNone(reason)
+        self.assertEqual(insert.call_args.kwargs["target_level"], 3)
+
+    @patch("arknights_mower.utils.mastery_recommendation.get_path")
+    def test_get_current_mastery_level_reads_cultivate(self, get_path_mock):
+        # 从 cultivate.json 读干员技能当前专精等级
+        with tempfile.NamedTemporaryFile(
+            suffix=".json", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            json.dump(
+                {
+                    "data": {
+                        "characters": [
+                            {"id": "char_001", "skills": [{"level": 0}, {"level": 2}]}
+                        ]
+                    }
+                },
+                f,
+            )
+            path = f.name
+        get_path_mock.return_value = path
+        try:
+            self.assertEqual(get_current_mastery_level("char_001", 0), 0)
+            self.assertEqual(get_current_mastery_level("char_001", 1), 2)
+            self.assertIsNone(get_current_mastery_level("char_999", 0))
+        finally:
+            os.unlink(path)
+
+    @patch("arknights_mower.utils.mastery_recommendation.get_path")
+    def test_get_current_mastery_level_missing_or_bad_file(self, get_path_mock):
+        # cultivate.json 缺失 / 非 JSON → None（跳过等级校验）
+        get_path_mock.return_value = os.path.join(
+            self.db_path + "_nope", "cultivate.json"
+        )
+        self.assertIsNone(get_current_mastery_level("char_001", 0))
+        with tempfile.NamedTemporaryFile(
+            suffix=".json", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            f.write("not json")
+            path = f.name
+        get_path_mock.return_value = path
+        try:
+            self.assertIsNone(get_current_mastery_level("char_001", 0))
+        finally:
+            os.unlink(path)
 
 
 if __name__ == "__main__":
