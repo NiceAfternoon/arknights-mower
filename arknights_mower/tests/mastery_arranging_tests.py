@@ -7,8 +7,8 @@ import numpy as np
 import arknights_mower.solvers.mastery as mastery
 from arknights_mower.solvers import mastery_reader
 from arknights_mower.utils import config as config_mod
-from arknights_mower.utils.scheduler_task import TaskTypes
 from arknights_mower.utils.scene import Scene
+from arknights_mower.utils.scheduler_task import TaskTypes
 
 START = datetime(2026, 7, 31, 12, 0, 0)
 
@@ -64,7 +64,7 @@ class TestArrangingConvergence(unittest.TestCase):
         """跑 _start_new_training，返回 (solver, update_plan_status mock)。
 
         advance：每轮 now() 额外前跳的时长。freeze 测试传 timedelta(minutes=1)
-        让 10 分钟 deadline 几秒内可触发；其余场景传 0（冻结时钟）即可。
+        让 5 分钟 deadline 几秒内可触发；其余场景传 0（冻结时钟）即可。
         """
 
         class Clock(FixedDateTime):
@@ -130,7 +130,7 @@ class TestArrangingConvergence(unittest.TestCase):
     def test_freeze_skill_select_does_not_infinite_loop(self):
         """#19 修复前 TRAIN_SKILL_SELECT 分支无超时退出会永远循环。
 
-        现在：经训练位确认进入 219 后若一直卡在 219（ctap 不导航），10 分钟
+        现在：经训练位确认进入 219 后若一直卡在 219（ctap 不导航），5 分钟
         deadline 后走统一超时出口 → 置 failed + back() 退出。时钟每轮推进，
         否则 `now() > deadline` 永不成立、测试会真的挂死。
         未确认身份的 219（误判的运行页）不走 deadline、立即保守退出——见
@@ -809,7 +809,7 @@ class TestSwapCollectGating(unittest.TestCase):
 
 
 class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
-    """#73 §16.9 ⑥ 已到target 通知 / 已到target 级联开始下一个计划。"""
+    """#73 §16.9 ⑥ 已到target 通知；完成不级联开始下一个计划（#74 第2段）。"""
 
     def setUp(self):
         FixedDateTime.now_value = START
@@ -851,18 +851,16 @@ class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
         statuses = [c.args[1] for c in upd.call_args_list]
         self.assertIn("completed", statuses)
 
-    def test_at_target_cascade_starts_next(self):
-        # 已到target 完成 → 级联开始下一个 idle 计划（arranging），随后因房间被占用
-        # 走 idle 重排退出（不再深跑整个开始流程）
+    def test_at_target_completes_no_cascade(self):
+        # #74 第2段：已到target 完成 → 只 completed + 退出，不再级联开始下一个 idle 计划
         solver = MagicMock()
         scenes = iter([
-            Scene.TRAIN_MAIN,  # 外层：读占用(无) → 槽位 → back
-            Scene.TRAIN_MAIN,  # 外层：tap 技能选择（身份确认）
-            Scene.TRAIN_SKILL_SELECT,  # 外层：读档位 → 3（已到target → 完成 → 级联）
-            Scene.TRAIN_MAIN,  # 级联：读占用(有) → 占用 → 退出
+            Scene.TRAIN_MAIN,  # 读占用(无) → 槽位 → back
+            Scene.TRAIN_MAIN,  # tap 技能选择（身份确认）
+            Scene.TRAIN_SKILL_SELECT,  # 读档位 → 3（已到target → 完成 → 退出）
         ])
         solver.train_scene.side_effect = lambda: next(scenes, Scene.TRAIN_MAIN)
-        reads = iter([None, None, None, 7200])  # 前 3 次无倒计时，级联时读到占用倒计时
+        reads = iter([None, None, None])  # 倒计时均为空（已到target，无占用）
         solver.read_time.side_effect = lambda *a, **k: next(reads, None)
         solver.read_screen.return_value = "[测试干员]测试技能"
         solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": ""}]
@@ -876,17 +874,147 @@ class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
             img[y0:y1, x0:x1] = 255
         solver.recog.img = img
         plan = make_plan(skill_index=1, target_level=3)
-        next_plan = make_plan(id=2)
         with (
             patch.object(mastery, "datetime", FixedDateTime),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch("arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=next_plan),
+            patch("arknights_mower.utils.mastery_db.get_next_idle_plan") as g,
             patch("arknights_mower.utils.email.send_message"),
         ):
             mastery._start_new_training(solver, plan)
+        g.assert_not_called()
         statuses = [c.args[1] for c in upd.call_args_list]
-        self.assertIn("arranging", statuses, "级联计划应开始（arranging）")
-        self.assertTrue(solver.back.called, "级联被占用重排后应退出训练室")
+        arranging_ids = [
+            c.args[0] for c in upd.call_args_list if c.args[1] == "arranging"
+        ]
+        self.assertIn("completed", statuses)
+        self.assertEqual(
+            arranging_ids, [1], "已到target 完成不再级联开始下一个计划（仅本级 arranging）"
+        )
+        self.assertTrue(solver.back.called, "完成后应退出训练室")
+
+
+class TestRunMasteryTaskDispatch(unittest.TestCase):
+    """#74 第3段（2026-08-14 用户拍板「都去掉」）：run_mastery_task 对任何带 plan_key 的
+    SKILL_UPGRADE 任务都解析其指定计划为 scan_plan（空闲格是否开始由 _reconcile 按 idle
+    判定）；plan_key=None（占用重检）无指定计划。无标记、无进程内存记号。"""
+
+    @staticmethod
+    def _plan_key_task(plan_key="3"):
+        from arknights_mower.utils.scheduler_task import SchedulerTask
+
+        task = SchedulerTask(
+            time=datetime.now(),
+            task_type=TaskTypes.SKILL_UPGRADE,
+            meta_data="测试计划 开始训练",
+        )
+        task.plan_key = plan_key
+        return task
+
+    def _solver(self):
+        solver = MagicMock()
+        solver.task = None
+        return solver
+
+    @patch("arknights_mower.utils.mastery_db.get_plan_by_id")
+    def test_plan_key_task_starts_specified_plan(self, g):
+        solver = self._solver()
+        solver.task = self._plan_key_task("3")
+        plan = make_plan(id=3)
+        g.return_value = plan
+        with (
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(
+                mastery_reader, "reconcile_and_act", return_value=(plan, True)
+            ) as ra,
+            patch.object(mastery, "_start_new_training") as snt,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_called_once_with(solver, scan_plan=plan)
+        snt.assert_called_once_with(solver, plan, arrange_support=True)
+
+    @patch("arknights_mower.utils.mastery_db.get_plan_by_id")
+    def test_collect_task_also_resolves_scan_plan(self, g):
+        # 收取任务（meta_data=收取标签，无任何标记）带 plan_key → 同样解析 scan_plan
+        from arknights_mower.utils.scheduler_task import SchedulerTask
+
+        solver = self._solver()
+        collect_task = SchedulerTask(
+            time=datetime.now(),
+            task_type=TaskTypes.SKILL_UPGRADE,
+            meta_data="能天使 二技能 专一 → 专二",
+        )
+        collect_task.plan_key = "1"
+        solver.task = collect_task
+        plan = make_plan()
+        g.return_value = plan
+        with (
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(
+                mastery_reader, "reconcile_and_act", return_value=(plan, False)
+            ) as ra,
+            patch.object(mastery, "_start_new_training") as snt,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_called_once_with(solver, scan_plan=plan)
+        snt.assert_called_once_with(solver, plan, arrange_support=False)
+
+    def test_recheck_task_passes_no_scan_plan(self):
+        # plan_key=None（占用重检）→ 无指定计划 → scan_plan=None
+        from arknights_mower.utils.scheduler_task import SchedulerTask
+
+        solver = self._solver()
+        solver.task = SchedulerTask(
+            time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE
+        )
+        with (
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(
+                mastery_reader, "reconcile_and_act", return_value=(None, True)
+            ) as ra,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_called_once_with(solver, scan_plan=None)
+
+    @patch("arknights_mower.utils.mastery_db.get_plan_by_id")
+    def test_plan_key_task_resolves_even_if_not_idle(self, g):
+        # run_mastery_task 只负责按 plan_key 解析目标计划；是否仍 idle 由 _reconcile
+        # 空闲格统一判定（见 test_empty_room_scan_driven_plan_no_longer_idle_skips）
+        solver = self._solver()
+        solver.task = self._plan_key_task("3")
+        plan = make_plan(id=3, status="training")
+        g.return_value = plan
+        with (
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(
+                mastery_reader, "reconcile_and_act", return_value=(None, True)
+            ) as ra,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_called_once_with(solver, scan_plan=plan)
+
+    @patch("arknights_mower.utils.mastery_db.get_plan_by_id")
+    def test_plan_key_task_unknown_plan_skips_scan_plan(self, g):
+        solver = self._solver()
+        solver.task = self._plan_key_task("999")
+        g.return_value = None
+        with (
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(
+                mastery_reader, "reconcile_and_act", return_value=(None, True)
+            ) as ra,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_called_once_with(solver, scan_plan=None)
+
+    def test_off_returns_without_dispatch(self):
+        solver = self._solver()
+        solver.task = self._plan_key_task("3")
+        with (
+            patch.object(config_mod.conf, "enable_mastery", False),
+            patch.object(mastery_reader, "reconcile_and_act") as ra,
+        ):
+            mastery.run_mastery_task(solver)
+        ra.assert_not_called()
 
 
 if __name__ == "__main__":

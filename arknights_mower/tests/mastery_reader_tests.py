@@ -389,11 +389,193 @@ class TestReconcileShort(unittest.TestCase):
         cp.assert_called_once()
         solver.back.assert_not_called()
 
+    # --- #75 方案 C：gate-defer skip ---
+
+    def test_defer_skips_collect_when_queue_has_plan_task(self):
+        # gate（defer_collect=True）待收取格队列已有该计划收取任务 → 跳过本次收集，
+        # 留给那条任务收（any-task 匹配的子集：同计划任务当然也算），`_collect_plan` 不被调。
+        solver = MagicMock()
+        room = make_room("waiting_collect")
+        plan = make_plan(status="training")
+        task = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SKILL_UPGRADE
+        )
+        task.plan_key = str(plan["id"])
+        solver.tasks = [task]
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
+            ),
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            reader.reconcile_short(solver, room, defer_collect=True)
+        cp.assert_not_called()
+        pp.assert_not_called()
+        solver.back.assert_not_called()
+
+    def test_defer_collects_when_queue_empty(self):
+        # 队列无专精任务（如缓存清零重启丢了）→ 照常收集（恢复兜底）
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("waiting_collect")
+        plan = make_plan(status="training")
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
+            ),
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan"),
+        ):
+            reader.reconcile_short(solver, room, defer_collect=True)
+        cp.assert_called_once()
+        solver.back.assert_not_called()
+
+    def test_defer_skips_when_other_plan_task_queued(self):
+        # 队列任务属于另一计划 → 同样跳过（any-task：只要队列有专精任务就留给队列任务收）
+        solver = MagicMock()
+        other = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SKILL_UPGRADE
+        )
+        other.plan_key = str(2)
+        solver.tasks = [other]
+        room = make_room("waiting_collect")
+        plan = make_plan(status="training")
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
+            ),
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            reader.reconcile_short(solver, room, defer_collect=True)
+        cp.assert_not_called()
+        pp.assert_not_called()
+        solver.back.assert_not_called()
+
+
+class TestReconcileCollectDefer(unittest.TestCase):
+    """#75 方案 C：gate-defer skip 的 _reconcile 层行为。"""
+
+    def _collect_task(self, plan_id):
+        task = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SKILL_UPGRADE
+        )
+        task.plan_key = str(plan_id)
+        return task
+
+    def test_dispatch_path_never_defers(self):
+        # dispatch（reconcile_and_act，defer_collect 默认 False）：当前任务即收集任务，
+        # 必须收——即便队列有专精任务也照常收集，永不跳过。
+        solver = MagicMock()
+        task = self._collect_task(1)
+        solver.tasks = [task]
+        solver.task = task  # dispatch：当前任务就是收集任务
+        room = make_room("waiting_collect")
+        plan = make_plan()
+        with patch.object(reader, "_collect_plan") as cp:
+            reader._reconcile(solver, room, None, [plan])
+        cp.assert_called_once()
+
+    def test_defer_excludes_current_task(self):
+        # 排除当前任务：即便 defer=True，若队列里唯一任务就是当前 dispatch（被排除），
+        # 查不到别的任务 → 照常收集（不 skip 死锁）。
+        solver = MagicMock()
+        task = self._collect_task(1)
+        solver.tasks = [task]
+        solver.task = task
+        room = make_room("waiting_collect")
+        plan = make_plan()
+        with patch.object(reader, "_collect_plan") as cp:
+            reader._reconcile(solver, room, None, [plan], defer_collect=True)
+        cp.assert_called_once()
+
+    def test_defer_skips_when_other_task_queued(self):
+        # defer=True + 队列已有专精任务（非当前 dispatch）→ 跳过收集
+        solver = MagicMock()
+        solver.task = None
+        task = self._collect_task(1)
+        solver.tasks = [task]
+        room = make_room("waiting_collect")
+        plan = make_plan()
+        with (
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            start, arrange_support = reader._reconcile(
+                solver, room, None, [plan], defer_collect=True
+            )
+        cp.assert_not_called()
+        pp.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+
+    def test_defer_magicmock_tasks_defensive(self):
+        # 防御：solver.tasks 不可迭代（MagicMock）→ 按无任务处理，照常收集兜底
+        solver = MagicMock()
+        room = make_room("waiting_collect")
+        plan = make_plan()
+        with patch.object(reader, "_collect_plan") as cp:
+            reader._reconcile(solver, room, None, [plan], defer_collect=True)
+        cp.assert_called_once()
+
+    def test_defer_skips_m3_when_task_queued(self):
+        # 专三同样纳入 skip（用户撤回「gate 收专三」例外）→ 队列有任务时跳过，留给
+        # 任务收（③ 邮件在任务 dispatch 收取时发，不丢）
+        solver = MagicMock()
+        solver.task = None
+        task = self._collect_task(1)
+        solver.tasks = [task]
+        room = make_room("waiting_collect", mastery_tier=3)
+        plan = make_plan()
+        with (
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            start, arrange_support = reader._reconcile(
+                solver, room, None, [plan], defer_collect=True
+            )
+        cp.assert_not_called()
+        pp.assert_not_called()
+        self.assertIsNone(start)
+        self.assertTrue(arrange_support)
+
+    def test_defer_skips_when_plan_key_none_task_queued(self):
+        # plan_key=None（占用重检 / OCR 失败重排）也算专精任务 → 同样跳过收集
+        solver = MagicMock()
+        solver.task = None
+        task = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SKILL_UPGRADE
+        )
+        solver.tasks = [task]
+        room = make_room("waiting_collect")
+        plan = make_plan()
+        with (
+            patch.object(reader, "_collect_plan") as cp,
+            patch.object(reader, "_promote_plan") as pp,
+        ):
+            start, arrange_support = reader._reconcile(
+                solver, room, None, [plan], defer_collect=True
+            )
+        cp.assert_not_called()
+        pp.assert_not_called()
+        self.assertIsNone(start)
+
 
 class TestReconcileMatrix(unittest.TestCase):
     """#61 恢复矩阵核心分支：空房/训练中/待收取 × 各 DB 状态。"""
 
-    def test_empty_room_starts_next_idle(self):
+    def test_empty_room_hands_back_to_schedule(self):
+        # #74 第2段：空闲×未保护 → 不自动开始（交还排班），不再取下一个 idle 计划
         solver = MagicMock()
         room = make_room("empty")
         with patch(
@@ -401,8 +583,50 @@ class TestReconcileMatrix(unittest.TestCase):
             return_value=make_plan(),
         ) as g:
             plan, arrange_support = reader._reconcile(solver, room, None, [make_plan()])
-        self.assertIs(plan, g.return_value)
-        self.assertTrue(arrange_support, "空房新开始应正常安排协助位")
+        g.assert_not_called()
+        self.assertIsNone(plan, "空闲×未保护不再自动开始，交还排班")
+        self.assertTrue(arrange_support)
+
+    def test_empty_room_scan_driven_starts_specified_plan(self):
+        # #74 第3段：扫描驱动任务（scan_plan 非 None 且仍 idle）→ 空闲×未保护返回该计划
+        solver = MagicMock()
+        room = make_room("empty")
+        scan_plan = make_plan(status="idle")
+        start, arrange_support = reader._reconcile(
+            solver, room, None, [scan_plan], scan_plan=scan_plan
+        )
+        self.assertIs(start, scan_plan, "只开始任务标识的那个计划")
+        self.assertTrue(arrange_support)
+
+    def test_empty_room_scan_driven_plan_no_longer_idle_skips(self):
+        # 扫描任务指定的计划已不在 idle（被其它路径接管）→ 不开始
+        solver = MagicMock()
+        room = make_room("empty")
+        scan_plan = make_plan(status="training")
+        start, _ = reader._reconcile(
+            solver, room, None, [scan_plan], scan_plan=scan_plan
+        )
+        self.assertIsNone(start, "计划已不在 idle 不得开始")
+
+    def test_empty_room_scan_driven_protected_skips(self):
+        # 受保护优先：扫描任务指定的计划在受保护空房也不开始（⑤ 通知）
+        solver = MagicMock()
+        solver.tasks = []
+        room = make_room("empty", support_slot="逻各斯", train_slot="能天使")
+        room.protected = True
+        scan_plan = make_plan(status="idle")
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan",
+                return_value=scan_plan,
+            ),
+            patch.object(reader, "_notify_protected") as np_,
+        ):
+            start, _ = reader._reconcile(
+                solver, room, None, [scan_plan], scan_plan=scan_plan
+            )
+        self.assertIsNone(start, "受保护时空闲房间不得开始训练")
+        np_.assert_called_once_with(solver, room)
 
     def test_empty_room_with_active_resets_quietly(self):
         # 空房×training 计划：截图权威 → 静默重置 idle 重开，不误报「假记录」通知②
@@ -564,13 +788,13 @@ class TestReconcileMatrix(unittest.TestCase):
             reader._reconcile(solver, room, None, [])
         cs.assert_called_once()
 
-    def test_collect_cascade_no_arrange_support(self):
-        # 收集级联（waiting_collect 命中）→ arrange_support=False（减半守卫：
-        # 跨「收取→下一次开始」边界不重排协助位）
+    def test_collect_return_no_arrange_support(self):
+        # 继续本级（#74 第3段「都去掉」后一律当场开）→ 返回计划 + arrange_support=False
+        # （减半守卫：跨「收取→下一次开始」边界不重排协助位）
         solver = MagicMock()
         room = make_room("waiting_collect")
         plan = make_plan()
-        with patch.object(reader, "_collect_plan", return_value=make_plan(id=2)):
+        with patch.object(reader, "_collect_plan", return_value=make_plan()):
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         self.assertIsNotNone(start)
         self.assertFalse(arrange_support)
@@ -594,16 +818,16 @@ class TestReconcile73(unittest.TestCase):
         cp.assert_not_called()
         self.assertIsNone(start)
 
-    def test_waiting_collect_m3_matched_completes_cascade(self):
-        # 专三 + 都在计划 → 正常收取对账（completed 级联）
+    def test_waiting_collect_m3_matched_no_cascade(self):
+        # 专三 + 都在计划 → 正常收取对账（收取完成不级联，#74 第2段）
         solver = MagicMock()
         room = make_room("waiting_collect", mastery_tier=3)
         plan = make_plan(target_level=3)
-        with patch.object(reader, "_collect_plan", return_value=make_plan(id=2)) as cp:
+        with patch.object(reader, "_collect_plan", return_value=None) as cp:
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         cp.assert_called_once()
-        self.assertFalse(arrange_support, "收集级联 → 减半守卫不重排协助位")
-        self.assertIsNotNone(start)
+        self.assertFalse(arrange_support, "收集 → 减半守卫不重排协助位")
+        self.assertIsNone(start, "收取完成不级联开始下一个计划")
 
     def test_waiting_collect_below_m3_unmatched_help_collect(self):
         # 非专三 + 不在计划 → 收取 + 通知④帮收
@@ -618,7 +842,8 @@ class TestReconcile73(unittest.TestCase):
         cp.assert_not_called()
 
     def test_waiting_collect_below_m3_matched_recovers_and_promotes(self):
-        # 非专三 + 都在计划 → 恢复流程（§16.6）：收取 + 优先级排前 + 保持 idle 级联
+        # 非专三 + 都在计划 → 恢复流程（§16.6）：收取 + 优先级排前 + 继续本级当场开
+        # （#74 第3段「都去掉」后一律当场开，不分扫描链/重启）
         solver = MagicMock()
         room = make_room("waiting_collect", mastery_tier=2)
         plan = make_plan(target_level=3)
@@ -633,12 +858,12 @@ class TestReconcile73(unittest.TestCase):
         self.assertIsNotNone(start)
 
     def test_waiting_collect_m3_completed_does_not_promote(self):
-        # 专三完成（_collect_plan 返回级联的下一个计划，非本级）→ 不排前
+        # 专三完成（_collect_plan 返回 None，不级联）→ 不排前
         solver = MagicMock()
         room = make_room("waiting_collect", mastery_tier=3)
         plan = make_plan(target_level=3)
         with (
-            patch.object(reader, "_collect_plan", return_value=make_plan(id=2)),
+            patch.object(reader, "_collect_plan", return_value=None),
             patch.object(reader, "_promote_plan") as pp,
         ):
             reader._reconcile(solver, room, None, [plan])
@@ -710,8 +935,8 @@ class TestReconcile73(unittest.TestCase):
         np_.assert_not_called()
         self.assertEqual(solver.tasks, [])
 
-    def test_empty_not_protected_starts(self):
-        # 空闲未受保护 → 正常返回待开始计划
+    def test_empty_not_protected_no_start(self):
+        # #74 第2段：空闲未受保护 → 交还排班，不返回开始计划
         solver = MagicMock()
         room = make_room("empty")
         with patch(
@@ -719,7 +944,8 @@ class TestReconcile73(unittest.TestCase):
             return_value=make_plan(),
         ) as g:
             start, arrange_support = reader._reconcile(solver, room, None, [])
-        self.assertIs(start, g.return_value)
+        g.assert_not_called()
+        self.assertIsNone(start, "空闲未受保护不再直开，交还排班")
         self.assertTrue(arrange_support)
 
     def test_ocr_fail_conservative_reschedules(self):
@@ -848,6 +1074,22 @@ class TestReconcileAndAct(unittest.TestCase):
         self.assertTrue(arrange_support)
         solver.back.assert_not_called()
 
+    def test_passes_scan_plan_to_reconcile(self):
+        # #74 第3段：扫描驱动 dispatch 把指定计划透传给 _reconcile（空闲格只开始它）
+        solver = self._solver()
+        scan_plan = make_plan()
+        room = make_room("empty")
+        with (
+            self._enable(),
+            patch.object(reader, "read_room_state", return_value=room),
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch("arknights_mower.utils.mastery_db.get_all_plans", return_value=[]),
+            patch.object(reader, "_reconcile", return_value=(scan_plan, True)) as rec,
+        ):
+            result, arrange_support = reader.reconcile_and_act(solver, scan_plan=scan_plan)
+        rec.assert_called_once_with(solver, room, None, [], scan_plan=scan_plan)
+        self.assertIs(result, scan_plan)
+
 
 class TestCollectFlow(unittest.TestCase):
     def _solver(self, tier_img=None):
@@ -921,20 +1163,18 @@ class TestCollectFlow(unittest.TestCase):
 
 
 class TestReconcileAfterCollect(unittest.TestCase):
-    def test_meets_target_completes_and_cascades(self):
+    def test_meets_target_completes_no_cascade(self):
+        # #74 第2段：收取到目标 → completed，但不再级联开始下一个计划（等扫描）
         panel = make_panel(mastery_tier=3)
         plan = make_plan(target_level=3)
-        next_plan = make_plan(id=2)
         with (
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch(
-                "arknights_mower.utils.mastery_db.get_next_idle_plan",
-                return_value=next_plan,
-            ),
+            patch("arknights_mower.utils.mastery_db.get_next_idle_plan") as g,
         ):
             result = reader._reconcile_after_collect(MagicMock(), plan, panel)
         upd.assert_called_once_with(1, "completed")
-        self.assertIs(result, next_plan)
+        g.assert_not_called()
+        self.assertIsNone(result, "收取到目标后不再级联开始下一个计划")
 
     def test_below_target_continues_same_plan(self):
         panel = make_panel(mastery_tier=2)

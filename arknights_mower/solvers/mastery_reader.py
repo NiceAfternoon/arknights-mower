@@ -485,23 +485,39 @@ def _plan_label(plan) -> str:
 # --- 调度原语 ---
 
 
+def _find_plan_task(solver, plan_key):
+    """队列中该 plan_key 的一条 SKILL_UPGRADE 任务（排除当前 dispatch），无则 None。
+
+    `_upsert_skill_upgrade_task` 用它找改期目标（按 plan_key 去重，每计划恒 ≤1 条）。
+    防御：solver.tasks 可能不可迭代（测试 MagicMock）或读失败 → 按无任务处理（调用方
+    走兜底/新建，不崩）。
+    """
+    current = getattr(solver, "task", None)
+    try:
+        tasks = solver.tasks
+        return next(
+            (
+                t
+                for t in tasks
+                if t.type == TaskTypes.SKILL_UPGRADE
+                and t is not current
+                and getattr(t, "plan_key", None) == plan_key
+            ),
+            None,
+        )
+    except (AttributeError, TypeError):
+        return None
+
+
 def _upsert_skill_upgrade_task(solver, target_time, meta_data="", plan_key=None):
     """入队/改期一条 SKILL_UPGRADE 任务，队列恒 ≤1 条同形任务（#62 Q3 收敛）。
 
-    - plan_key=None：占用重检 / 重启恢复保活（meta_data 留空，任务列表仅显示类型名）；
-    - plan_key=计划ID：某计划到点收取任务（meta_data=描述性标签，去重按 plan_key）。
+    - plan_key=None：占用重检（meta_data 留空，任务列表仅显示类型名）；
+    - plan_key=计划ID：某计划的到点收取任务 或 仓库扫描驱动的「开始训练」任务
+      （meta_data 均为描述性标签，无逻辑标记；去重按 plan_key，房间状态决定开始/收集）。
+      keepalive 已删（#74 第3段），不再有「DB 有计划就自动入队 now-task」。
     """
-    current = getattr(solver, "task", None)
-    task = next(
-        (
-            t
-            for t in solver.tasks
-            if t.type == TaskTypes.SKILL_UPGRADE
-            and t is not current
-            and getattr(t, "plan_key", None) == plan_key
-        ),
-        None,
-    )
+    task = _find_plan_task(solver, plan_key)
     if task is None:
         task = SchedulerTask(
             time=target_time, task_type=TaskTypes.SKILL_UPGRADE, meta_data=meta_data
@@ -535,7 +551,39 @@ def _schedule_collect(solver, plan, execute_time, tier=None):
     )
 
 
+def _schedule_scan_start(solver, plan):
+    """#74 第3段：仓库扫描确认材料后，为材料足够的 idle 计划入队「开始训练」任务。
+
+    时间=now（扫描完尽快开练）；plan_key=计划ID 定位 + 复用 TASK-01 按 plan_key 去重
+    （每计划恒 ≤1 条 SKILL_UPGRADE，重复扫描原地刷新不新增）。开始/收取/重检任务
+    同形（均 plan_key 定位，房间状态决定行为：空闲→开始、待收取→收集），故无专门
+    标记。计划开始训练后该任务按 plan_key 原位升级为收取任务（_schedule_collect 去重命中）。
+    """
+    _upsert_skill_upgrade_task(
+        solver, datetime.now(), meta_data=f"{_plan_label(plan)} 开始训练", plan_key=str(plan["id"])
+    )
+
+
 # --- 矩阵动作 ---
+
+
+def _queue_has_mastery_task(solver):
+    """队列是否已有任一 SKILL_UPGRADE 任务（排除当前 dispatch）。
+
+    #75 方案 C：gate 用——待收取格只要队列有专精任务就跳过本次收集、留给队列任务收。
+    不区分任务属于哪个计划（任何 SKILL_UPGRADE dispatch 进房都会收待收取格，
+    _reconcile_waiting_collect 的 hit/帮收分支均收集，与任务自身 plan_key 无关），
+    plan_key=None 的占用重检同理。队列空 → 照常收集（恢复兜底）。
+    防御：solver.tasks 可能不可迭代（测试 MagicMock）→ 按无任务处理。
+    """
+    current = getattr(solver, "task", None)
+    try:
+        return any(
+            t.type == TaskTypes.SKILL_UPGRADE and t is not current
+            for t in solver.tasks
+        )
+    except (AttributeError, TypeError):
+        return False
 
 
 def _log_judgment(solver, room, state, action, **extra):
@@ -749,13 +797,15 @@ def collect_flow(solver, plan, panel: RoomPanel):
 
 
 def _reconcile_after_collect(solver, plan, panel: RoomPanel):
-    """收集后对账：档位==target completed级联 / ≠target 继续。
+    """收集后对账：档位==target completed（不级联，等扫描）/ ≠target 继续本级。
 
     #67/B6：档位**高于**计划目标时，本次收取不属于该计划（计划早已满足），
     不按"专{target} 完成"记账，保持 idle——由已到target检测按真实档位正确完成，
-    防止"专二收取关掉专一计划"的错记。返回需要开始的计划或 None。
+    防止"专二收取关掉专一计划"的错记。返回需要开始的计划或 None：继续本级返回
+    本级（当场开与否由调用方按「扫描链记号」判定，#74 第3段 Q2）；收取完成返回
+    None 等扫描，不再级联开始下一个计划。
     """
-    from arknights_mower.utils.mastery_db import get_next_idle_plan, update_plan_status
+    from arknights_mower.utils.mastery_db import update_plan_status
 
     if plan is None:
         return None
@@ -765,7 +815,7 @@ def _reconcile_after_collect(solver, plan, panel: RoomPanel):
             f"{_plan_label(plan)} 专{plan['target_level']} 完成（收集档位 专{tier}）"
         )
         update_plan_status(plan["id"], "completed")
-        return get_next_idle_plan()
+        return None
     if tier > plan["target_level"]:
         logger.warning(
             f"{_plan_label(plan)} 收集档位 专{tier} 高于目标专{plan['target_level']}，"
@@ -780,7 +830,7 @@ def _reconcile_after_collect(solver, plan, panel: RoomPanel):
 
 
 def _collect_plan(solver, plan, room: RoomState):
-    """命中计划：收集 + 对账。返回级联/继续需要开始的计划或 None。"""
+    """命中计划：收集 + 对账。返回继续本级需要开始的计划或 None（收取完成不级联）。"""
     collect_flow(solver, plan, room.panel)
     return _reconcile_after_collect(solver, plan, room.panel)
 
@@ -805,7 +855,7 @@ def _next_idle_to_start(solver):
 # --- 状态矩阵对账（#61 / #73） ---
 
 
-def reconcile_and_act(solver):
+def reconcile_and_act(solver, scan_plan=None):
     """共享读取器主入口：进房读全部 + 状态矩阵对账执行。
 
     返回 (start_plan, arrange_support)：
@@ -813,8 +863,11 @@ def reconcile_and_act(solver):
     - arrange_support：False 表示是「收取→下一次开始」边界（减半守卫：不重排协助位）。
     一次进房做完全部动作；无开始计划时保证离开训练室。
 
-    §16.7 材料门控：开始训练只在仓库扫描确认材料充足后进行；不足 → 保持 idle
-    等下次扫描（不 fail-fast、不开始），由重启恢复/扫描侧按材料门控决定是否重排。
+    scan_plan：任务 plan_key 指定的开始计划（#74 第3段）——任何带 plan_key 的
+    SKILL_UPGRADE 任务（扫描开始/收取/重检）都会解析其指定计划；plan_key=None（占用
+    重检）无指定计划。空闲×未保护格只在 scan_plan 非 None（且计划仍 idle）时返回该
+    计划开始训练，其他情况交还排班。材料判断在扫描时完成（auto_schedule 的 scheduled
+    结果），不违背「删材料门控」。
     """
     from arknights_mower.utils.mastery_db import get_active_plan, get_all_plans
 
@@ -823,7 +876,7 @@ def reconcile_and_act(solver):
     room = read_room_state(solver)
     active = get_active_plan()
     plans = get_all_plans()
-    plan, arrange_support = _reconcile(solver, room, active, plans)
+    plan, arrange_support = _reconcile(solver, room, active, plans, scan_plan=scan_plan)
     if plan is None:
         # 各矩阵路径已 back 的不会重复退出；收集后无级联 / 空房无计划时在此退出
         try:
@@ -835,13 +888,16 @@ def reconcile_and_act(solver):
     return plan, arrange_support
 
 
-def _reconcile(solver, room: RoomState, active, plans):
+def _reconcile(solver, room: RoomState, active, plans, scan_plan=None, defer_collect=False):
     """#61/#73 状态矩阵。行=DB 状态，列=截图房间状态。
 
     返回 (start_plan, arrange_support)：start_plan 为需要开始训练的计划或 None；
-    arrange_support=False 表示收集级联（跨「收取→下一次开始」边界不动协助位）。
+    arrange_support=False 表示「收取→下一次开始」边界（减半守卫：不重排协助位）。
 
     §16.2 矩阵：待收取/空闲/训练中；OCR 失败 5 次仍不一致 → 保守训练中。
+    scan_plan：任务 plan_key 指定的开始计划（#74 第3段）；None 表示无指定（plan_key=None）。
+    defer_collect（#75 方案 C）：排班 gate（reconcile_short）传 True 时待收取格跳过
+    「队列已有专精任务」的计划的收集（见 _reconcile_waiting_collect）；dispatch 恒 False。
     """
     from arknights_mower.utils.mastery_db import update_plan_status
 
@@ -870,12 +926,20 @@ def _reconcile(solver, room: RoomState, active, plans):
                 # 不主动轮询：保护解除靠「每次排班进训练室重读重判」（§16.5 解除时机）。
                 _notify_protected(solver, room)
             return None, True
-        return _next_idle_to_start(solver), True
+        # §16.4 空闲×未保护：scan_plan（任务 plan_key 指定的计划，仍 idle）→ 返回该
+        # 开始计划。任何带 plan_key 的 SKILL_UPGRADE 任务（扫描开始/收取/重检）在空闲格
+        # 都会返回其指定计划开始（#74 第3段，2026-08-14 用户拍板「都去掉」：不再区分
+        # 扫描标记；开始/继续一律当场，重启后不再保守等扫描）。
+        if scan_plan is not None and scan_plan["status"] == "idle":
+            return scan_plan, True
+        return None, True
 
     if room.state == "training":
         return _reconcile_training(solver, room, active, plans)
 
-    return _reconcile_waiting_collect(solver, room, active, plans)
+    return _reconcile_waiting_collect(
+        solver, room, active, plans, defer_collect=defer_collect
+    )
 
 
 def _reconcile_training(solver, room, active, plans):
@@ -906,9 +970,9 @@ def _reconcile_training(solver, room, active, plans):
         _notify_blocked(solver, room)
     else:
         logger.debug("训练室占用但面板干员名不可读，静默等待")
-    # #66/B1：计划外占用也排一条未来重检（倒计时结束 + 缓冲）。否则 dispatch 删除当前
-    # 任务后队列空，重启恢复 keepalive（base_schedule.py:707）每轮补 now-task，造成
-    # 每 ~4s 进出训练室死循环。_upsert_skill_upgrade_task 按 plan_key 去重，多轮不新增。
+    # #66/B1：计划外占用也排一条未来重检（倒计时结束 + 缓冲），否则 dispatch 删除
+    # 当前任务后队列空，计划外训练要等到下次排班进房才被注意到。
+    # _upsert_skill_upgrade_task 按 plan_key 去重，多轮不新增。
     countdown = room.panel.countdown
     if countdown is not None:
         _wait_for_training(solver, room)
@@ -917,11 +981,17 @@ def _reconcile_training(solver, room, active, plans):
     return None, True
 
 
-def _reconcile_waiting_collect(solver, room, active, plans):
+def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False):
     """§16.3 待收取（00:00:00）7 格动作：图标（专三/非专三）× 协助位（逻各斯/艾丽妮）× 计划。
 
     返回 (start_plan, arrange_support)。「可排班/不可排班」由 gate 读 room.protected 决定；
     §16.4 空闲保护（训练位有人+有专一/专二）由 read_room_state 预先算好 protected。
+
+    defer_collect（#75 方案 C）：排班 gate（reconcile_short）传 True——命中计划且队列
+    已有任一 SKILL_UPGRADE 任务时跳过本次收集，留给队列任务收（任何 dispatch 进房都
+    会收待收取格，收完被消费 → 无残留任务）；队列空（如缓存清零重启丢了）→ 照常收集
+    （恢复兜底）。专三同样纳入 skip（2026-08-14 用户撤回例外：gate 不抢收，由任务收完
+    训练室再回归排班）。dispatch（reconcile_and_act）defer 恒 False 永不跳过。
     """
     hit = _match_plan(plans, room)  # 干员+技能都在计划
     tier = room.panel.mastery_tier
@@ -936,6 +1006,14 @@ def _reconcile_waiting_collect(solver, room, active, plans):
         # 匹配（稳为先，铁律），照常对账收取——否则 active 计划会永远停在 training
         hit = active
 
+    if defer_collect and hit is not None and _queue_has_mastery_task(solver):
+        _log_judgment(
+            solver, room, "waiting_collect",
+            "队列已有专精任务，跳过本次收集（留给任务收）",
+            计划=hit["id"], 协助位=room.support_slot, 保护=protective,
+        )
+        return None, True
+
     if tier == 3:
         # 专三：正常收取 → 邮件③（截图）→ 无论如何不保护 → 可排班
         _log_judgment(
@@ -949,15 +1027,19 @@ def _reconcile_waiting_collect(solver, room, active, plans):
 
     if hit is not None:
         # 干员+技能都在计划（非专三）：恢复流程（§16.6）——正常收取 → 优先级排前 +
-        # 置 idle → 等下次仓库扫描材料足再续；期间排班接管与否看保护（§16.4/§16.5）。
+        # 置 idle → 继续本级**当场开下一级**（2026-08-14 用户拍板「都去掉」：不再区分
+        # 扫描链/重启，一律当场开；重启后也不保守等扫描）。减半守卫：跨「收取→下一次
+        # 开始」边界不动协助位。
         _log_judgment(
-            solver, room, "waiting_collect", "都在计划，恢复流程（收取→排前→idle）",
+            solver, room, "waiting_collect", "都在计划，恢复流程（收取→排前→idle→当场开）",
             协助位=room.support_slot, 保护=protective,
         )
         plan = _collect_plan(solver, hit, room)
         if plan is not None and plan["id"] == hit["id"]:
             _promote_plan(solver, plan)  # 非专三继续本级 → 排前
-        return plan, False  # 收集级联：减半守卫（跨「收取→下一次开始」边界不动协助位）
+            return plan, False
+        # 收取完成（档位==target）不级联，等扫描
+        return plan, False
 
     # 干员不在计划 / 干员在技能不在：收取 + 通知④帮收（非专三，无论保护与否）
     _log_judgment(
@@ -968,15 +1050,25 @@ def _reconcile_waiting_collect(solver, room, active, plans):
     return None, True
 
 
-def reconcile_short(solver, room_state: RoomState):
+def reconcile_short(solver, room_state: RoomState, defer_collect=False):
     """排班路径顺路短动作（#61）：核实/帮收/重置/对账，不开始训练、不退出房间。
 
-    供 agent_arrange_room 的 gate 在锁定确认后调用；开始训练（长动作）留给
-    SKILL_UPGRADE dispatch。退出训练室由调用方（gate）统一负责。
+    供 agent_arrange_room 的 gate 在所有房间状态上调用（#74 gate L0 先读再判：
+    空闲格也据截图修正 DB）；开始训练（长动作）留给 SKILL_UPGRADE dispatch。
+    退出训练室由调用方（gate）统一负责。
+
+    defer_collect（#75 方案 C）：gate 传 True——待收取格跳过「队列已有专精任务」的
+    收集，留给队列任务收；dispatch 不经由本函数。
     """
     from arknights_mower.utils.mastery_db import get_active_plan, get_all_plans
 
-    _reconcile(solver, room_state, get_active_plan(), get_all_plans())
+    _reconcile(
+        solver,
+        room_state,
+        get_active_plan(),
+        get_all_plans(),
+        defer_collect=defer_collect,
+    )
 
 
 # --- 排班 gate 复用（#59） ---

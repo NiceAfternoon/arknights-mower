@@ -17,7 +17,7 @@ from arknights_mower.solvers.mastery_reader import (
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.scene import Scene
 
-ARRANGING_DEADLINE = timedelta(minutes=10)
+ARRANGING_DEADLINE = timedelta(minutes=5)
 ARRANGING_RETRY_BUFFER = timedelta(minutes=2)
 # d（2026-08-14 用户拍板）：SWAP 换人失败最多重试次数与间隔（每次重试都重读倒计时
 # 判断还值不值得换，倒计时只会减少，终会到「不足 5 小时」放弃）
@@ -297,6 +297,11 @@ def run_mastery_task(solver):
 
     读取器返回需要开始训练的计划时，由本入口执行开始（长动作）。
     不再依赖 DB 状态预判（铁律：先读房，截图为准）。
+
+    # #74 第3段：任务带 plan_key 时解析其指定计划为 scan_plan——任何带 plan_key 的
+    SKILL_UPGRADE 任务（扫描开始/收取/重检）在空闲×未保护格都会让该计划开始训练
+    （2026-08-14 用户拍板「都去掉」：不再区分扫描标记；开始/继续一律当场）。房间状态
+    决定分支：空闲→开始、待收取→收集+继续本级当场开、训练中→对账。
     """
     from arknights_mower.utils import config
 
@@ -304,9 +309,21 @@ def run_mastery_task(solver):
         logger.debug("[mastery] 全自动专精已关闭，跳过训练室动作")
         return
     from arknights_mower.solvers.mastery_reader import reconcile_and_act
+    from arknights_mower.utils.mastery_db import get_plan_by_id
+
+    # 任务指定计划：plan_key=计划id 即该计划。计划是否仍 idle 由 `_reconcile` 空闲格
+    # 统一判定（单一权威）。plan_key=None（占用重检）无指定计划，空闲格不开训练。
+    scan_plan = None
+    task = getattr(solver, "task", None)
+    plan_key = getattr(task, "plan_key", None) if task is not None else None
+    if plan_key is not None:
+        try:
+            scan_plan = get_plan_by_id(int(plan_key))
+        except (TypeError, ValueError):
+            scan_plan = None
 
     logger.debug("[mastery] 训练室动作 触发源=定时任务 动作=dispatch")
-    plan, arrange_support = reconcile_and_act(solver)
+    plan, arrange_support = reconcile_and_act(solver, scan_plan=scan_plan)
     if plan:
         _start_new_training(solver, plan, arrange_support=arrange_support)
 
@@ -459,12 +476,12 @@ def _start_new_training(solver, plan, arrange_support=True):
     """开始新一级训练：IDLE → ARRANGING → TRAINING
 
     #16 决议：进房先读倒计时定分支，不盲点技能按钮。
-    #15 决议：全程纯墙钟 10 分钟 deadline，各分支短处理、超时走统一退出路径。
+    #15 决议：全程纯墙钟 5 分钟 deadline，各分支短处理、超时走统一退出路径。
     #63 减半守卫：跨「收取→下一次开始」边界不动协助位（保留驻留/激活），
-    由 cascade 调用传 arrange_support=False（收取后级联不重新安排协助位）。
+    调用方在「收取→下一次开始」边界传 arrange_support=False（收取后不重新安排协助位）。
     """
     from arknights_mower.solvers.mastery_reader import _read_slot_mastery_tier
-    from arknights_mower.utils.mastery_db import get_next_idle_plan, update_plan_status
+    from arknights_mower.utils.mastery_db import update_plan_status
 
     _log_transition(
         plan,
@@ -552,7 +569,7 @@ def _start_new_training(solver, plan, arrange_support=True):
                 _exit_occupied(solver, plan, None, trigger="技能选择页归属未确认")
                 return
             if not checked_target:
-                # #63 已到target检测：读目标技能槽亮灯，≥target → 判 completed 级联（防 false-fail）
+                # #63 已到target检测：读目标技能槽亮灯，≥target → 判 completed（防 false-fail）
                 checked_target = True
                 tier = _read_slot_mastery_tier(solver, plan["skill_index"])
                 if tier is not None and tier >= plan["target_level"]:
@@ -562,9 +579,7 @@ def _start_new_training(solver, plan, arrange_support=True):
                     _log_transition(plan, "completed", "已到target检测", 档位=tier)
                     update_plan_status(plan["id"], "completed")
                     _notify_at_target(solver, plan, tier)  # §16.9 ⑥
-                    next_plan = get_next_idle_plan()
-                    if next_plan:
-                        _start_new_training(solver, next_plan, arrange_support=False)
+                    # #74 第2段：完成不再级联开始下一个 idle 计划（等扫描派发）
                     solver.back()
                     return
                 if tier is None:

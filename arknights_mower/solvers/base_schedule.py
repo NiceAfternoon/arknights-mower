@@ -511,9 +511,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if self.task.type == TaskTypes.SKILL_UPGRADE:
                     from arknights_mower.solvers.mastery import run_mastery_task
 
-                    # #66/B1：记录本次 dispatch，重启恢复 keepalive 据此不再每轮补
-                    # now-task（占用训练被拒后队列空 → 刚 dispatch 过则静默等待）。
-                    self._last_skill_upgrade_dispatch = datetime.now()
                     run_mastery_task(self)
                 elif self.task.type == TaskTypes.SWAP_SUPPORT:
                     from arknights_mower.solvers.mastery import run_swap_support
@@ -705,31 +702,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             ):
                 self.reload()
                 logger.info(f"记录本次补货时间为:{datetime.now()}")
-            try:
-                from arknights_mower.utils.mastery_db import (
-                    get_active_plan,
-                    get_next_idle_plan,
-                )
-
-                # #63 重启恢复：active 或 idle 计划存在时确保有 SKILL_UPGRADE 触发，
-                # 修复「无 active 才自动入队」缺口（active 训练计划重启后失去重检）。
-                # 受全自动专精全局开关门控；find_next_task 去重避免每轮重复入队。
-                # #66/B1：刚 dispatch 过 SKILL_UPGRADE（本窗口内）则不再补 now-task，
-                # 防占用训练被拒 → 队列空 → 每轮补 now-task 的每 ~4s 进出训练室死循环。
-                if config.conf.enable_mastery:
-                    if (
-                        get_active_plan() or get_next_idle_plan()
-                    ) and not find_next_task(
-                        self.tasks, task_type=TaskTypes.SKILL_UPGRADE
-                    ) and not self._skill_upgrade_just_dispatched():
-                        self.tasks.append(
-                            SchedulerTask(
-                                time=datetime.now(),
-                                task_type=TaskTypes.SKILL_UPGRADE,
-                            )
-                        )
-            except Exception as e:
-                logger.exception(f"Mastery schedule check error: {e}")
             self.todo_task = True
         elif not self.collect_notification:
             if self.no_pending_task(1):
@@ -742,19 +714,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.collect_notification = True
         else:
             return self.handle_error()
-
-    def _skill_upgrade_just_dispatched(self, window=60) -> bool:
-        """#66/B1：重启恢复 keepalive 守卫——`window` 秒内刚 dispatch 过 SKILL_UPGRADE。
-
-        占用训练被拒后 dispatch 删除当前任务、队列空，若 keepalive 每轮立即补
-        now-task 会每 ~4s 进出训练室死循环。读取器已在占用路径排未来重检
-        （mastery_reader._reconcile_training），此处兜底防任何 dispatch 后队列空时
-        被立刻重补。无历史 dispatch（重启场景）返回 False，恢复立即触发不受影响。
-        """
-        last = getattr(self, "_last_skill_upgrade_dispatch", None)
-        if last is None:
-            return False
-        return (datetime.now() - last).total_seconds() < window
 
     def translate_room(self, room):
         translations = {
@@ -3252,21 +3211,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             try:
                 error_count = 0
                 if not skip_enter:
-                    if room == "train":
-                        # #59 gate L0：DB active 预判（免进房）。active → 训练室占用，
-                        # assistant_follows_schedule=False 时整个训练室跳过（协助位+训练位
-                        # 都归专精系统管）。不再依赖 find_next_task(SKILL_UPGRADE)。
-                        from arknights_mower.utils.mastery_db import get_active_plan
-
-                        if (
-                            get_active_plan()
-                            and not config.conf.assistant_follows_schedule
-                        ):
-                            del plan[room]
-                            return new_plan
                     self.enter_room(room)
                     if room == "train":
-                        # #59 gate L1：截图权威（进房后、开详情前读）。
+                        # #74 gate L0 先读再判：删除「DB active 就跳过」的预判（原
+                        # base_schedule.py:3257 死锁——DB 是意图缓存可能过期，排班一进门
+                        # 就因 DB active 整房跳过、永不读屏幕、永不修正 DB → 重启后训练室
+                        # 僵住，违背「截图为准」铁律）。现在一律先进房读屏幕，截图权威更新
+                        # DB，再按锁定/保护判定跳过/冻结；空闲×未保护正常安排。
                         from arknights_mower.solvers.mastery_reader import (
                             read_room_state,
                             reconcile_short,
@@ -3277,18 +3228,18 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         except Exception as e:
                             logger.warning(f"训练室状态读取失败: {e}")
                             room_state = None
-                        if (
-                            room_state is not None
-                            and room_state.locked
-                            and config.conf.enable_mastery
-                        ):
-                            # #61 短动作排班路径内联：顺路核实/帮收/重置/对账（不开始训练）。
-                            # 退出训练室由本 gate 的跳过/冻结分支统一负责。
+                        if room_state is not None and config.conf.enable_mastery:
+                            # #61 短动作排班路径内联：顺路核实/帮收/重置/对账，并据截图
+                            # 修正 DB（空闲×DB active 冲突 → 重置 idle，以截图为准）。不
+                            # 开始训练；退出训练室由本 gate 的跳过/冻结分支统一负责。
+                            # #75 方案 C：defer_collect=True——待收取格若队列已有任一
+                            # 专精任务则跳过收集（留给队列任务收，避免残留任务空闲房
+                            # 触发开始训练）；队列空时照常收集兜底。
                             try:
-                                reconcile_short(self, room_state)
+                                reconcile_short(self, room_state, defer_collect=True)
                             except Exception as e:
                                 logger.warning(f"训练室顺路对账失败: {e}")
-                            # 帮收后房间可能空出，重读状态决定 gate
+                            # 对账后房间状态可能变化（帮收后空出），重读状态决定 gate
                             try:
                                 room_state = read_room_state(self, enter=False)
                             except Exception:
@@ -4543,6 +4494,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 f"skipped={len(res.get('skipped', []))}"
             )
 
+            # #74 第3段：扫描 = 唯一周期派发点。对 DB 里材料足够的 idle 计划入队
+            # 「开始训练」SKILL_UPGRADE（plan_key 指定计划；房间状态决定开始/收集）。
+            # 材料判断用 auto_schedule 的 scheduled 结果（扫描时核算），不违背「删材料
+            # 门控」——删的是开始前现场查那套。受 enable_mastery 门控（OFF 停专精自动化）。
+            if config.conf.enable_mastery:
+                self._dispatch_scan_start_tasks(res.get("scheduled", []))
+
             new_settings = compute_workshop_config(
                 fodder_operators=config.conf.fodder_operators,
                 t5_operators=config.conf.t5_operators,
@@ -4569,6 +4527,36 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 logger.info("自动更新合成配置完成")
         except Exception as e:
             logger.exception(f"自动安排专精/合成配置失败: {e}")
+
+    def _dispatch_scan_start_tasks(self, scheduled):
+        """#74 第3段：扫描确认材料后，为材料足够的 idle 计划入队「开始训练」任务。
+
+        scheduled 来自 auto_schedule_mastery_tasks（已按链级材料核算），元素带
+        char_id/skill_index。按 (char_id, skill_index) 匹配 DB 里 status=='idle' 的
+        计划（get_all_plans 按 priority 排序 → 高优先级计划先入队先开始），入队一条
+        plan_key=计划id 的开始任务（meta_data 仅描述性标签，无逻辑标记）。TASK-01 按
+        plan_key 去重恒 ≤1 条，重复扫描原地刷新；计划开始训练后该任务原位升级为收取任务。
+        """
+        if not scheduled:
+            return
+        from arknights_mower.solvers.mastery_reader import _schedule_scan_start
+        from arknights_mower.utils.mastery_db import get_all_plans
+
+        confirmed = {
+            (entry.get("char_id"), entry.get("skill_index")) for entry in scheduled
+        }
+        dispatched = 0
+        for plan in get_all_plans():  # 非终态，按 priority, id 排序
+            if plan["status"] != "idle":
+                continue
+            if (plan["char_id"], plan["skill_index"]) not in confirmed:
+                continue
+            _schedule_scan_start(self, plan)
+            dispatched += 1
+        if dispatched:
+            logger.info(
+                f"仓库扫描: 已为 {dispatched} 个材料足够的空闲专精计划安排开始训练"
+            )
 
     def _idle_sleep(self, remaining_time):
         """任务之间真正的休眠——全工程里唯一维护 `sleeping` 状态的地方。
