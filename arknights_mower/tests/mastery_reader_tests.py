@@ -494,6 +494,199 @@ class TestReconcileShort(unittest.TestCase):
         solver.back.assert_not_called()
 
 
+class TestReconcileRecoverSwap(unittest.TestCase):
+    """#77：重启恢复 training×一致 时补排丢失的 SWAP_SUPPORT。
+
+    reconcile 只补排任务（短动作，铁律 4：不碰房间、不退出）；实际读协助位/纠错/换人
+    由 SWAP dispatch 的 #79 `run_swap_support` 完成——补排直接复用
+    `_schedule_swap_if_needed`（换人公式/路线判定口径与正常排程一致，不重复实现）。
+    """
+
+    def setUp(self):
+        self.patch_follows = patch.object(
+            reader.config.conf, "assistant_follows_schedule", False
+        )
+        self.patch_enable = patch.object(reader.config.conf, "enable_mastery", True)
+        self.patch_follows.start()
+        self.patch_enable.start()
+        self.addCleanup(self.patch_follows.stop)
+        self.addCleanup(self.patch_enable.stop)
+
+    def _solver(self):
+        solver = MagicMock()
+        solver.tasks = []
+        solver.task = None
+        return solver
+
+    def _training_plan(self):
+        return make_plan(status="training", swap_frozen=0)
+
+    def _room(self, countdown=datetime.now() + timedelta(hours=6), tier=2):
+        return reader.RoomState(
+            state="training",
+            panel=make_panel(
+                mastery_tier=tier, countdown=countdown, countdown_state="active"
+            ),
+        )
+
+    # --- _maybe_recover_swap 门控 ---
+
+    def test_recover_calls_swap_scheduler(self):
+        # 门控全过（跟随排班关、非 frozen、队列无 SWAP、倒计时可读）→ 复用
+        # _schedule_swap_if_needed 补排；step_level = 主面板图标（当前步目标级，#76）
+        solver = self._solver()
+        plan = self._training_plan()
+        room = self._room(tier=2)
+        with patch(
+            "arknights_mower.solvers.mastery._schedule_swap_if_needed", return_value=True
+        ) as sched:
+            reader._maybe_recover_swap(solver, plan, room)
+        sched.assert_called_once_with(solver, plan, room.panel.countdown, 2)
+
+    def test_recover_follows_schedule_skips(self):
+        # 跟随排班开 → 协助位归排班系统管，任何补排都跳过（照搬 run_swap_support gate）
+        solver = self._solver()
+        with (
+            patch.object(reader.config.conf, "assistant_follows_schedule", True),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            reader._maybe_recover_swap(solver, self._training_plan(), self._room())
+        sched.assert_not_called()
+
+    def test_recover_swap_frozen_skips(self):
+        # 换人已完成（swap_frozen=1）→ 不补排
+        solver = self._solver()
+        plan = make_plan(status="training", swap_frozen=1)
+        with patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched:
+            reader._maybe_recover_swap(solver, plan, self._room())
+        sched.assert_not_called()
+
+    def test_recover_queued_swap_task_skips(self):
+        # 队列已有同计划 SWAP 任务（重启恢复的队列可能还留着旧任务）→ 不重复补排
+        solver = self._solver()
+        task = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SWAP_SUPPORT
+        )
+        task.plan_key = "1"
+        solver.tasks = [task]
+        with patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched:
+            reader._maybe_recover_swap(solver, self._training_plan(), self._room())
+        sched.assert_not_called()
+
+    def test_recover_countdown_missing_skips(self):
+        # 倒计时读不到 → 不补排（无法判剩余时间，铁律：以截图为准）
+        solver = self._solver()
+        room = self._room(countdown=None)
+        with patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched:
+            reader._maybe_recover_swap(solver, self._training_plan(), room)
+        sched.assert_not_called()
+
+    def test_recover_enable_off_skips(self):
+        # enable_mastery OFF → 任何训练室动作/补排都不执行（铁律 10）
+        solver = self._solver()
+        with (
+            patch.object(reader.config.conf, "enable_mastery", False),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            reader._maybe_recover_swap(solver, self._training_plan(), self._room())
+        sched.assert_not_called()
+
+    def test_recover_mastery_tier_zero_falls_back_target_level(self):
+        # 图标读不到（tier=0）→ step_level 传 None，_get_plan_route 回退 target_level
+        solver = self._solver()
+        plan = self._training_plan()  # target_level=3
+        room = self._room(tier=0)
+        with patch(
+            "arknights_mower.solvers.mastery._schedule_swap_if_needed", return_value=False
+        ) as sched:
+            reader._maybe_recover_swap(solver, plan, room)
+        sched.assert_called_once_with(solver, plan, room.panel.countdown, None)
+
+    # --- _reconcile_training 接线 ---
+
+    def test_reconcile_training_recovers_swap_on_consistent(self):
+        # training×一致（active 匹配）→ _update_expiry 后触发 _maybe_recover_swap
+        solver = self._solver()
+        room = self._room()
+        active = self._training_plan()
+        with (
+            patch.object(reader, "_update_expiry") as ue,
+            patch.object(reader, "_maybe_recover_swap") as rec,
+        ):
+            reader._reconcile_training(solver, room, active, [active])
+        ue.assert_called_once_with(solver, active, room)
+        rec.assert_called_once_with(solver, active, room)
+
+    def test_reconcile_training_no_recover_when_not_adopted(self):
+        # 面板不可读（B8 不采纳倒计时）→ 不补排（无法确认训练归属，静默等待）
+        solver = self._solver()
+        room = reader.RoomState(
+            state="training",
+            panel=make_panel(operator_name="", skill_name=""),
+        )
+        active = self._training_plan()
+        with (
+            patch.object(reader, "_update_expiry") as ue,
+            patch.object(reader, "_maybe_recover_swap") as rec,
+        ):
+            reader._reconcile_training(solver, room, active, [active])
+        ue.assert_not_called()
+        rec.assert_not_called()
+
+    # --- 端到端：reconcile_short 真实 _schedule_swap_if_needed 补排 ---
+
+    def test_reconcile_short_training_recovery_enqueues_swap(self):
+        # 重启恢复：training×一致 → 复用 _schedule_swap_if_needed 补排 SWAP（带 plan_key）
+        solver = self._solver()
+        room = self._room()
+        plan = self._training_plan()
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
+            ),
+            patch.object(reader, "_update_expiry"),
+            patch("arknights_mower.solvers.mastery._get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5,
+                "efficiency": 75, "job_match": True,
+            }),
+            patch("arknights_mower.solvers.mastery.calc_swap_threshold",
+                  return_value=(True, 100.0)),
+        ):
+            reader.reconcile_short(solver, room)
+        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1, "剩余够 → 应补排 SWAP_SUPPORT")
+        self.assertEqual(swaps[0].plan_key, str(plan["id"]))
+
+    def test_reconcile_short_training_insufficient_time_no_swap(self):
+        # 剩余不足（calc 判不换）→ 不补排
+        solver = self._solver()
+        room = self._room()
+        plan = self._training_plan()
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch(
+                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
+            ),
+            patch.object(reader, "_update_expiry"),
+            patch("arknights_mower.solvers.mastery._get_plan_route", return_value={
+                "swap_target": "逻各斯", "central_bonus": 5,
+                "efficiency": 75, "job_match": True,
+            }),
+            patch("arknights_mower.solvers.mastery.calc_swap_threshold",
+                  return_value=(False, 10000.0)),
+        ):
+            reader.reconcile_short(solver, room)
+        self.assertFalse(
+            [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT],
+            "剩余不足 → 不补排",
+        )
+
+
 class TestReconcileCollectDefer(unittest.TestCase):
     """#75 方案 C：gate-defer skip 的 _reconcile 层行为。"""
 
@@ -1333,6 +1526,73 @@ class TestReconcileAfterCollect(unittest.TestCase):
         self.assertIsNone(
             reader._reconcile_after_collect(MagicMock(), None, make_panel())
         )
+
+
+class TestGetTrainSceneFloatingWindow(unittest.TestCase):
+    """#78 浮窗识别盲区：get_train_scene 识别 room_detail → 205，且不误用 arrange_check_in。
+
+    浮窗开着时 room_detail（浮窗头）须在 train_main/training_support 之前判 205，
+    否则浮窗被误标 217/219、_read_slots 关浮窗死代码永不触发。
+    """
+
+    def _recog(self, find_hits):
+        """构造 Recognizer，find 按资源名命中返回真值、未命中返回 None。"""
+        from arknights_mower.utils.recognize import Recognizer
+
+        rec = Recognizer(MagicMock())
+        rec.find = MagicMock(
+            side_effect=lambda res, *a, **k: object() if res in find_hits else None
+        )
+        return rec
+
+    def test_room_detail_open_returns_205(self):
+        rec = self._recog({"room_detail", "train_main"})
+        self.assertEqual(rec.get_train_scene(), Scene.INFRA_DETAILS)
+
+    def test_room_detail_closed_returns_217(self):
+        rec = self._recog({"train_main"})
+        self.assertEqual(rec.get_train_scene(), Scene.TRAIN_MAIN)
+
+    def test_room_detail_closed_returns_219(self):
+        # 验收"关掉后返回 217/219"：运行页（training_support 命中）也要正常识别
+        rec = self._recog({"training_support"})
+        self.assertEqual(rec.get_train_scene(), Scene.TRAIN_SKILL_SELECT)
+
+    def test_arrange_check_in_alone_not_205(self):
+        # 裸主页面也有 arrange_check_in——不得用当浮窗探针，否则恒 205、217 永远不出来
+        rec = self._recog({"arrange_check_in", "train_main"})
+        self.assertEqual(rec.get_train_scene(), Scene.TRAIN_MAIN)
+
+
+class TestReadSlotsCloseFloatingWindow(unittest.TestCase):
+    """#78 复活 _read_slots 的关浮窗死代码：读完进驻详情后浮窗必须确定关掉，无二次 back。"""
+
+    def test_closes_floating_window_after_read(self):
+        solver = MagicMock()
+        solver.get_agent_from_room.return_value = [
+            {"agent": "逻各斯"},
+            {"agent": "能天使"},
+        ]
+        solver.train_scene.return_value = Scene.INFRA_DETAILS
+        support, train = reader._read_slots(solver)
+        self.assertEqual((support, train), ("逻各斯", "能天使"))
+        solver.back.assert_called_once()
+
+    def test_no_double_back_when_window_closed(self):
+        solver = MagicMock()
+        solver.get_agent_from_room.return_value = [
+            {"agent": "逻各斯"},
+            {"agent": "能天使"},
+        ]
+        solver.train_scene.return_value = Scene.TRAIN_MAIN
+        reader._read_slots(solver)
+        solver.back.assert_not_called()
+
+    def test_read_failure_returns_empty_no_back(self):
+        solver = MagicMock()
+        solver.get_agent_from_room.side_effect = Exception("read fail")
+        self.assertEqual(reader._read_slots(solver), ("", ""))
+        solver.back.assert_not_called()
 
 
 if __name__ == "__main__":

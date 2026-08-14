@@ -523,6 +523,29 @@ def _find_plan_task(solver, plan_key):
         return None
 
 
+def _find_swap_task(solver, plan_key):
+    """队列中该计划的一条 SWAP_SUPPORT 任务（排除当前 dispatch），无则 None。
+
+    #77 补排去重用：SWAP 任务带 plan_key=计划ID（与 SKILL_UPGRADE 同形），避免
+    reconcile 每轮进房重复补排。防御：solver.tasks 可能不可迭代 → 按无任务处理。
+    """
+    current = getattr(solver, "task", None)
+    try:
+        tasks = solver.tasks
+        return next(
+            (
+                t
+                for t in tasks
+                if t.type == TaskTypes.SWAP_SUPPORT
+                and t is not current
+                and getattr(t, "plan_key", None) == plan_key
+            ),
+            None,
+        )
+    except (AttributeError, TypeError):
+        return None
+
+
 def _upsert_skill_upgrade_task(solver, target_time, meta_data="", plan_key=None):
     """入队/改期一条 SKILL_UPGRADE 任务，队列恒 ≤1 条同形任务（#62 Q3 收敛）。
 
@@ -654,6 +677,39 @@ def _update_expiry(solver, plan, room):
     expires_at = countdown.strftime("%Y-%m-%d %H:%M:%S")
     update_plan_status(plan["id"], "training", expires_at=expires_at)
     _schedule_collect(solver, plan, countdown, tier=room.panel.mastery_tier)
+
+
+def _maybe_recover_swap(solver, plan, room):
+    """#77：重启恢复 training×一致 时补排丢失的 SWAP_SUPPORT。
+
+    只补排任务（短动作，不碰房间、不退出）；实际读协助位/纠错/换人由 SWAP dispatch
+    的 #79 `run_swap_support` 完成——补排直接复用 `_schedule_swap_if_needed`，
+    换人公式/路线判定口径与正常排程完全一致，不重复实现。
+    门控（照搬 run_swap_support / _schedule_swap_if_needed）：
+    - enable_mastery 开、非跟随排班（协助位归排班系统管）；
+    - swap_frozen=1（换人已完成）→ 跳过；
+    - 队列已有同计划 SWAP 任务 → 跳过（去重，重启恢复的队列可能还留着旧任务）；
+    - 倒计时可读且 `calc_swap_threshold` 判剩余够（<5h 不补排）→ 补排 SWAP 任务。
+    """
+    from arknights_mower.utils import config
+
+    if not config.conf.enable_mastery:
+        return
+    if config.conf.assistant_follows_schedule:
+        return
+    if plan.get("swap_frozen"):
+        return
+    if _find_swap_task(solver, str(plan["id"])) is not None:
+        return
+    countdown = room.panel.countdown
+    if countdown is None:
+        return
+    # 当前步目标级 = 主面板专精图标（亮 N 颗=专N，#76），读不到回退 target_level
+    step_level = room.panel.mastery_tier or None
+    from arknights_mower.solvers.mastery import _schedule_swap_if_needed
+
+    if _schedule_swap_if_needed(solver, plan, countdown, step_level):
+        logger.info(f"[mastery] #77 重启恢复：补排换人任务 id={plan['id']}")
 
 
 def _wait_for_training(solver, room):
@@ -975,6 +1031,8 @@ def _reconcile_training(solver, room, active, plans):
         if _can_adopt_expiry(active, room):
             _log_judgment(solver, room, "training", "训练中×一致，静默更新到期时间")
             _update_expiry(solver, active, room)
+            # #77：重启丢失的 SWAP_SUPPORT 补排（短动作），纠错由 SWAP dispatch 的 #79 做
+            _maybe_recover_swap(solver, active, room)
             return None, True
         if not _plan_matches_room(active, room):
             # 干员/技能可读但不匹配 → 假记录 → 重置 + 通知②
@@ -996,6 +1054,7 @@ def _reconcile_training(solver, room, active, plans):
         if _can_adopt_expiry(hit, room):
             # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
             _update_expiry(solver, hit, room)
+            _maybe_recover_swap(solver, hit, room)
             return None, True
         # hit 技能名不可读 → 不采纳（不判计划外、不重检），静默等待
         logger.debug("命中计划但面板技能不可读，不采纳倒计时，静默等待")

@@ -63,7 +63,7 @@
 4. **开始训练（长动作）只由 `SKILL_UPGRADE` dispatch（`run_mastery_task`）执行**；排班路径 / `reconcile_short` 只做短动作（核实/帮收/重置/对账），**永不开始训练、永不退出房间**（退出由调用方 gate 负责）。（#61/#63）
 5. **协助位只动在训练确认开始之后**；确认开始之前不得改协助位。（#16 §8）
 6. **减半守卫**：跨「收取 → 下一次开始」边界**不动协助位**；收集级联、已到target完成级联必须传 `arrange_support=False`。（#63）
-7. **`target_level==3` 永不换人**（调度侧与执行侧都要挡）。（mastery.py:655,717）
+7. **专三（当前步）永不换人**（调度侧与执行侧都要挡）：由 level_3 路线 `swap_target=None` 保证（#76 2026-08-15 用户定案删显式 `target_level==3` 守卫、靠路线数据；自定义路线若给专三填 swap_target 会打破该保证）。
 8. **通知只三类、各至多一次**：① blocked、② fake_reset、③ m3_collect，用 `mastery_notify` 表去重。（#61）
 9. **ARRANGING 超时/失败必须置 `failed`**（不得置 `idle`，否则 infra 主循环每轮重派 idle 刷屏）；**不得在 ARRANGING 内重试**，重试只走仓库扫描 `retry_failed_plans()`。（#15/#19）
 10. **`enable_mastery=False` 时任何训练室动作/通知/守卫都不执行**（dispatch/reconcile/swap 直接返回）；但 N 小时仓库材料扫描 + DB 自动排程**保留**。（#55 ②）
@@ -147,9 +147,17 @@
 
 ## 7. 减半换人（协助位）
 
-### 触发点（两条，都要守卫）
+### 触发点（三条，都要守卫）
 1. 训练确认开始后：`_schedule_swap_if_needed` 计算，需要时排 `SWAP_SUPPORT` 任务。
 2. `SWAP_SUPPORT` dispatch：`run_swap_support` 执行换人。
+3. **#77 重启恢复补排（2026-08-15）**：`_reconcile_training` training×一致 时
+   `_maybe_recover_swap` 补排丢失的 SWAP_SUPPORT（短动作，不碰房间、不退出，铁律 4）。
+   门控照搬：enable_mastery 开、非跟随排班、`swap_frozen=0`、队列无同计划 SWAP 任务
+   （SWAP 任务带 `plan_key` 去重键，与 SKILL_UPGRADE 同形）、倒计时可读且**复用**
+   `_schedule_swap_if_needed`（`calc_swap_threshold` 公式口径一致，剩余 <5h 不补排）。
+   实际读协助位/纠错/换人仍由 SWAP dispatch 的 #79 `run_swap_support` 完成，补排
+   不重复实现协助位比对。**换人重试放弃（达上限 / 不足 5h）置 `swap_frozen=1`**，
+   防 reconcile 把「5 次重试上限」反复重新入队成无限循环。
 
 ### `calc_swap_threshold` 公式（`mastery.py:238-271`）
 - `target_minutes = 300 + buffer`（buffer 默认 10）。
@@ -159,7 +167,9 @@
 - `should_swap = remaining_minutes <= threshold`。
 
 ### 换人前置门（`run_swap_support`，C-16/S-09）
-满足全部才执行：`enable_mastery` 开、非 `assistant_follows_schedule`、active 状态 `=='training'`、`swap_frozen` 为假、`target_level != 3`、route 有 `swap_target`。**换人成功（choose_train 无异常）后必须置 `swap_frozen=1`**；下一次确认训练开始时清 `swap_frozen=0`。（SM-07 / C-17）
+满足全部才执行：`enable_mastery` 开、非 `assistant_follows_schedule`、active 状态 `=='training'`、`swap_frozen` 为假、route 有 `swap_target`（当前步非专三——level_3 路线 swap_target=None，铁律 7；#76 2026-08-15 删显式 `target_level != 3` 守卫靠路线数据）。**换人成功（choose_train 无异常）后必须置 `swap_frozen=1`**；下一次确认训练开始时清 `swap_frozen=0`。（SM-07 / C-17）
+**#78 整合（2026-08-15）加「读全 + 倒计时门」**：进房用 `read_main_panel` 一次截图读干员/技能/图标/倒计时，**场景只在训练室主页面（TRAIN_MAIN）且倒计时 active（读到非 0 秒）才算训练确认**，才读图标/算路线/换人（铁律 1）。219（技能选择页读不出倒计时）不再放行；zero(00:00:00 待收取)/failed(读失败，DB 过期/空房) 都不换——防 DB 过期/空房时按回退 target_level 路线误换人。换人公式/路线沿用稳定方案，只加倒计时门。
+**#79 协助位确认（2026-08-15）**：倒计时确认后开进驻浮窗（`_read_slots`，读后自动关）读实际协助位——**协助位 ∉ {operator, swap_target}（陌生人/坐错）先 `choose_train([operator, "Current"])` 纠错**，纠错成功重读倒计时（此时效率已知 = route["efficiency"]）才算换人；**纠错失败 → ⑦ 邮件通知 + 不换人 + 排收取退出**。**协助位已 = swap_target（已减半）→ 不再换、不置 swap_frozen**（防跨步残留重复换）。换人公式/路线仍沿用稳定方案。
 
 ### 减半守卫（C-15）
 - 协助位换人**只在训练确认开始之后**（读到有效倒计时、DB 已置 training）。
@@ -168,6 +178,7 @@
 
 ### 路线配置（`_get_plan_route` → `get_route_config`）
 - 查找链：自定义路线（`is_default=0`）→ 默认路线（`is_default=1`）→ 硬编码 `DEFAULT_ROUTES`；None = 不安排协助位 / 不换人。（TASK-04 / RTE-01）
+- **#76（2026-08-15）路线按「当前步目标级」加载**：`_get_plan_route(plan, step_level)` 用 step_level（确认后/换人前进房读主面板专精图标 = 当前步目标级，亮 N 颗=专N），step_level 缺省/读失败回退 `plan["target_level"]`（=旧行为，保守）。专三计划 专一→专二→专三 三步分别用 level_1/2/3 路线：专一/专二步正常减半换人，专三步由 level_3 swap_target=None 挡住（铁律 7）。三个消费点：`_arrange_support` / `_schedule_swap_if_needed`（确认开始后，`_confirm_training_started` 内读图标传参）、`run_swap_support`（SWAP 派发，进房读图标）。
 - `DEFAULT_ROUTES` 按 8 职业 × level_1..3 键控，每条必带 operator/efficiency/job_match/swap_target（swap_target=None 表示该级不换）。（RTE-02）
 
 ## 8. 排班集成（#59 gate）
@@ -295,6 +306,7 @@ API 只增删计划与调优先级，**不得直写 status**（状态由执行�
   - **matery_plan.json 依赖（R-09）**：`_dispatch_scan_start_tasks` 只对 auto_schedule 的 `scheduled`（按 matery_plan.json 的 plan_set 过滤）匹配的 DB idle 计划入队。DB 计划若未同步进 matery_plan.json（如绕过前端直接 POST /mastery-plan）不会被扫描拉起，等文件刷新后再排。
   - **训练无法取消（游戏机制，prts.wiki）**：训练开始后不可中止，训练位干员直到完成不可移动。因此训练室不可能出现「训练中途被取消 → 空房」；空闲房只来自「从未开始」或「完成并已收取」。
 - 测试环境坑：`mastery_choose_train_tests.py` 必须在 import 时 stub `arknights_mower.utils.skland`（base_schedule 导入链会触发 `SecuritySm.get_d_id` 网络调用）——环境性 flake。
+- **#78 浮窗识别盲区（2026-08-15 修复）**：`get_train_scene` 新增 `find("room_detail") → INFRA_DETAILS(205)`（浮窗头，放在 train_main 之前）——浮窗开着时不再被误标 217/219。**不可用 `arrange_check_in`**（裸主页面也有，加了会恒 205、217 永远不出来）。复活所有「`INFRA_DETAILS → back()` 关浮窗」死代码：`_read_slots`（读完进驻详情自己关，调用方 `_fill_slots_and_protection` 不再二次关）、`_settle_in_room`、`_start_new_training`、`run_swap_support`、`train_slot_locked`、`_read_train_countdown`。`back()`→`sleep()`→`recog.update()` 重置场景缓存，无死循环。`_training_slots` 仍不关浮窗（由 `_start_new_training` 唯一调用方关，单次 back 无二次退出）。**顺带整合（#78 comment 拍板）**：`run_swap_support` 换人前改 `read_main_panel` 读全 + 倒计时门（见 §7 换人前置门）——场景只在 TRAIN_MAIN 且倒计时 active 才换，219/zero/failed 不换，删场景标签依赖。
 - **#73 风险（§16，已实现 2026-08-14）**：
   - 待收取+非专三+协助位逻各斯/艾丽妮+干员技能都不在计划 → 长期保护：现读现判下若无新训练开始、无人换协助位，训练室持续不可排班（符合定案，需用户知晓）。
   - 材料门控已删（§16.7，用户 2026-08-14 决定）：无开始前材料检查，材料不足走确认页 fail-fast 兜底（旧行为，`_exit_failed`）。
@@ -414,6 +426,7 @@ python -m ruff check arknights_mower/solvers/ arknights_mower/utils/ arknights_m
 - ④ **帮收**：非专三收取 + 干员技能不在计划 / 干员在计划技能不在 → 通知「mower 帮忙收取」（新增）
 - ⑤ **训练室受保护、mower 无法开始训练**（新增）
 - ⑥ **已到target**：开始训练时发现已专三 → 邮件「已专三」+ DB 标完成（新增，草案要求）
+- ⑦ **协助位纠错失败（#79，2026-08-15）**：run_swap_support 换人前确认协助位，陌生人纠错成 operator 失败 → 邮件「协助位 X 纠错失败，跳过减半换人」+ 不换人 + 排收取（key=plan id，WARNING）
 
 ### 16.10 开始训练术语流（草案 1-8，实现对齐）
 
@@ -421,10 +434,10 @@ python -m ruff check arknights_mower/solvers/ arknights_mower/utils/ arknights_m
 2. lit_zones 判当前等级：已专三 → 邮件⑥+标完成；非专三 → 记等级 → 点确认开始（对钩符号）。
 3. 场景检测：确认页 → 技能选择页（开始成功自动退回）→ 再退出一次 → 回训练室主界面。
 4. 打开进驻详情读协助位。
-5. 按「当前等级+1」路线配置（= target 级，与现状 `get_route_config(prof, target_level)` 一致）比对，非配置干员 → 换协助位。
+5. 按「当前等级+1」路线配置（= 当前步目标级；#76 2026-08-15：`_get_plan_route(plan, step_level)` 按 step_level 加载，不再用整体 target_level——专三计划专一/专二步用 level_1/2 路线减半换人）比对，非配置干员 → 换协助位。
 6. 换人后回到进驻详情浮窗 → 关浮窗回主界面。
 7. 重读左下角倒计时+干员名+技能名+图标，**以当前读取为准**。
-8. 判断是否创建中途换人任务（减半）：是 → 排换人任务（路线 swap_target + 效率 + buffer + 倒计时，`calc_swap_threshold`）且**不排收取**，等 `SWAP_SUPPORT` 完成后重读倒计时再排收取；否（专三等）→ 直接排收取任务。
+8. 判断是否创建中途换人任务（减半）：是 → 排换人任务（路线 swap_target + 效率 + buffer + 倒计时，`calc_swap_threshold`）且**不排收取**，等 `SWAP_SUPPORT` 完成后重读倒计时再排收取；否（当前步路线无 swap_target，如专三）→ 直接排收取任务。
 
 ### 16.11 enable_mastery OFF（2026-08-14 定案）
 
