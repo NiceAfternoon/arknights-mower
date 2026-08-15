@@ -116,6 +116,28 @@ class TestMasteryDb(unittest.TestCase):
         self.assertTrue(delete_plan(pid, path=self.db_path))
         self.assertIsNone(get_plan_by_id(pid, path=self.db_path))
 
+    def test_ensure_tables_once_per_path(self):
+        # #82：同一库路径进程内只建表一次（_tables_created 记录已建库路径）
+        from arknights_mower.utils import mastery_db
+
+        mastery_db._tables_created.discard(self.db_path)
+        self.assertNotIn(self.db_path, mastery_db._tables_created)
+        insert_plan("char_001", 0, 1, path=self.db_path)
+        self.assertIn(
+            self.db_path, mastery_db._tables_created, "首次连接后应记录该库已建表"
+        )
+
+    def test_ensure_tables_recreates_when_db_truncated(self):
+        # #82 沿用 #86 守卫：库文件被清空（0 字节=新库）→ 重置标记，下次连接重建表
+        # 首次插入触发建表；清空后重建表，第二次插入必须成功
+        insert_plan("char_001", 0, 1, path=self.db_path)
+        with open(self.db_path, "wb"):
+            pass  # 清空文件（模拟运行中库被重置）
+        pid2 = insert_plan("char_002", 1, 2, path=self.db_path)  # 应重建表成功
+        self.assertGreater(pid2, 0)
+        plan = get_plan_by_id(pid2, path=self.db_path)
+        self.assertEqual(plan["char_id"], "char_002")
+
     def test_is_operator_busy(self):
         pid = insert_plan("char_001", 0, 1, path=self.db_path)
         self.assertFalse(is_operator_busy("char_001", path=self.db_path))

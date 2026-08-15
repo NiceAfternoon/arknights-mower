@@ -663,11 +663,13 @@ def _reset_fake(solver, plan, room):
 
 
 def _update_expiry(solver, plan, room):
-    """training×🔴 一致：静默重读倒计时、更新 expires_at、重排收取。
+    """training×🔴 一致：重读倒计时、更新 expires_at（同值跳过 DB 写）。
 
     B8：本函数不校验采纳条件——两个调用点（active/hit）都先过 `_can_adopt_expiry`
     （面板干员名+技能名可读且匹配）。任一采纳漏掉该门，不可读的外人倒计时会持续
     「祝福」计划、或把 waiting_collect 无校验降回 training。
+    #82：拆出「排收取」——只写 expires_at（同值不重写，进房不再无谓写 DB），
+    收取由调用方在换人判定后决定（排了换人则不排收取，§16.10 半重叠消除）。
     """
     from arknights_mower.utils.mastery_db import update_plan_status
 
@@ -675,11 +677,25 @@ def _update_expiry(solver, plan, room):
     if countdown is None:
         return
     expires_at = countdown.strftime("%Y-%m-%d %H:%M:%S")
-    update_plan_status(plan["id"], "training", expires_at=expires_at)
-    _schedule_collect(solver, plan, countdown, tier=room.panel.mastery_tier)
+    if plan.get("expires_at") != expires_at:
+        update_plan_status(plan["id"], "training", expires_at=expires_at)
 
 
-def _maybe_recover_swap(solver, plan, room):
+def _refresh_training_plan(solver, plan, room):
+    """training×一致（采纳门通过）：B8 采纳倒计时 + #82 半重叠消除。
+
+    先写 expires_at（同值跳过 DB 写），再跑换人判定（_maybe_recover_swap：重启补排 /
+    #80 陌生人纠错）；排了换人（或队列已有换人任务）就不排收取，没排换人才排收取——
+    消除「收取+换人两任务同队列」的中间态（§16.10，排了换人等 SWAP 完成后重读再排收取）。
+    """
+    _update_expiry(solver, plan, room)
+    if not _maybe_recover_swap(solver, plan, room):
+        countdown = room.panel.countdown
+        if countdown is not None:
+            _schedule_collect(solver, plan, countdown, tier=room.panel.mastery_tier)
+
+
+def _maybe_recover_swap(solver, plan, room) -> bool:
     """#77：重启恢复 training×一致 时补排丢失的 SWAP_SUPPORT。
 
     只补排任务（短动作，不碰房间、不退出）；实际读协助位/纠错/换人由 SWAP dispatch
@@ -690,26 +706,29 @@ def _maybe_recover_swap(solver, plan, room):
     - swap_frozen=1（换人已完成）→ 跳过；
     - 队列已有同计划 SWAP 任务 → 跳过（去重，重启恢复的队列可能还留着旧任务）；
     - 倒计时可读且 `calc_swap_threshold` 判剩余够（<5h 不补排）→ 补排 SWAP 任务。
+    #82：返回「是否排了换人任务（或队列已有）」，True 时调用方不排收取。
     """
     from arknights_mower.utils import config
 
     if not config.conf.enable_mastery:
-        return
+        return False
     if config.conf.assistant_follows_schedule:
-        return
+        return False
     if plan.get("swap_frozen"):
-        return
+        return False
     if _find_swap_task(solver, str(plan["id"])) is not None:
-        return
+        return True  # 已有换人任务在队列 → 调用方不排收取（该任务完成时会排收取）
     countdown = room.panel.countdown
     if countdown is None:
-        return
+        return False
     # 当前步目标级 = 主面板专精图标（亮 N 颗=专N，#76），读不到回退 target_level
     step_level = room.panel.mastery_tier or None
     from arknights_mower.solvers.mastery import _schedule_swap_if_needed
 
     if _schedule_swap_if_needed(solver, plan, countdown, step_level):
         logger.info(f"[mastery] #77 重启恢复：补排换人任务 id={plan['id']}")
+        return True
+    return False
 
 
 def _wait_for_training(solver, room):
@@ -1030,9 +1049,7 @@ def _reconcile_training(solver, room, active, plans):
     if active is not None:
         if _can_adopt_expiry(active, room):
             _log_judgment(solver, room, "training", "训练中×一致，静默更新到期时间")
-            _update_expiry(solver, active, room)
-            # #77：重启丢失的 SWAP_SUPPORT 补排（短动作），纠错由 SWAP dispatch 的 #79 做
-            _maybe_recover_swap(solver, active, room)
+            _refresh_training_plan(solver, active, room)
             return None, True
         if not _plan_matches_room(active, room):
             # 干员/技能可读但不匹配 → 假记录 → 重置 + 通知②
@@ -1053,8 +1070,7 @@ def _reconcile_training(solver, room, active, plans):
             return None, True
         if _can_adopt_expiry(hit, room):
             # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
-            _update_expiry(solver, hit, room)
-            _maybe_recover_swap(solver, hit, room)
+            _refresh_training_plan(solver, hit, room)
             return None, True
         # hit 技能名不可读 → 不采纳（不判计划外、不重检），静默等待
         logger.debug("命中计划但面板技能不可读，不采纳倒计时，静默等待")

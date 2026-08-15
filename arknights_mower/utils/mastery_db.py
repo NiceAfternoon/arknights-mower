@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from contextlib import contextmanager
 from typing import Optional
@@ -63,17 +64,32 @@ def _db(path: Optional[str] = None) -> sqlite3.Connection:
     return conn
 
 
+# 已建表库路径集合：`_ensure_tables` 进程内每个库只跑一次（表结构只在代码升级时变）。
+# 连接仍每次新开（避开 sqlite 跨线程复用）。
+_tables_created: set = set()
+
+
 @contextmanager
 def _conn(path: Optional[str] = None):
+    if path is None:
+        get_path("@app/tmp").mkdir(exist_ok=True)
+        path = str(get_path("@app/tmp/data.db"))
+    # 数据库文件被删/为空（新库）→ 重置该库建表标记，本次连接重建表（#86 同款守卫，
+    # 防运行中丢库后 no-such-table；空文件=全新库尚未建表）
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        _tables_created.discard(path)
     conn = _db(path)
     try:
-        _ensure_tables(conn)
+        _ensure_tables(conn, path)
         yield conn
     finally:
         conn.close()
 
 
-def _ensure_tables(conn: sqlite3.Connection):
+def _ensure_tables(conn: sqlite3.Connection, path: str):
+    """建表/迁移检查，每个库路径进程内只跑一次（#82）。"""
+    if path in _tables_created:
+        return
     cur = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='mastery_plan'"
     )
@@ -94,6 +110,7 @@ def _ensure_tables(conn: sqlite3.Connection):
             "ALTER TABLE mastery_route ADD COLUMN half_off INTEGER NOT NULL DEFAULT 1"
         )
     conn.commit()
+    _tables_created.add(path)
 
 
 # --- Plan CRUD ---

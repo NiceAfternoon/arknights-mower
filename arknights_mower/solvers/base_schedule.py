@@ -63,7 +63,11 @@ from arknights_mower.utils.maa_check import (
     is_maa_connectivity_check_enabled,
     run_maa_connectivity_check,
 )
-from arknights_mower.utils.operators import Operator, Operators
+from arknights_mower.utils.operators import (
+    TRADE_ORDER_AGENTS,
+    Operator,
+    Operators,
+)
 from arknights_mower.utils.path import get_path
 from arknights_mower.utils.plan import PlanTriggerTiming
 from arknights_mower.utils.recognize import Recognizer, Scene
@@ -80,9 +84,6 @@ from arknights_mower.utils.scheduler_task import (
 )
 from arknights_mower.utils.simulator import restart_simulator
 from arknights_mower.utils.trading_order import TradingOrder
-
-# 赤金交易订单干员常量
-TRADE_ORDER_AGENTS = ["但书", "龙舌兰", "佩佩", "可露希尔"]
 
 
 def _is_mastery_busy(operator_name: str) -> bool:
@@ -1759,6 +1760,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             ].replacement, self.op_data.operators["菲亚梅塔"].room
         return None, None
 
+    def _run_order_time_region(self):
+        """#85：跑单剩余时间的双端坐标（三处调用点曾各自复制，UI 调整只改这里）。"""
+        return (
+            (int(self.recog.w * 650 / 2496), int(self.recog.h * 660 / 1404)),
+            (int(self.recog.w * 815 / 2496), int(self.recog.h * 710 / 1404)),
+        )
+
     def get_run_order_time(self, room):
         logger.info("基建：读取插拔时间")
         # 点击进入该房间
@@ -1771,10 +1779,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.tap((self.recog.w * 0.05, self.recog.h * 0.95), interval=1)
             error_count += 1
         execute_time = self.double_read_time(
-            (
-                (int(self.recog.w * 650 / 2496), int(self.recog.h * 660 / 1404)),
-                (int(self.recog.w * 815 / 2496), int(self.recog.h * 710 / 1404)),
-            ),
+            self._run_order_time_region(),
             use_digit_reader=True,
         )
         execute_time = execute_time - timedelta(
@@ -3108,10 +3113,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             error_count += 1
         # 订单剩余时间
         execute_time = self.double_read_time(
-            (
-                (int(self.recog.w * 650 / 2496), int(self.recog.h * 660 / 1404)),
-                (int(self.recog.w * 815 / 2496), int(self.recog.h * 710 / 1404)),
-            ),
+            self._run_order_time_region(),
             use_digit_reader=True,
         )
         return round((execute_time - datetime.now()).total_seconds(), 1)
@@ -3448,16 +3450,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     error_count += 1
                 # 订单剩余时间
                 execute_time = self.double_read_time(
-                    (
-                        (
-                            int(self.recog.w * 650 / 2496),
-                            int(self.recog.h * 660 / 1404),
-                        ),
-                        (
-                            int(self.recog.w * 815 / 2496),
-                            int(self.recog.h * 710 / 1404),
-                        ),
-                    ),
+                    self._run_order_time_region(),
                     use_digit_reader=True,
                 )
                 wait_time = round((execute_time - datetime.now()).total_seconds(), 1)

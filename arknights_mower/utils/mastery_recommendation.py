@@ -340,12 +340,29 @@ def compute_workshop_config(
     from arknights_mower.data import workshop_formula
     from arknights_mower.utils.mastery_db import get_all_plans
 
-    db_plans = get_all_plans()
+    # #83：计划直接读 DB（get_all_plans 非终态）。matery_plan.json 是全仓库无写入者
+    # 的孤儿文件（@app/tmp 上的 stale key），UI/API/agent 新增计划不在里面；completed/
+    # failed 计划不核算材料（不消耗；failed 已由扫描钩子 retry_failed_plans 先重置 idle）。
+    from arknights_mower.utils.mastery_db import get_all_plans
+
     planned_keys = [
-        f"{p['char_id']}_{p['skill_index']}"
-        for p in db_plans
-        if p.get("status") != "completed"
+        f"{p['char_id']}_{p['skill_index']}" for p in get_all_plans()
     ]
+
+    if planned_keys:
+        try:
+            cultivate_path = get_path("@app/tmp/cultivate.json")
+            if os.path.exists(cultivate_path):
+                with open(cultivate_path, "r", encoding="utf-8") as f:
+                    cdata = json.load(f)
+                m3 = set()
+                for char in cdata.get("data", {}).get("characters", []):
+                    for idx, s in enumerate(char.get("skills", [])):
+                        if s.get("level", 0) >= 3:
+                            m3.add(f"{char.get('id')}_{idx}")
+                planned_keys = [k for k in planned_keys if k not in m3]
+        except Exception:
+            pass
 
     skill_data_path = _find_skill_data()
     with open(skill_data_path, "r", encoding="utf-8") as f:
@@ -545,42 +562,15 @@ def compute_default_workshop_config(
     )
 
 
-_default_route_cache = None
-
-
-def _load_default_route():
-    global _default_route_cache
-    if _default_route_cache is not None:
-        return _default_route_cache
-    path = get_path("@internal/arknights_mower/data/training_route.json")
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                _default_route_cache = json.load(f)
-        except Exception:
-            _default_route_cache = {}
-    else:
-        _default_route_cache = {}
-    return _default_route_cache
-
-
 def auto_schedule_mastery_tasks():
     """仓库扫描后：检测计划内未满M3的技能，直接需求全部满足则返回待安排列表"""
     result = {"scheduled": [], "skipped": []}
 
-    from arknights_mower.utils.mastery_db import get_all_plans, get_pending_plans
+    # #83：计划直接读 DB（get_all_plans 非终态）——matery_plan.json 是全仓库无写入者
+    # 的孤儿文件，只靠它的话新装/绕过前端新增的计划永远不在 plan_set，扫描自动开始失效。
+    from arknights_mower.utils.mastery_db import get_all_plans
 
-    db_plans = get_pending_plans()
-    if not db_plans:
-        all_plans = get_all_plans()
-        if not all_plans:
-            return result
-        db_plans = [p for p in all_plans if p.get("status") in ("pending", "failed")]
-
-    plan_set = set()
-    for p in db_plans:
-        plan_set.add((p["char_id"], p["skill_index"]))
-
+    plan_set = {(p["char_id"], p["skill_index"]) for p in get_all_plans()}
     if not plan_set:
         return result
 

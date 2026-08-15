@@ -184,7 +184,7 @@ class Operators:
             for idx, data in enumerate(self.plan[room]):
                 if data.agent not in agent_list and data.agent != "Free":
                     return f"干员名输入错误: 房间->{room}, 干员->{data.agent}"
-                if data.agent in TRADE_ORDER_AGENTS + ["可露希尔"]:
+                if data.agent in TRADE_ORDER_AGENTS:
                     return f"高效组不可用龙舌兰，但书,佩佩，可露希尔 房间->{room}, 干员->{data.agent}"
                 if data.agent == "菲亚梅塔" and idx == 1:
                     return f"菲亚梅塔不能安排在2号位置 房间->{room}, 干员->{data.agent}"

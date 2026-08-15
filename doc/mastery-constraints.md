@@ -109,7 +109,7 @@
 | DB | 截图 | 动作 |
 |---|---|---|
 | arranging | 任意 | 先重置 idle，再继续对账（不发通知） |
-| active(training) | 🔴 training 一致 | 静默 `_update_expiry`：重读倒计时、刷新 expires_at、重排收取（不发通知） |
+| active(training) | 🔴 training 一致 | 静默 `_refresh_training_plan`：重读倒计时、刷新 expires_at（同值跳过 DB 写）、先换人判定再排收取——排了换人则不排收取（§16.10 半重叠消除，**#82**）；不发通知 |
 | active | 🟡 waiting_collect | `_collect_plan` 收取，级联返回 `arrange_support=False` |
 | active | ⚪ 空房 | 重置 idle + 重开（**不发 ② fake_reset**，空房无从比对） |
 | active | 干员/技能与截图不一致（且面板可读） | 重置 idle + 发 ② fake_reset（dedup key=plan id） |
@@ -233,6 +233,7 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
   - **异常安全**：任何 DB 错误返回 False，绝不因 DB 故障冻住宿舍/基建排班。（BUSY-03）
 - **通知去重表** `mastery_notify`：(notify_type, dedup_key) 主键 + `INSERT OR IGNORE`；`should_notify` fail open。（NTFY-01/03）
 - **懒填充**：所有把计划交给消费者的读路径（`get_all_plans`/`get_plan_by_id`/`get_active_plan`/`get_next_idle_plan`）都必须过 `lazy_fill_plan_names`，消费者永不看到 NULL char_name 或占位 skill_name。（LZ-02）
+- **建表只跑一次（#82，2026-08-15）**：`_ensure_tables` 按库路径进程内只跑一次（模块级 `_tables_created` 集合），连接仍每次新开；库文件被删/被清空（0 字节）→ 重置该库标记，下次连接重建表（#86 同款守卫，防运行中丢库后 no-such-table）。
 - **队列不变量**：`SKILL_UPGRADE` 同形状任务恒 ≤1（按 plan_key 去重，到点改期不新增）；`plan_key=None` 是占用重检，`meta_data` 留空；`plan_key=计划id` 是收取任务或扫描驱动的开始任务（均无逻辑标记，meta_data 仅描述性标签；房间状态决定行为：空闲→开始、待收取→收集+继续本级当场开）。开始任务在计划开始后按 plan_key 原位升级为收取任务（`_schedule_collect` 去重命中）。（TASK-01/C-32）
 - `expires_at` 存 localtime 文本 `%Y-%m-%d %H:%M:%S`，仅用于调度重查，改格式会破坏比较。
 
@@ -245,7 +246,11 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 - **材料核算是链路级**：同一 `remaining_inventory` 跨阶段递减，任一短缺 → 整链不可达；`chain_total_needed` 按整链汇总。（R-06）
 - **自动排程条件**（R-10）：(char_id, skill_index) ∈ plan_set 且 current_level < 3 且 **每条链级材料 owned ≥ count** 才 `scheduled`，否则 `skipped`。
 - **仓库扫描钩子固定顺序**（R-15）：`cultivateDepotSolver().start()` → `DepotSolver().run()` → `retry_failed_plans()` → `auto_schedule_mastery_tasks()` → `compute_workshop_config()`。（`base_schedule.py:4445-4480`）
-- **`matery_plan.json` 拼写错误是 load-bearing 契约**：`auto_schedule_mastery_tasks` 与 `compute_workshop_config` 都硬编码此路径（`get_path('@app/tmp/matery_plan.json')`），重命名需两边同步改。（R-09）
+- **`matery_plan.json` 已废弃（#83，2026-08-15）**：`auto_schedule_mastery_tasks` 与
+  `compute_workshop_config` 改为直接读 DB 计划（`get_all_plans()` 非终态），不再读
+  `@app/tmp/matery_plan.json`（原文件是全仓库无写入者的孤儿文件，UI/API/agent 新增计划
+  不在里面 → 扫描自动开始失效）。completed/failed 计划不核算材料（不消耗；failed 由
+  扫描钩子 `retry_failed_plans` 先重置 idle）。扫描开始路径、材料核算与实际计划一致。（R-09 已替换）
 - **`PROF_MAP`（EN→CN，8 职业）在两个模块重复定义**（`mastery_recommendation.py:707` 与 `mastery.py:183`），必须保持同步，否则路线/协助位查找静默分歧。（R-16）
 - 技能名产出用 `format_skill_label`，保证规范格式。（R-05）
 - 阶段展示 `from_level=stage+7 / to_level=stage+8`，末阶段 to_level 到 10 —— 纯展示约定，消费者不得把 to_level 当真实等级。（open_risks）
@@ -303,7 +308,9 @@ API 只增删计划与调优先级，**不得直写 status**（状态由执行�
   - keepalive 已删（含 #66 的 60s 守卫 `_skill_upgrade_just_dispatched`）：不再有「DB 有计划就自动入队 now-task」。空闲 idle 计划开始入口 = **扫描派发**（`_dispatch_scan_start_tasks`，材料足够才入队）；普通重启会从 data.db 恢复任务队列（含已入队的扫描任务），缓存清零重启则清空队列。
   - **「都去掉」定案（2026-08-14 用户拍板）**：扫描任务标记（`SCAN_START_MARKER`）与进程内存记号（`_scan_started_plan_ids`）**均已删除**。设计退化为最简：任何带 `plan_key` 的 SKILL_UPGRADE 任务在空闲×未保护格都会开始其指定计划（房间状态决定分支：空闲→开始、待收取→收集+继续本级当场开）；继续本级一律当场开，重启后也不保守等扫描。**已知代价**（用户接受，出问题再回来）：重启后材料不足 → 确认页 fail-fast → 临时 failed + 报错邮件；残留/时间错任务在空闲房会直接开计划（触发时机不可控）；瞬时 completed/空跑噪音更频繁。安全性由 #69 面板归属校验 / #70 档位读失败保守 / 已到target检测兜底（不会开错训练）。
   - **排班先收竞态（✅ #75 方案 C 已修，2026-08-14）**：原为排班 gate 抢在收取任务前用 `reconcile_short` 收了练完的训练 → 残留收取任务触发时空闲房**直接开下一级**（「都去掉」后无标记拦截）。修法：gate 传 `defer_collect=True`，待收取格命中计划且队列已有任一 SKILL_UPGRADE 任务（排除当前 dispatch）→ 跳过本次收集、留给队列任务收（任何 dispatch 进房都会收待收取格，收完被消费 → 无残留）；队列空（如缓存清零重启丢了）→ 照常收集（恢复兜底）。**专三同样纳入 skip**（2026-08-14 用户撤回例外：③ 邮件在任务 dispatch 收取时发、不丢）；**不查任务时间**（用户拍板：任务时间排错时收集拖延可接受——「拖很久就拖很久」）。dispatch 路径（reconcile_and_act，当前任务即收集任务）defer 恒 False 永不跳过。
-  - **matery_plan.json 依赖（R-09）**：`_dispatch_scan_start_tasks` 只对 auto_schedule 的 `scheduled`（按 matery_plan.json 的 plan_set 过滤）匹配的 DB idle 计划入队。DB 计划若未同步进 matery_plan.json（如绕过前端直接 POST /mastery-plan）不会被扫描拉起，等文件刷新后再排。
+  - **计划来源 = DB（#83，2026-08-15）**：`_dispatch_scan_start_tasks` 对
+    `auto_schedule_mastery_tasks` 的 `scheduled`（按 DB 计划核算材料）匹配 DB idle 计划
+    入队开始任务——UI/API/agent 新增计划都会被扫描自动拉起，不再依赖 matery_plan.json。
   - **训练无法取消（游戏机制，prts.wiki）**：训练开始后不可中止，训练位干员直到完成不可移动。因此训练室不可能出现「训练中途被取消 → 空房」；空闲房只来自「从未开始」或「完成并已收取」。
 - 测试环境坑：`mastery_choose_train_tests.py` 必须在 import 时 stub `arknights_mower.utils.skland`（base_schedule 导入链会触发 `SecuritySm.get_d_id` 网络调用）——环境性 flake。
 - **#78 浮窗识别盲区（2026-08-15 修复）**：`get_train_scene` 新增 `find("room_detail") → INFRA_DETAILS(205)`（浮窗头，放在 train_main 之前）——浮窗开着时不再被误标 217/219。**不可用 `arrange_check_in`**（裸主页面也有，加了会恒 205、217 永远不出来）。复活所有「`INFRA_DETAILS → back()` 关浮窗」死代码：`_read_slots`（读完进驻详情自己关，调用方 `_fill_slots_and_protection` 不再二次关）、`_settle_in_room`、`_start_new_training`、`run_swap_support`、`train_slot_locked`、`_read_train_countdown`。`back()`→`sleep()`→`recog.update()` 重置场景缓存，无死循环。`_training_slots` 仍不关浮窗（由 `_start_new_training` 唯一调用方关，单次 back 无二次退出）。**顺带整合（#78 comment 拍板）**：`run_swap_support` 换人前改 `read_main_panel` 读全 + 倒计时门（见 §7 换人前置门）——场景只在 TRAIN_MAIN 且倒计时 active 才换，219/zero/failed 不换，删场景标签依赖。

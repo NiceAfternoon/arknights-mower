@@ -1595,5 +1595,109 @@ class TestReadSlotsCloseFloatingWindow(unittest.TestCase):
         solver.back.assert_not_called()
 
 
+class TestUpdateExpirySkipWrite(unittest.TestCase):
+    """#82：_update_expiry 只写 expires_at（拆出排收取），倒计时未变时跳过 DB 写。"""
+
+    def _plan(self, expires_at):
+        return make_plan(status="training", expires_at=expires_at)
+
+    def _room(self, countdown):
+        return reader.RoomState(
+            state="training",
+            panel=make_panel(countdown=countdown, countdown_state="active"),
+        )
+
+    def test_same_expires_at_skips_write(self):
+        solver = MagicMock()
+        countdown = datetime.now() + timedelta(hours=2)
+        plan = self._plan(countdown.strftime("%Y-%m-%d %H:%M:%S"))
+        with patch("arknights_mower.utils.mastery_db.update_plan_status") as upd:
+            reader._update_expiry(solver, plan, self._room(countdown))
+        upd.assert_not_called()
+
+    def test_changed_expires_at_writes(self):
+        solver = MagicMock()
+        countdown = datetime.now() + timedelta(hours=2)
+        plan = self._plan("2000-01-01 00:00:00")
+        with patch("arknights_mower.utils.mastery_db.update_plan_status") as upd:
+            reader._update_expiry(solver, plan, self._room(countdown))
+        upd.assert_called_once_with(
+            1, "training", expires_at=countdown.strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+    def test_countdown_missing_no_write(self):
+        solver = MagicMock()
+        plan = self._plan(None)
+        room = self._room(None)
+        room.panel.countdown_state = "failed"
+        with patch("arknights_mower.utils.mastery_db.update_plan_status") as upd:
+            reader._update_expiry(solver, plan, room)
+        upd.assert_not_called()
+
+
+class TestRefreshTrainingHalfOverlap(unittest.TestCase):
+    """#82：半重叠消除——先换人判定，排了换人就不排收取；没排换人才排收取（§16.10）。"""
+
+    def setUp(self):
+        self.patch_follows = patch.object(
+            reader.config.conf, "assistant_follows_schedule", False
+        )
+        self.patch_enable = patch.object(reader.config.conf, "enable_mastery", True)
+        self.patch_follows.start()
+        self.patch_enable.start()
+        self.addCleanup(self.patch_follows.stop)
+        self.addCleanup(self.patch_enable.stop)
+
+    def _room(self):
+        return reader.RoomState(
+            state="training",
+            panel=make_panel(
+                mastery_tier=2, countdown=datetime.now() + timedelta(hours=6),
+                countdown_state="active",
+            ),
+        )
+
+    def test_no_swap_schedules_collect(self):
+        solver = MagicMock()
+        solver.tasks = []
+        plan = make_plan(status="training", swap_frozen=0)
+        with (
+            patch.object(reader, "_update_expiry"),
+            patch.object(reader, "_maybe_recover_swap", return_value=False),
+            patch.object(reader, "_schedule_collect") as sc,
+        ):
+            reader._refresh_training_plan(solver, plan, self._room())
+        sc.assert_called_once()
+
+    def test_swap_scheduled_skips_collect(self):
+        solver = MagicMock()
+        solver.tasks = []
+        plan = make_plan(status="training", swap_frozen=0)
+        with (
+            patch.object(reader, "_update_expiry"),
+            patch.object(reader, "_maybe_recover_swap", return_value=True),
+            patch.object(reader, "_schedule_collect") as sc,
+        ):
+            reader._refresh_training_plan(solver, plan, self._room())
+        sc.assert_not_called()
+
+    def test_queued_swap_task_skips_collect(self):
+        # 队列已有同计划 SWAP 任务 → _maybe_recover_swap 返回 True（不重复排）→ 不排收取
+        solver = MagicMock()
+        task = reader.SchedulerTask(
+            time=datetime.now(), task_type=reader.TaskTypes.SWAP_SUPPORT
+        )
+        task.plan_key = "1"
+        solver.tasks = [task]
+        plan = make_plan(status="training", swap_frozen=0)
+        with (
+            patch.object(reader, "_update_expiry"),
+            patch.object(reader, "_maybe_recover_swap", return_value=True),
+            patch.object(reader, "_schedule_collect") as sc,
+        ):
+            reader._refresh_training_plan(solver, plan, self._room())
+        sc.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
