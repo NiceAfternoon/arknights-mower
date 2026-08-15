@@ -125,9 +125,7 @@ class MasteryPlanView(MethodView):
                 if plan_id > 0:
                     results.append({"key": name, "status": "added", "id": plan_id})
                 else:
-                    results.append(
-                        {"key": name, "status": "error", "reason": reason}
-                    )
+                    results.append({"key": name, "status": "error", "reason": reason})
         else:
             for name, skill_index in data.items():
                 char_id = name_to_id.get(name)
@@ -161,9 +159,7 @@ class MasteryPlanView(MethodView):
                 if plan_id > 0:
                     results.append({"key": name, "status": "added", "id": plan_id})
                 else:
-                    results.append(
-                        {"key": name, "status": "error", "reason": reason}
-                    )
+                    results.append({"key": name, "status": "error", "reason": reason})
         return {"results": results}
 
     def delete(self):

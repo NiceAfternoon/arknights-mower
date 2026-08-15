@@ -103,16 +103,24 @@ class TestCountLitMainPanelIcons(unittest.TestCase):
         return s
 
     def test_zero(self):
-        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([]))), 0)
+        self.assertEqual(
+            reader._count_lit_mastery_icons(self._solver(self._canvas([]))), 0
+        )
 
     def test_one_top(self):
-        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0]))), 1)
+        self.assertEqual(
+            reader._count_lit_mastery_icons(self._solver(self._canvas([0]))), 1
+        )
 
     def test_two_top_and_second(self):
-        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1]))), 2)
+        self.assertEqual(
+            reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1]))), 2
+        )
 
     def test_three_all(self):
-        self.assertEqual(reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1, 2]))), 3)
+        self.assertEqual(
+            reader._count_lit_mastery_icons(self._solver(self._canvas([0, 1, 2]))), 3
+        )
 
     def test_no_img_zero(self):
         self.assertEqual(reader._count_lit_mastery_icons(self._solver(None)), 0)
@@ -163,9 +171,7 @@ class TestReadSlotMasteryTier(unittest.TestCase):
         self.assertEqual(tier, 2)
 
     def test_tier_three_all_lit(self):
-        tier = reader._read_slot_mastery_tier(
-            self._solver(self._canvas([0, 1, 2])), 0
-        )
+        tier = reader._read_slot_mastery_tier(self._solver(self._canvas([0, 1, 2])), 0)
         self.assertEqual(tier, 3)
 
     def test_skill_two_uses_its_own_boxes(self):
@@ -233,7 +239,9 @@ class TestClassifyRoom(unittest.TestCase):
 
     def test_other_scene_conservative(self):
         self.assertEqual(
-            reader.classify_room_state(Scene.TRAIN_SKILL_SELECT, "failed", False, False),
+            reader.classify_room_state(
+                Scene.TRAIN_SKILL_SELECT, "failed", False, False
+            ),
             "training",
         )
         self.assertEqual(
@@ -538,7 +546,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room(tier=2)
         with patch(
-            "arknights_mower.solvers.mastery._schedule_swap_if_needed", return_value=True
+            "arknights_mower.solvers.mastery._schedule_swap_if_needed",
+            return_value=True,
         ) as sched:
             reader._maybe_recover_swap(solver, plan, room)
         sched.assert_called_once_with(solver, plan, room.panel.countdown, 2)
@@ -597,7 +606,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()  # target_level=3
         room = self._room(tier=0)
         with patch(
-            "arknights_mower.solvers.mastery._schedule_swap_if_needed", return_value=False
+            "arknights_mower.solvers.mastery._schedule_swap_if_needed",
+            return_value=False,
         ) as sched:
             reader._maybe_recover_swap(solver, plan, room)
         sched.assert_called_once_with(solver, plan, room.panel.countdown, None)
@@ -606,15 +616,19 @@ class TestReconcileRecoverSwap(unittest.TestCase):
 
     def _correction_route(self, swap_target="逻各斯"):
         return {
-            "operator": "夜半", "swap_target": swap_target,
-            "central_bonus": 5, "efficiency": 75, "job_match": True,
+            "operator": "夜半",
+            "swap_target": swap_target,
+            "central_bonus": 5,
+            "efficiency": 75,
+            "job_match": True,
         }
 
     def _slots(self, support):
         solver = self._solver()
         solver.train_scene.return_value = Scene.TRAIN_MAIN
         solver.get_agent_from_room.return_value = [
-            {"agent": support}, {"agent": "能天使"},
+            {"agent": support},
+            {"agent": "能天使"},
         ]
         return solver
 
@@ -625,8 +639,10 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room()
         with (
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value=self._correction_route()),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
             patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
             result = reader._maybe_recover_swap(solver, plan, room)
@@ -658,10 +674,14 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room()
         with (
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value=self._correction_route()),
-            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed",
-                  return_value=True) as sched,
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
+            patch(
+                "arknights_mower.solvers.mastery._schedule_swap_if_needed",
+                return_value=True,
+            ) as sched,
         ):
             result = reader._maybe_recover_swap(solver, plan, room)
         self.assertTrue(result)
@@ -677,8 +697,10 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room()
         with (
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value=self._correction_route()),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
             patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
             result = reader._maybe_recover_swap(solver, plan, room)
@@ -692,8 +714,10 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room()
         with (
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value=self._correction_route()),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
             patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
             reader._maybe_recover_swap(solver, plan, room)
@@ -705,9 +729,15 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         plan = self._training_plan()
         room = self._room()
         with (
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value={"swap_target": "逻各斯", "central_bonus": 5,
-                                "efficiency": 75, "job_match": True}),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
             reader._maybe_recover_swap(solver, plan, room)
@@ -720,8 +750,10 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         room = self._room()
         with (
             patch.object(reader, "_update_expiry"),
-            patch("arknights_mower.solvers.mastery._get_plan_route",
-                  return_value=self._correction_route()),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
             patch.object(reader, "_schedule_collect") as sc,
         ):
             reader._reconcile_training(solver, room, plan, [plan])
@@ -775,12 +807,19 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
             ),
             patch.object(reader, "_update_expiry"),
-            patch("arknights_mower.solvers.mastery._get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5,
-                "efficiency": 75, "job_match": True,
-            }),
-            patch("arknights_mower.solvers.mastery.calc_swap_threshold",
-                  return_value=(True, 100.0)),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
+            patch(
+                "arknights_mower.solvers.mastery.calc_swap_threshold",
+                return_value=(True, 100.0),
+            ),
         ):
             reader.reconcile_short(solver, room)
         swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
@@ -800,12 +839,19 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_all_plans", return_value=[plan]
             ),
             patch.object(reader, "_update_expiry"),
-            patch("arknights_mower.solvers.mastery._get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5,
-                "efficiency": 75, "job_match": True,
-            }),
-            patch("arknights_mower.solvers.mastery.calc_swap_threshold",
-                  return_value=(False, 10000.0)),
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
+            patch(
+                "arknights_mower.solvers.mastery.calc_swap_threshold",
+                return_value=(False, 10000.0),
+            ),
         ):
             reader.reconcile_short(solver, room)
         self.assertFalse(
@@ -1214,7 +1260,9 @@ class TestReconcileMatrix(unittest.TestCase):
             solver.tasks.remove(solver.task)
             solver.task = None
         self.assertEqual(len(solver.tasks), 1)
-        self.assertEqual(solver.tasks[0].time, countdown + reader.ARRANGING_RETRY_BUFFER)
+        self.assertEqual(
+            solver.tasks[0].time, countdown + reader.ARRANGING_RETRY_BUFFER
+        )
 
     def test_waiting_collect_matched_collects(self):
         solver = MagicMock()
@@ -1530,11 +1578,15 @@ class TestReconcileAndAct(unittest.TestCase):
         with (
             self._enable(),
             patch.object(reader, "read_room_state", return_value=room),
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=None
+            ),
             patch("arknights_mower.utils.mastery_db.get_all_plans", return_value=[]),
             patch.object(reader, "_reconcile", return_value=(scan_plan, True)) as rec,
         ):
-            result, arrange_support = reader.reconcile_and_act(solver, scan_plan=scan_plan)
+            result, arrange_support = reader.reconcile_and_act(
+                solver, scan_plan=scan_plan
+            )
         rec.assert_called_once_with(solver, room, None, [], scan_plan=scan_plan)
         self.assertIs(result, scan_plan)
 
@@ -1779,7 +1831,8 @@ class TestRefreshTrainingHalfOverlap(unittest.TestCase):
         return reader.RoomState(
             state="training",
             panel=make_panel(
-                mastery_tier=2, countdown=datetime.now() + timedelta(hours=6),
+                mastery_tier=2,
+                countdown=datetime.now() + timedelta(hours=6),
                 countdown_state="active",
             ),
         )

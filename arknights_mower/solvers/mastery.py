@@ -662,7 +662,9 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
                 if panel.operator_name and not _plan_matches_room(
                     plan, RoomState("training", panel)
                 ):
-                    _exit_failed(solver, plan, "训练室面板干员/技能与计划不符，未开始训练")
+                    _exit_failed(
+                        solver, plan, "训练室面板干员/技能与计划不符，未开始训练"
+                    )
                     return "failed"
                 if not panel.operator_name:
                     logger.debug(
@@ -701,7 +703,9 @@ def _confirm_training_started(solver, plan, deadline, arrange_support=True):
                 if arrange_support:
                     _arrange_support(solver, plan, step_level)
                 # §16.10：排了换人任务则不排收取；等 SWAP_SUPPORT 完成后重读倒计时再排收取。
-                swap_scheduled = _schedule_swap_if_needed(solver, plan, execute_time, step_level)
+                swap_scheduled = _schedule_swap_if_needed(
+                    solver, plan, execute_time, step_level
+                )
                 if not swap_scheduled:
                     _schedule_collect(solver, plan, execute_time, tier=step_level)
                 return "started"

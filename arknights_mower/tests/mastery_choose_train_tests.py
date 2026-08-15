@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 # skland，预置 stub 挡住，避免单测依赖外网。
 sys.modules.setdefault("arknights_mower.utils.skland", MagicMock())
 
-from arknights_mower.solvers.base_schedule import BaseSchedulerSolver
-from arknights_mower.utils.scene import Scene
+from arknights_mower.solvers.base_schedule import BaseSchedulerSolver  # noqa: E402
+from arknights_mower.utils.scene import Scene  # noqa: E402
 
 choose_train = BaseSchedulerSolver.choose_train
 
@@ -113,9 +113,7 @@ class TestChooseTrainD4LockSkip(unittest.TestCase):
         with self.assertRaises(Exception) as ctx:
             choose_train(solver, ["Current", "若叶睦"])
         self.assertIn("训练位被锁定", str(ctx.exception))
-        self.assertFalse(
-            solver.choose_train_ope.called, "锁定的训练位不应尝试更换"
-        )
+        self.assertFalse(solver.choose_train_ope.called, "锁定的训练位不应尝试更换")
         self.assertFalse(solver.choose_agent.called, "协助位 Current 保持原样")
 
     def test_locked_trainer_keeps_assistant_then_raises(self):
