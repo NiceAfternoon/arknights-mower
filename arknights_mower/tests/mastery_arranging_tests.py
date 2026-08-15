@@ -698,8 +698,10 @@ class TestSwapCollectGating(unittest.TestCase):
         self.assertEqual(route_calls, [None], "应把缺省 step_level 传给路线加载")
 
     def test_run_swap_support_schedules_collect_after_swap(self):
-        # §16.10：SWAP_SUPPORT 完成后重读倒计时再排收取
+        # §16.10：SWAP_SUPPORT 完成后重读倒计时再排收取。倒计时得「值得换」
+        # （换后真实 ≥ 301，read_time=15000→250 分钟）才会真正执行换人。
         solver = self._solver()
+        solver.read_time.return_value = 15000  # 250 分钟，换后真实 ≈ 330 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
             patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
@@ -710,6 +712,7 @@ class TestSwapCollectGating(unittest.TestCase):
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
         solver.choose_train.assert_called_once_with(["逻各斯", "Current"])
@@ -761,8 +764,10 @@ class TestSwapCollectGating(unittest.TestCase):
         return [{"agent": support}, {"agent": "能天使"}]
 
     def test_swap_support_corrects_stranger_slot(self):
-        # #79：协助位是陌生人（非 operator 非 swap_target）→ 先纠错成 operator 再换人
+        # #79：协助位是陌生人（非 operator 非 swap_target）→ 先纠错成 operator 再换人。
+        # 倒计时得「值得换」（read_time=15000→250 分钟）才会换 swap_target。
         solver = self._solver()
+        solver.read_time.return_value = 15000  # 250 分钟，换后真实 ≈ 330 分钟
         solver.get_agent_from_room.return_value = self._slots("陌生人")
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
@@ -772,12 +777,36 @@ class TestSwapCollectGating(unittest.TestCase):
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
         calls = [c.args[0] for c in solver.choose_train.call_args_list]
         self.assertEqual(calls, [["夜半", "Current"], ["逻各斯", "Current"]],
                          "陌生人 → 先纠错成 operator，再换入 swap_target")
         upd.assert_called_once_with(1, "training", swap_frozen=1)
+        sc.assert_called_once()
+
+    def test_swap_support_correction_not_worthwhile_no_swap(self):
+        # #80 acceptance 2：时间不足（换后真实 < 301）的步，纠错只纠成 operator，
+        # **不触发不该发生的减半换人**（只排收取退出）
+        solver = self._solver()
+        solver.read_time.return_value = 3600  # 60 分钟，换后真实 ≈ 79 分钟
+        solver.get_agent_from_room.return_value = self._slots("陌生人")
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch.object(mastery, "_get_plan_route", return_value=self._correction_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        solver.choose_train.assert_called_once_with(["夜半", "Current"])  # 只纠错，不换人
+        upd.assert_not_called()  # 不置 swap_frozen
+        solver.back.assert_called_once()  # 排收取后退出
         sc.assert_called_once()
 
     def test_swap_support_already_swap_target_no_swap(self):
@@ -819,68 +848,131 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.back.assert_called_once()
         sc.assert_called_once()  # 收集仍保证
 
-    def test_swap_failure_worthwhile_reschedules(self):
-        # d：换人失败 + 剩余还够（换后真实剩余 ≥ 301）→ 重排 SWAP_SUPPORT 重试
+    def test_swap_failure_retries_in_place_then_gives_up(self):
+        # #81：换人失败立刻原地重试（无 +5min 间隔、不排新任务），5 次仍失败 → 放弃
+        # + ⑧ 通知，不置 swap_frozen（接受下次进房重排，暂时性失败可被救回）
         solver = self._fail_solver(read_seconds=15000)  # 250 分钟，换后真实 ≈ 330 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
             patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
-            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(mastery, "_notify_swap_giveup") as notify,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
             patch.object(mastery, "datetime", FixedDateTime),
             patch.object(mastery_reader, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
-        swaps = [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT]
-        self.assertEqual(len(swaps), 1, "换人失败且仍值得换 → 应重排 SWAP_SUPPORT")
-        self.assertEqual(swaps[0].swap_retries, 1)
-        self.assertEqual(swaps[0].time, START + mastery.SWAP_RETRY_INTERVAL)
+        self.assertEqual(
+            solver.choose_train.call_count, 1 + mastery.SWAP_RETRY_LIMIT,
+            "首次失败 + 5 次原地重试",
+        )
+        self.assertFalse(
+            [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
+            "不再重排 SWAP 任务（原地重试）",
+        )
+        notify.assert_called_once()
+        upd.assert_not_called()  # 放弃不置 swap_frozen=1
         sc.assert_called_once()  # 收集任务仍保证
 
-    def test_swap_failure_not_worthwhile_gives_up(self):
-        # d：换人失败 + 剩余不足 5 小时（换后真实 < 301）→ 放弃换人，只排收取
+    def test_swap_not_worthwhile_skips_attempt(self):
+        # #80 worth 门：派发时换后真实 < 301（不足 5 小时）→ 连尝试都不做，直接跳过换人
+        # + 排收取退出（不通知⑧——这不是「重试后放弃」，而是调度前就判不值）
         solver = self._fail_solver(read_seconds=3600)  # 60 分钟，换后真实 ≈ 79 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
             patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
-            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(mastery, "_notify_swap_giveup") as notify,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
             patch.object(mastery, "datetime", FixedDateTime),
             patch.object(mastery_reader, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
-        self.assertFalse(
-            [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
-            "剩余不足 5 小时 → 不重试换人",
-        )
-        sc.assert_called_once()  # 收集任务仍保证
+        solver.choose_train.assert_not_called()  # worth 门：不尝试换人
+        notify.assert_not_called()
+        upd.assert_not_called()
+        solver.back.assert_called_once()
+        sc.assert_called_once()
 
-    def test_swap_failure_max_retries_gives_up(self):
-        # d：已达重试上限 → 不再重试，只排收取
-        task = MagicMock()
-        task.swap_retries = 5
-        solver = self._fail_solver(read_seconds=15000, task=task)
+    def test_retry_in_place_not_worthwhile_gives_up(self):
+        # #81：重试期间倒计时降到不足 5 小时 → 放弃 + ⑧ 通知，返回 False（不退出房间标记）
+        solver = MagicMock()
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch.object(mastery, "_swap_still_worthwhile", return_value=False),
+            patch.object(mastery, "_notify_swap_giveup") as notify,
+            patch.object(mastery, "_try_swap") as ts,
+        ):
+            ok = mastery._retry_swap_in_place(
+                solver, plan, self._swap_route(), "逻各斯"
+            )
+        self.assertFalse(ok)
+        notify.assert_called_once()
+        ts.assert_not_called()
+
+    def test_swap_retry_succeeds_marks_frozen(self):
+        # 暂时性失败可被救回：首次失败、重试成功 → swap_frozen=1，不通知
+        solver = self._solver()
+        solver.read_time.return_value = 15000
+        attempts = {"n": 0}
+
+        def flaky(*args, **kwargs):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise Exception("选人流程超时")
+
+        solver.choose_train.side_effect = flaky
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
             patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
-            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(mastery, "_notify_swap_giveup") as notify,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
             patch.object(mastery, "datetime", FixedDateTime),
             patch.object(mastery_reader, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
+        self.assertEqual(solver.choose_train.call_count, 2, "首次失败 + 重试成功")
+        upd.assert_any_call(1, "training", swap_frozen=1)
+        notify.assert_not_called()
+        solver.back.assert_not_called()  # 重试成功与首试成功一致：不退出房间
+        sc.assert_called_once()
+
+    def test_swap_giveup_notifies_no_frozen(self):
+        # #81：放弃发⑧ 通知（去重按 plan id，WARNING），不置 swap_frozen=1
+        solver = self._fail_solver(read_seconds=15000)
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch("arknights_mower.utils.mastery_db.should_notify",
+                  return_value=True) as sn,
+            patch("arknights_mower.utils.email.send_message") as send,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        sn.assert_called_once_with("swap_failed_giveup", str(plan["id"]))
+        send.assert_called_once()
+        self.assertEqual(send.call_args.kwargs["level"], "WARNING")
+        self.assertIn("换人失败已放弃", send.call_args.args[0])
+        upd.assert_not_called()
         self.assertFalse(
             [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
-            "重试达上限 → 不再重试",
+            "放弃后不排 SWAP",
         )
         sc.assert_called_once()
 
@@ -904,54 +996,10 @@ class TestSwapCollectGating(unittest.TestCase):
         self.assertEqual(solver.tasks[0].type, TaskTypes.SWAP_SUPPORT)
         self.assertEqual(solver.tasks[0].plan_key, str(plan["id"]))
 
-    def test_swap_retry_task_carries_plan_key(self):
-        # #77：重试任务同样带 plan_key → reconcile 恢复看到已有任务在等，不重复补排
-        solver = self._fail_solver(read_seconds=15000)  # 250 分钟，换后真实 ≈ 330 分钟
-        plan = make_plan(status="training", swap_frozen=0, target_level=2)
-        with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
-            patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
-            patch.object(mastery, "_schedule_collect") as sc,
-            patch.object(config_mod.conf, "assistant_follows_schedule", False),
-            patch.object(config_mod.conf, "enable_mastery", True),
-            patch.object(mastery, "datetime", FixedDateTime),
-            patch.object(mastery_reader, "datetime", FixedDateTime),
-        ):
-            mastery.run_swap_support(solver)
-        swaps = [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT]
-        self.assertEqual(len(swaps), 1)
-        self.assertEqual(swaps[0].plan_key, str(plan["id"]))
-
-    def test_swap_giveup_sets_frozen(self):
-        # #77：换人重试达上限放弃 → 置 swap_frozen=1——否则 reconcile 补排会把
-        # 「5 次重试上限」架空成反复重新入队的无限循环
-        task = MagicMock()
-        task.swap_retries = 5
-        solver = self._fail_solver(read_seconds=15000, task=task)
-        plan = make_plan(status="training", swap_frozen=0, target_level=2)
-        with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
-            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
-            patch.object(mastery, "_schedule_collect") as sc,
-            patch.object(config_mod.conf, "assistant_follows_schedule", False),
-            patch.object(config_mod.conf, "enable_mastery", True),
-            patch.object(mastery, "datetime", FixedDateTime),
-            patch.object(mastery_reader, "datetime", FixedDateTime),
-        ):
-            mastery.run_swap_support(solver)
-        upd.assert_any_call(1, "training", swap_frozen=1)
-        self.assertFalse(
-            [t for t in solver.tasks if t.type == TaskTypes.SWAP_SUPPORT],
-            "放弃后不再排 SWAP",
-        )
-        sc.assert_called_once()
-
-
     def test_schedule_collect_after_swap_closes_detail_before_read(self):
         # 读倒计时前若停在主页面带进驻详情浮窗（INFRA_DETAILS）→ 先关浮窗回主页面再读
         solver = self._solver()
+        solver.read_time.return_value = 15000  # 250 分钟，值得换（否则 worth 门跳过换人）
         solver.train_scene.side_effect = [Scene.INFRA_DETAILS, Scene.TRAIN_MAIN]
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
@@ -1143,7 +1191,7 @@ class TestRouteStepLevel(unittest.TestCase):
         # 专三计划专二步：倒计时 active + 主面板亮 2 颗 → 路线按 step_level=2 → 减半换人
         solver = self._lit_solver(lit=2)
         solver.train_scene.return_value = Scene.TRAIN_MAIN
-        solver.read_time.return_value = 7200  # 倒计时 active（非0非空）
+        solver.read_time.return_value = 15000  # 250 分钟，值得换（否则 worth 门跳过）
         plan = make_plan(status="training", swap_frozen=0, target_level=3)
         route_calls = []
         with (

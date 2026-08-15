@@ -602,6 +602,133 @@ class TestReconcileRecoverSwap(unittest.TestCase):
             reader._maybe_recover_swap(solver, plan, room)
         sched.assert_called_once_with(solver, plan, room.panel.countdown, None)
 
+    # --- #80 陌生人协助位纠错 ---
+
+    def _correction_route(self, swap_target="逻各斯"):
+        return {
+            "operator": "夜半", "swap_target": swap_target,
+            "central_bonus": 5, "efficiency": 75, "job_match": True,
+        }
+
+    def _slots(self, support):
+        solver = self._solver()
+        solver.train_scene.return_value = Scene.TRAIN_MAIN
+        solver.get_agent_from_room.return_value = [
+            {"agent": support}, {"agent": "能天使"},
+        ]
+        return solver
+
+    def test_recover_stranger_schedules_correction(self):
+        # 协助位是陌生人（∉ {operator, swap_target}）→ 排纠错 SWAP 任务（带 plan_key），
+        # 不走 _schedule_swap_if_needed（纠错与减半合并为同一条任务，dispatch 时再判减半）
+        solver = self._slots("陌生人")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value=self._correction_route()),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertTrue(result, "排了纠错任务 → 调用方不排收取")
+        sched.assert_not_called()
+        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1)
+        self.assertEqual(swaps[0].plan_key, str(plan["id"]))
+        self.assertIn("纠错为 夜半", swaps[0].meta_data)
+
+    def test_recover_stranger_m3_step_correction(self):
+        # 专三步（swap_target=None，铁律 7）：陌生人协助位仍纠成路线人（只纠不换减半）
+        solver = self._slots("陌生人")
+        plan = self._training_plan()
+        room = self._room()
+        with patch(
+            "arknights_mower.solvers.mastery._get_plan_route",
+            return_value=self._correction_route(swap_target=None),
+        ) as route:
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertTrue(result)
+        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1, "专三步陌生人协助位也应纠错")
+        route.assert_called_once()
+
+    def test_recover_assist_operator_falls_through_to_swap(self):
+        # 协助位已是路线 operator（不是陌生人）→ 不纠错，走 _schedule_swap_if_needed 判减半
+        solver = self._slots("夜半")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value=self._correction_route()),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed",
+                  return_value=True) as sched,
+        ):
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertTrue(result)
+        sched.assert_called_once()
+        self.assertFalse(
+            [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT],
+            "协助位已是 operator 不纠错",
+        )
+
+    def test_recover_assist_swap_target_no_swap(self):
+        # 已减半（协助位 == swap_target）→ 不纠错、不排换人，返回 False（调用方排收取）
+        solver = self._slots("逻各斯")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value=self._correction_route()),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertFalse(result)
+        sched.assert_not_called()
+
+    def test_recover_empty_assist_slot_no_correction(self):
+        # 协助位读不到（空）→ 不纠错，走 _schedule_swap_if_needed（时间判定）
+        solver = self._solver()
+        solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": "能天使"}]
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value=self._correction_route()),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            reader._maybe_recover_swap(solver, plan, room)
+        sched.assert_called_once()
+
+    def test_recover_route_no_operator_no_correction(self):
+        # 路线拿不到 operator → 不纠错（无法判期望协助位），走 _schedule_swap_if_needed
+        solver = self._slots("陌生人")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value={"swap_target": "逻各斯", "central_bonus": 5,
+                                "efficiency": 75, "job_match": True}),
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+        ):
+            reader._maybe_recover_swap(solver, plan, room)
+        sched.assert_called_once()
+
+    def test_reconcile_training_stranger_correction_skips_collect(self):
+        # 接线：training×一致 + 陌生人协助位 → 排纠错 SWAP，不排收取（半重叠消除）
+        solver = self._slots("陌生人")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch.object(reader, "_update_expiry"),
+            patch("arknights_mower.solvers.mastery._get_plan_route",
+                  return_value=self._correction_route()),
+            patch.object(reader, "_schedule_collect") as sc,
+        ):
+            reader._reconcile_training(solver, room, plan, [plan])
+        sc.assert_not_called()
+        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1)
+
     # --- _reconcile_training 接线 ---
 
     def test_reconcile_training_recovers_swap_on_consistent(self):

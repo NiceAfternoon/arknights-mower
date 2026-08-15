@@ -696,7 +696,7 @@ def _refresh_training_plan(solver, plan, room):
 
 
 def _maybe_recover_swap(solver, plan, room) -> bool:
-    """#77：重启恢复 training×一致 时补排丢失的 SWAP_SUPPORT。
+    """#77：重启恢复 training×一致 时补排丢失的 SWAP_SUPPORT；#80：陌生人协助位纠错。
 
     只补排任务（短动作，不碰房间、不退出）；实际读协助位/纠错/换人由 SWAP dispatch
     的 #79 `run_swap_support` 完成——补排直接复用 `_schedule_swap_if_needed`，
@@ -706,7 +706,13 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     - swap_frozen=1（换人已完成）→ 跳过；
     - 队列已有同计划 SWAP 任务 → 跳过（去重，重启恢复的队列可能还留着旧任务）；
     - 倒计时可读且 `calc_swap_threshold` 判剩余够（<5h 不补排）→ 补排 SWAP 任务。
-    #82：返回「是否排了换人任务（或队列已有）」，True 时调用方不排收取。
+    #80：判陌生人时**自己读协助位**（作为读房的一部分，铁律 3 一次进房做完全部；
+    不依赖排班读心情的数据——数据未留存、时间点不可控）——协助位 ∉ {operator,
+    swap_target}（陌生人/坐错）且队列无换人任务 → 排一个纠错任务（派发走
+    run_swap_support：先纠成路线 operator，重读倒计时判值不值得再换 swap_target）。
+    专三/时间不足的步也纠（swap_target=None / <5h 只是不换减半对象，协助位仍要纠成
+    路线人）。已减半（协助位 == swap_target）→ 不再排换人，只排收取。
+    返回 True = 已排换人任务（或队列已有）→ 调用方不排收取。
     """
     from arknights_mower.utils import config
 
@@ -723,12 +729,49 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
         return False
     # 当前步目标级 = 主面板专精图标（亮 N 颗=专N，#76），读不到回退 target_level
     step_level = room.panel.mastery_tier or None
-    from arknights_mower.solvers.mastery import _schedule_swap_if_needed
+    from arknights_mower.solvers.mastery import (
+        _get_plan_route,
+        _schedule_swap_if_needed,
+    )
+
+    route = _get_plan_route(plan, step_level)
+    if route and route.get("operator"):
+        operator = route["operator"]
+        swap_target = route.get("swap_target")
+        support_slot, _ = _read_slots(solver)
+        if support_slot and support_slot not in (operator, swap_target):
+            # 陌生人/坐错 → 排纠错任务（纠成 operator；减半与否由 dispatch 时再判）
+            _schedule_correction_swap(solver, plan, operator)
+            return True
+        if support_slot == swap_target:
+            # 已减半（协助位已是 swap_target）→ 不再排换人，调用方排收取
+            return False
 
     if _schedule_swap_if_needed(solver, plan, countdown, step_level):
         logger.info(f"[mastery] #77 重启恢复：补排换人任务 id={plan['id']}")
         return True
     return False
+
+
+def _schedule_correction_swap(solver, plan, operator):
+    """#80：陌生人协助位纠错——排一条立即执行的 SWAP_SUPPORT 纠错任务。
+
+    派发走 run_swap_support：先纠成路线 operator → 重读倒计时 → calc_swap_threshold
+    判值不值得 → 值得才换 swap_target，不值只排收取。任务带 plan_key 去重键
+    （与 SWAP 任务同形），reconcile 不重复补排。
+    """
+    from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+
+    task = SchedulerTask(
+        time=datetime.now(),
+        task_type=TaskTypes.SWAP_SUPPORT,
+        meta_data=f"{_plan_label(plan)} 协助位纠错为 {operator}",
+    )
+    task.plan_key = str(plan["id"])
+    solver.tasks.append(task)
+    logger.info(
+        f"[mastery] #80 陌生人协助位纠错：排换人任务 id={plan['id']} 期望={operator}"
+    )
 
 
 def _wait_for_training(solver, room):

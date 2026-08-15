@@ -21,10 +21,9 @@ from arknights_mower.utils.scene import Scene
 
 ARRANGING_DEADLINE = timedelta(minutes=5)
 ARRANGING_RETRY_BUFFER = timedelta(minutes=2)
-# d（2026-08-14 用户拍板）：SWAP 换人失败最多重试次数与间隔（每次重试都重读倒计时
-# 判断还值不值得换，倒计时只会减少，终会到「不足 5 小时」放弃）
+# #81（2026-08-15 用户拍板）：SWAP 换人失败最多重试次数（无 +5min 间隔，立刻原地重试；
+# 每次重试都重读倒计时判还值不值得换，倒计时只会减少，终会到「不足 5 小时」放弃）
 SWAP_RETRY_LIMIT = 5
-SWAP_RETRY_INTERVAL = timedelta(minutes=5)
 
 DEFAULT_ROUTES = {
     "先锋": {
@@ -822,7 +821,7 @@ def run_swap_support(solver):
     换人公式/路线沿用稳定方案，只加协助位确认 + 倒计时门。
     """
     from arknights_mower.utils import config
-    from arknights_mower.utils.mastery_db import get_active_plan, update_plan_status
+    from arknights_mower.utils.mastery_db import get_active_plan
 
     logger.debug("[mastery] 训练室动作 触发源=定时任务 动作=swap")
     if not config.conf.enable_mastery:
@@ -892,38 +891,61 @@ def run_swap_support(solver):
         route = _get_plan_route(plan, step_level)
         swap_target = route.get("swap_target") if route else None
 
+    # #80：换人前用当前倒计时判「值不值得换」（_swap_worthwhileness = calc_swap_threshold
+    # 的 301 守卫，换后真实剩余 <5h 不值得）——纠错任务由 reconcile 排（排程时不做值得
+    # 判定，专三/时间不足的步也纠），派发到这里仍要守住「纠错不触发不该发生的减半换人」
+    # （#80 acceptance 2）；正常减半任务排程时已判值得，这里复查只更保守，无回归。
+    worth_swap = True
+    if panel is not None and panel.countdown is not None and route:
+        remaining = (panel.countdown - datetime.now()).total_seconds() / 60
+        worth_swap = _swap_worthwhileness(remaining, route)
     did_swap = bool(
         scene == Scene.TRAIN_MAIN
         and countdown_active
         and swap_target
         and support_slot != swap_target  # 已减半（协助位已是 swap_target）不再换
+        and worth_swap
     )
     if did_swap:
         logger.info(f"执行换人：协助位换入 {swap_target}")
         logger.debug(
             f"[mastery] 协助位判定 id={plan['id']} 期望={swap_target} 动作=换入减半对象"
         )
-        try:
-            solver.choose_train([swap_target, "Current"])
-            update_plan_status(plan["id"], "training", swap_frozen=1)
-            logger.info("换人完成，协助位已冻结")
-            logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=ok")
-        except Exception as e:
-            logger.warning(f"换人失败: {e}")
-            logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=失败 err={e}")
-            # d：换人失败 → 重读倒计时判断还值不值得继续换（不足 5 小时就放弃）；值得则重试
-            _retry_swap_if_worthwhile(solver, plan, route, swap_target)
+        did_swap = _try_swap(solver, plan, swap_target)
+        if not did_swap:
+            # #81：立刻原地重试（无 +5min 间隔），至多 SWAP_RETRY_LIMIT 次；放弃 → ⑧
+            # 通知，不置 swap_frozen（接受下次进房重排，暂时性失败可被救回）
+            did_swap = _retry_swap_in_place(solver, plan, route, swap_target)
     else:
         logger.info(
             "场景不在训练主页面或倒计时未确认，跳过减半换人"
             if not countdown_active
-            else "当前步路线无换人目标或协助位已是减半对象，跳过减半换人"
+            else "当前步路线无换人目标、协助位已是减半对象或剩余不足，跳过减半换人"
         )
     # §16.10：无论换人成功与否/是否跳过，重读倒计时再排收取——开始训练时「排了换人
     # 任务则不排收取」，收集只能靠这里补；跳过换人也补排（防读图标失败/不在主页面丢收集）。
     _schedule_collect_after_swap(solver, plan)
     if not did_swap:
         solver.back()
+
+
+def _try_swap(solver, plan, swap_target) -> bool:
+    """换入减半对象：choose_train + 置 swap_frozen。成功 True，抛异常 False。
+
+    #81：run_swap_support 首试与 _retry_swap_in_place 重试共用同一换人动作与日志。
+    """
+    from arknights_mower.utils.mastery_db import update_plan_status
+
+    try:
+        solver.choose_train([swap_target, "Current"])
+        update_plan_status(plan["id"], "training", swap_frozen=1)
+        logger.info("换人完成，协助位已冻结")
+        logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=ok")
+        return True
+    except Exception as e:
+        logger.warning(f"换人失败: {e}")
+        logger.debug(f"[mastery] 协助位判定 id={plan['id']} 结果=失败 err={e}")
+        return False
 
 
 def _notify_swap_correction_failed(solver, plan, support_slot, operator):
@@ -944,54 +966,67 @@ def _notify_swap_correction_failed(solver, plan, support_slot, operator):
     send_message(msg, level="WARNING")
 
 
-def _retry_swap_if_worthwhile(solver, plan, route, swap_target):
-    """换人失败：重读倒计时判断还值不值得继续换（换后真实剩余不足 5 小时就放弃）。
+def _retry_swap_in_place(solver, plan, route, swap_target) -> bool:
+    """#81：换人失败立刻原地重试（无 +5min 间隔），至多 SWAP_RETRY_LIMIT 次。
 
-    值得 → 重排 SWAP_SUPPORT 重试（最多 SWAP_RETRY_LIMIT 次）；不值得 → 放弃减半
-    （不减半，按全时长收取，收取任务由 _schedule_collect_after_swap 保证）。
-    每次重试都重读倒计时——倒计时只会减少，终会到「不足 5 小时」而放弃。
-    #77：放弃（无论达上限还是不足 5h）都置 swap_frozen=1——否则 reconcile 补排
-    （_maybe_recover_swap）会反复重新入队，把「5 次重试上限」架空成无限循环。
+    每次重试前重读倒计时（_swap_still_worthwhile）判还值不值得换——换后真实剩余不足
+    5 小时就不值得，放弃（不减半，按全时长收取，收取任务由 _schedule_collect_after_swap
+    保证）。放弃（达上限/不足 5h）发⑧ 通知（去重按 plan id，WARNING），**不置
+    swap_frozen=1**（#81 回滚 #77 的 give-up 分支）：reconcile（_maybe_recover_swap）
+    下次进房会重新补排再试一轮，暂时性失败（减半干员当时忙/动画卡）会被救回；接受
+    低频重试（reconcile 默认低频）。返回最终是否换人成功（成功 → 调用方不退出房间）。
     """
-    from arknights_mower.utils.mastery_db import update_plan_status
+    retries = 0
+    while retries < SWAP_RETRY_LIMIT:
+        if not _swap_still_worthwhile(solver, plan, route):
+            logger.info("剩余时间不足 5 小时，放弃减半换人（不减半，按全时长收取）")
+            _notify_swap_giveup(solver, plan)
+            return False
+        retries += 1
+        logger.warning(f"换人失败，原地重试（{retries}/{SWAP_RETRY_LIMIT}）")
+        solver.sleep(1)
+        if _try_swap(solver, plan, swap_target):
+            return True
+    logger.warning("换人重试已达上限，放弃减半换人（不减半，按全时长收取）")
+    _notify_swap_giveup(solver, plan)
+    return False
 
-    task = getattr(solver, "task", None)
-    retries = getattr(task, "swap_retries", 0) if task is not None else 0
-    if retries >= SWAP_RETRY_LIMIT:
-        logger.warning("换人重试已达上限，放弃减半换人（不减半，按全时长收取）")
-        update_plan_status(plan["id"], "training", swap_frozen=1)
-        return
-    if not _swap_still_worthwhile(solver, plan, route):
-        logger.info("剩余时间不足 5 小时，放弃减半换人（不减半，按全时长收取）")
-        update_plan_status(plan["id"], "training", swap_frozen=1)
-        return
-    retries += 1
-    from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
 
-    task = SchedulerTask(
-        time=datetime.now() + SWAP_RETRY_INTERVAL,
-        task_type=TaskTypes.SWAP_SUPPORT,
-        meta_data=(
-            f"{_plan_label(plan)} → {_target_label(plan['target_level'])} "
-            f"换入{swap_target}（重试{retries}）"
-        ),
-    )
-    task.swap_retries = retries
-    # #77 补排去重键：reconcile 恢复不重复入队（已有重试任务在等）
-    task.plan_key = str(plan["id"])
-    solver.tasks.append(task)
-    logger.info(
-        f"换人失败将重试（{retries}/{SWAP_RETRY_LIMIT}），"
-        f"{SWAP_RETRY_INTERVAL.seconds // 60} 分钟后再试"
-    )
+def _notify_swap_giveup(solver, plan):
+    """⑧ 换人失败放弃通知（#81）：减半收益可能丢失。
+
+    去重按 plan id（INSERT OR IGNORE，WARNING），与⑦ 纠错失败并列（doc §16.9）；
+    异常时 fail open 照发（宁可多发不漏发）。
+    """
+    from arknights_mower.utils.email import send_message
+    from arknights_mower.utils.mastery_db import should_notify
+
+    if not should_notify("swap_failed_giveup", str(plan["id"])):
+        return
+    label = f"{_plan_char_label(plan)} 技能{plan['skill_index'] + 1} 专{plan['target_level']}"
+    msg = f"{label} 换人失败已放弃，减半收益可能丢失"
+    send_message(msg, level="WARNING")
+
+
+def _swap_worthwhileness(remaining_minutes, route) -> bool:
+    """「值不值得换」纯判定：换后真实剩余 ≥ 301 才值得（calc_swap_threshold 同式）。
+
+    与 calc_swap_threshold 的 real_time_after_swap 守卫一致；供 run_swap_support
+    纠错/换人前用当前倒计时判定（#80：纠错不触发不该发生的减半换人）。
+    """
+    central_bonus = route.get("central_bonus", 5)
+    swap_total = 100 + 5 + (30 if route.get("job_match") else 0) + central_bonus
+    current_total = 100 + route["efficiency"] + 5 + central_bonus
+    real_time_after_swap = remaining_minutes * current_total / swap_total
+    return real_time_after_swap >= 301
 
 
 def _swap_still_worthwhile(solver, plan, route) -> bool:
     """重读倒计时判断换人后真实剩余时间是否 ≥ 301（不足 5 小时就不值得继续换）。
 
     读倒计时前先确认在训练室主页面（TRAIN_MAIN）；INFRA_DETAILS 先关浮窗再读。
-    与 calc_swap_threshold 的 real_time_after_swap 同式；读不到/不在主页 → 保守
-    按「还值得」继续重试（下次重试再判）。
+    读不到/不在主页 → 保守按「还值得」继续重试（下次重试再判）。公式同式
+    `_swap_worthwhileness`（calc_swap_threshold 的 real_time_after_swap 守卫）。
     """
     try:
         scene = solver.train_scene()
@@ -1004,11 +1039,7 @@ def _swap_still_worthwhile(solver, plan, route) -> bool:
         if countdown is None:
             return True
         remaining = (countdown - datetime.now()).total_seconds() / 60
-        central_bonus = route.get("central_bonus", 5)
-        swap_total = 100 + 5 + (30 if route.get("job_match") else 0) + central_bonus
-        current_total = 100 + route["efficiency"] + 5 + central_bonus
-        real_time_after_swap = remaining * current_total / swap_total
-        return real_time_after_swap >= 301
+        return _swap_worthwhileness(remaining, route)
     except Exception:
         return True
 

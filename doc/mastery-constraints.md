@@ -156,8 +156,18 @@
    （SWAP 任务带 `plan_key` 去重键，与 SKILL_UPGRADE 同形）、倒计时可读且**复用**
    `_schedule_swap_if_needed`（`calc_swap_threshold` 公式口径一致，剩余 <5h 不补排）。
    实际读协助位/纠错/换人仍由 SWAP dispatch 的 #79 `run_swap_support` 完成，补排
-   不重复实现协助位比对。**换人重试放弃（达上限 / 不足 5h）置 `swap_frozen=1`**，
-   防 reconcile 把「5 次重试上限」反复重新入队成无限循环。
+   不重复实现协助位比对。
+   **#80 陌生人纠错（2026-08-15）**：判陌生人时 `_maybe_recover_swap` **自己读协助位**
+   （作为读房的一部分，铁律 3 一次进房做完全部；`_read_slots` 开浮窗读后关回；不依赖
+   排班读心情的数据）——协助位 ∉ {路线 operator, swap_target}（陌生人/坐错）且队列
+   无换人任务 → 排一条立即执行的纠错 SWAP 任务（`_schedule_correction_swap`，带
+   plan_key）。派发仍走 run_swap_support：先纠成路线 operator → 重读倒计时 →
+   `calc_swap_threshold` 判值不值得 → 值得才换 swap_target，不值只排收取。**专三
+   （swap_target=None）/剩余 <5h 的步也纠成路线人**（只纠不换减半对象）。已减半
+   （协助位 == swap_target）→ 不再排换人、只排收取。**#81 换人失败**（2026-08-15）：
+   run_swap_support 减半换人失败 → **立刻原地重试**（无 +5min 间隔，不排新任务），
+   连续 SWAP_RETRY_LIMIT 次仍失败 / 剩余不足 5h → 放弃 + ⑧ 通知，**不再置
+   swap_frozen=1**——reconcile 下次进房重新补排再试一轮，暂时性失败可被救回。
 
 ### `calc_swap_threshold` 公式（`mastery.py:238-271`）
 - `target_minutes = 300 + buffer`（buffer 默认 10）。
@@ -170,6 +180,7 @@
 满足全部才执行：`enable_mastery` 开、非 `assistant_follows_schedule`、active 状态 `=='training'`、`swap_frozen` 为假、route 有 `swap_target`（当前步非专三——level_3 路线 swap_target=None，铁律 7；#76 2026-08-15 删显式 `target_level != 3` 守卫靠路线数据）。**换人成功（choose_train 无异常）后必须置 `swap_frozen=1`**；下一次确认训练开始时清 `swap_frozen=0`。（SM-07 / C-17）
 **#78 整合（2026-08-15）加「读全 + 倒计时门」**：进房用 `read_main_panel` 一次截图读干员/技能/图标/倒计时，**场景只在训练室主页面（TRAIN_MAIN）且倒计时 active（读到非 0 秒）才算训练确认**，才读图标/算路线/换人（铁律 1）。219（技能选择页读不出倒计时）不再放行；zero(00:00:00 待收取)/failed(读失败，DB 过期/空房) 都不换——防 DB 过期/空房时按回退 target_level 路线误换人。换人公式/路线沿用稳定方案，只加倒计时门。
 **#79 协助位确认（2026-08-15）**：倒计时确认后开进驻浮窗（`_read_slots`，读后自动关）读实际协助位——**协助位 ∉ {operator, swap_target}（陌生人/坐错）先 `choose_train([operator, "Current"])` 纠错**，纠错成功重读倒计时（此时效率已知 = route["efficiency"]）才算换人；**纠错失败 → ⑦ 邮件通知 + 不换人 + 排收取退出**。**协助位已 = swap_target（已减半）→ 不再换、不置 swap_frozen**（防跨步残留重复换）。换人公式/路线仍沿用稳定方案。
+**#80/#81 换人值得门（2026-08-15）**：`did_swap` 追加 **`_swap_worthwhileness` 判定**（= calc_swap_threshold 的 301 守卫，换后真实剩余 <5h 不值得）——纠错任务由 reconcile 排（排程时不做值得判定，专三/时间不足的步也纠），派发到这里守住「纠错不触发不该发生的减半换人」（#80 acceptance 2）；正常减半任务排程时已判值得，这里复查只更保守，无回归。
 
 ### 减半守卫（C-15）
 - 协助位换人**只在训练确认开始之后**（读到有效倒计时、DB 已置 training）。
@@ -434,6 +445,7 @@ python -m ruff check arknights_mower/solvers/ arknights_mower/utils/ arknights_m
 - ⑤ **训练室受保护、mower 无法开始训练**（新增）
 - ⑥ **已到target**：开始训练时发现已专三 → 邮件「已专三」+ DB 标完成（新增，草案要求）
 - ⑦ **协助位纠错失败（#79，2026-08-15）**：run_swap_support 换人前确认协助位，陌生人纠错成 operator 失败 → 邮件「协助位 X 纠错失败，跳过减半换人」+ 不换人 + 排收取（key=plan id，WARNING）
+- ⑧ **换人失败放弃（#81，2026-08-15）**：run_swap_support 减半换人失败，原地重试 SWAP_RETRY_LIMIT 次仍失败 / 剩余不足 5h → 放弃 + 邮件「换人失败已放弃，减半收益可能丢失」，**不置 swap_frozen=1**（reconcile 下次进房重新补排，暂时性失败可被救回；key=plan id，WARNING，与⑦ 并列）
 
 ### 16.10 开始训练术语流（草案 1-8，实现对齐）
 
