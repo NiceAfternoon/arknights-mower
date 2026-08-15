@@ -34,7 +34,20 @@ export const useMowerStore = defineStore('mower', () => {
   const get_task_id = ref(0)
   const task_list = ref([])
   const sc_uri = ref('')
+  const sc_revision = ref(0)
+  const scene_preview_active = ref(false)
   const speed_msg = ref([])
+  async function refresh_scene_snapshot() {
+    const response = await axios.get(`${import.meta.env.VITE_HTTP_URL || ''}/latest-screenshot`)
+    sc_uri.value = response.data
+    sc_revision.value += 1
+  }
+  async function set_scene_preview(enabled) {
+    scene_preview_active.value = enabled
+    if (enabled) {
+      await refresh_scene_snapshot()
+    }
+  }
   function listen_ws() {
     let backend_url
     if (import.meta.env.DEV) {
@@ -44,12 +57,20 @@ export const useMowerStore = defineStore('mower', () => {
     }
     const ws_url = backend_url.replace(/^http/, 'ws') + '/log'
     ws.value = new ReconnectingWebSocket(ws_url)
+    let connected_once = false
+    ws.value.onopen = () => {
+      if (connected_once) {
+        return refresh_scene_snapshot()
+      }
+      connected_once = true
+    }
     ws.value.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'log') {
         log_lines.value = log_lines.value.concat(data.data.split('\n')).slice(-100) // 追加日志
-        if (data.screenshot) {
+        if (data.screenshot && scene_preview_active.value) {
           sc_uri.value = data.screenshot
+          sc_revision.value += 1
         }
       }
     }
@@ -86,6 +107,9 @@ export const useMowerStore = defineStore('mower', () => {
     get_task_id,
     get_tasks,
     sc_uri,
+    sc_revision,
+    refresh_scene_snapshot,
+    set_scene_preview,
     speed_msg
   }
 })

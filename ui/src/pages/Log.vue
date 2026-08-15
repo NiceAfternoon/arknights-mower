@@ -14,9 +14,10 @@ const {
   task_list,
   waiting,
   get_task_id,
-  sc_uri
+  sc_uri,
+  sc_revision
 } = storeToRefs(mower_store)
-const { get_tasks, get_running } = mower_store
+const { get_tasks, get_running, refresh_scene_snapshot, set_scene_preview } = mower_store
 const axios = inject('axios')
 const mobile = inject('mobile')
 
@@ -24,8 +25,8 @@ const auto_scroll = ref(true)
 const sc_preview = ref(true)
 const sc_blob = ref('')
 
-watch(sc_uri, async (new_value) => {
-  if (new_value && sc_preview.value) {
+watch([sc_uri, sc_revision], async () => {
+  if (sc_uri.value && sc_preview.value) {
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_HTTP_URL}/screenshots/${sc_uri.value}`,
@@ -48,7 +49,11 @@ watch(sc_uri, async (new_value) => {
     }
     sc_blob.value = ''
   }
-  localStorage.setItem('sc_preview', JSON.stringify(sc_preview.value))
+})
+
+watch(sc_preview, async (enabled) => {
+  localStorage.setItem('sc_preview', JSON.stringify(enabled))
+  await set_scene_preview(enabled)
 })
 function scroll_last_line() {
   nextTick(() => {
@@ -70,7 +75,7 @@ watch(
   { deep: true }
 )
 
-onMounted(() => {
+onMounted(async () => {
   get_tasks()
   get_running()
   setInterval(get_running, 5000)
@@ -79,9 +84,11 @@ onMounted(() => {
     sc_preview.value = JSON.parse(savedPreviewState)
   }
   db_load_stats()
+  await refresh_scene_snapshot()
 })
 
 onUnmounted(() => {
+  set_scene_preview(false)
   clearTimeout(get_task_id.value)
   if (sc_blob.value) {
     URL.revokeObjectURL(sc_blob.value)

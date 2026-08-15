@@ -111,15 +111,15 @@ def read_log():
     global ws_connections
 
     while True:
-        msg = config.log_queue.get()
-        log_lines.append(msg)
+        entry = config.log_queue.get()
+        msg = entry["data"]
+        log_lines.extend(msg.split("\n"))
         log_lines = log_lines[-100:]
+        payload = {"type": "log", "data": msg}
+        if screenshot := entry.get("screenshot"):
+            payload["screenshot"] = screenshot
         for ws in ws_connections:
-            ws.send(
-                json.dumps(
-                    {"type": "log", "data": msg, "screenshot": get_latest_screenshot()}
-                )
-            )
+            ws.send(json.dumps(payload))
 
 
 Thread(target=read_log, daemon=True).start()
@@ -409,11 +409,9 @@ def get_latest_screenshot():
     """
     返回最新截图的路径
     """
-    from arknights_mower.utils.log import last_screenshot
+    from arknights_mower.utils.log import get_latest_scene_snapshot
 
-    if last_screenshot:
-        return last_screenshot
-    return ""
+    return get_latest_scene_snapshot()
 
 
 def conn_send(text):

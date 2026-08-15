@@ -81,7 +81,6 @@ class Session:
     def connect(self, device: str, throw_error: bool = False) -> None:
         """connect device [ip:port]"""
         resp = self.request(f"host:connect:{device}").response()
-        logger.debug(f"adb connect {device}: {repr(resp)}")
         if throw_error and (b"unable" in resp or b"cannot" in resp):
             raise RuntimeError(repr(resp))
 
@@ -96,7 +95,6 @@ class Session:
         """returns list of devices that the adb server knows"""
         resp = self.request("host:devices").response().decode(errors="ignore")
         devices = [tuple(line.split("\t")) for line in resp.splitlines()]
-        logger.debug(devices)
         return devices
 
     def push(self, target_path: str, target: bytes, mode=0o100755, mtime: int = None):

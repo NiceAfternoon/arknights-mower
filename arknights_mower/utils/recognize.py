@@ -11,14 +11,63 @@ from arknights_mower.utils import typealias as tp
 from arknights_mower.utils.csleep import MowerExit
 from arknights_mower.utils.device.device import Device
 from arknights_mower.utils.image import bytes2img, cmatch, cropimg, loadres, thres2
-from arknights_mower.utils.log import logger, save_screenshot
+from arknights_mower.utils.log import logger, publish_scene_snapshot, save_screenshot
 from arknights_mower.utils.matcher import Matcher
 from arknights_mower.utils.scene import Scene, SceneComment
 from arknights_mower.utils.vector import va
+from arknights_mower.utils.visual_facts import RepresentativeVisualFacts, VisualFact
 
 
 class RecognizeError(Exception):
     pass
+
+
+def _format_visual_facts(facts: tuple[VisualFact, ...]) -> str:
+    def format_number(value: float | None) -> str:
+        return "-" if value is None else f"{value:.4f}"
+
+    if not facts:
+        return "none"
+    return ";".join(
+        "|".join(
+            (
+                fact.candidate,
+                fact.outcome,
+                format_number(fact.score),
+                format_number(fact.threshold),
+                str(fact.duration_ms),
+            )
+        )
+        for fact in facts
+    )
+
+
+def publish_scene_result(
+    scene: int,
+    result: str,
+    screenshot: bytes,
+    facts: tuple[VisualFact, ...] = (),
+) -> str | None:
+    try:
+        filename = publish_scene_snapshot(scene, screenshot)
+    except Exception:
+        logger.error(
+            "operation=%s result=%s",
+            "scene_snapshot",
+            "failed",
+            exc_info=True,
+        )
+        return None
+    if filename is None:
+        return None
+    logger.info(
+        "operation=%s result=%s representatives=%s",
+        "scene",
+        result,
+        _format_visual_facts(facts),
+        extra={"screenshot": filename},
+    )
+    return filename
 
 
 class Recognizer:
@@ -36,6 +85,10 @@ class Recognizer:
         self.LOADING_TIME_LIMIT = 5
         self.last_scene = None
         self.last_scene_time = time.time()
+        self.visual_facts = RepresentativeVisualFacts()
+        self.last_scene_facts = ()
+        self._last_visual_score = None
+        self._last_visual_threshold = None
 
     def clear(self):
         self._screencap = None
@@ -100,6 +153,32 @@ class Recognizer:
         # del folder  # 兼容2024.05旧版接口
         save_screenshot(self.screencap, folder)
 
+    def _begin_scene_detection(self):
+        self.visual_facts = RepresentativeVisualFacts()
+
+    def _record_visual_fact(self, candidate: str, outcome: str, started_at: float):
+        duration_ms = max(0, round((time.perf_counter() - started_at) * 1000))
+        try:
+            fact = VisualFact(
+                candidate,
+                outcome,
+                self._last_visual_score,
+                self._last_visual_threshold,
+                duration_ms,
+            )
+        except (TypeError, ValueError):
+            fact = VisualFact("invalid-resource-id", "invalid", None, None, duration_ms)
+        self.visual_facts.add(fact)
+
+    def _publish_scene_result(self):
+        self.last_scene_facts = self.visual_facts.snapshot()
+        return publish_scene_result(
+            self.scene,
+            SceneComment[self.scene],
+            self.screencap,
+            self.last_scene_facts,
+        )
+
     def detect_index_scene(self) -> bool:
         res = loadres("index_nav", True)
         h, w = res.shape
@@ -107,7 +186,6 @@ class Recognizer:
         img = thres2(img, 250)
         result = cv2.matchTemplate(img, res, cv2.TM_SQDIFF_NORMED)
         result = result[0][0]
-        logger.debug(result)
         return result < 0.31
 
     def check_current_focus(self):
@@ -155,6 +233,7 @@ class Recognizer:
         if self.scene != Scene.UNDEFINED:
             self.check_freeze(current_time)
             return self.scene
+        self._begin_scene_detection()
 
         # 连接中，优先级最高
         if self.find("connecting"):
@@ -385,7 +464,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        logger.info(f"Scene {self.scene}: {SceneComment[self.scene]}")
+        self._publish_scene_result()
         self.check_freeze(current_time)
         return self.scene
 
@@ -413,6 +492,7 @@ class Recognizer:
         # 场景缓存
         if self.scene != Scene.UNDEFINED:
             return self.scene
+        self._begin_scene_detection()
 
         # 连接中，优先级最高
         if self.find("connecting"):
@@ -498,11 +578,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        log_msg = f"Scene: {self.scene}: {SceneComment[self.scene]}"
-        if self.scene == Scene.UNKNOWN:
-            logger.debug(log_msg)
-        else:
-            logger.info(log_msg)
+        self._publish_scene_result()
 
         self.check_loading_time()
 
@@ -515,6 +591,7 @@ class Recognizer:
         # 场景缓存
         if self.scene != Scene.UNDEFINED:
             return self.scene
+        self._begin_scene_detection()
 
         # 连接中，优先级最高
         if self.find("connecting"):
@@ -559,11 +636,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        log_msg = f"Scene: {self.scene}: {SceneComment[self.scene]}"
-        if self.scene == Scene.UNKNOWN:
-            logger.debug(log_msg)
-        else:
-            logger.info(log_msg)
+        self._publish_scene_result()
 
         self.check_loading_time()
 
@@ -576,6 +649,7 @@ class Recognizer:
         # 场景缓存
         if self.scene != Scene.UNDEFINED:
             return self.scene
+        self._begin_scene_detection()
 
         # 连接中，优先级最高
         if self.find("connecting"):
@@ -611,7 +685,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        logger.info(f"Scene: {self.scene}: {SceneComment[self.scene]}")
+        self._publish_scene_result()
 
         self.check_loading_time()
 
@@ -624,6 +698,7 @@ class Recognizer:
         # 场景缓存
         if self.scene != Scene.UNDEFINED:
             return self.scene
+        self._begin_scene_detection()
         # 连接中，优先级最高
         if self.find("connecting"):
             self.scene = Scene.CONNECTING
@@ -650,7 +725,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        logger.info(f"Scene: {self.scene}: {SceneComment[self.scene]}")
+        self._publish_scene_result()
 
         self.check_loading_time()
 
@@ -662,6 +737,7 @@ class Recognizer:
         """
         if self.scene != Scene.UNDEFINED:
             return self.scene
+        self._begin_scene_detection()
         # 连接中，优先级最高
         if self.find("connecting"):
             self.scene = Scene.CONNECTING
@@ -680,7 +756,7 @@ class Recognizer:
             self.scene = Scene.UNKNOWN
             self.check_current_focus()
 
-        logger.info(f"Scene: {self.scene}: {SceneComment[self.scene]}")
+        self._publish_scene_result()
 
         self.check_loading_time()
 
@@ -691,6 +767,44 @@ class Recognizer:
         return np.max(self.gray[:, 105:-105]) < 16
 
     def find(
+        self,
+        res: tp.Res,
+        draw: bool = False,
+        scope: tp.Scope | None = None,
+        thres: int | None = None,
+        judge: bool = True,
+        strict: bool = False,
+        threshold: float = 0.0,
+    ) -> tp.Scope:
+        candidate = str(res).replace("\\", "/")
+        started_at = time.perf_counter()
+        self._last_visual_score = None
+        self._last_visual_threshold = threshold if threshold > 0 else None
+        try:
+            result = self._find(
+                res,
+                draw=draw,
+                scope=scope,
+                thres=thres,
+                judge=judge,
+                strict=strict,
+                threshold=threshold,
+            )
+        except FileNotFoundError:
+            self._record_visual_fact(candidate, "missing", started_at)
+            raise
+        except RecognizeError:
+            self._record_visual_fact(candidate, "missed", started_at)
+            raise
+        except Exception:
+            self._record_visual_fact(candidate, "invalid", started_at)
+            raise
+        self._record_visual_fact(
+            candidate, "matched" if result is not None else "missed", started_at
+        )
+        return result
+
+    def _find(
         self,
         res: tp.Res,
         draw: bool = False,
@@ -713,7 +827,6 @@ class Recognizer:
 
         :return ret: 若匹配成功，则返回元素在游戏界面中出现的位置，否则返回 None
         """
-        logger.debug(f"find: {res}")
         normalized_res = str(res).replace("\\", "/")
         force_feature_match = "navigation/stage/" in normalized_res
 
@@ -822,6 +935,8 @@ class Recognizer:
         if not force_feature_match and res in color:
             res_img = loadres(res)
             h, w, _ = res_img.shape
+            threshold = template_matching_score.get(res, 0.9)
+            self._last_visual_threshold = threshold
 
             pos_list = color[res]
             if not isinstance(pos_list[0], tuple):
@@ -833,10 +948,7 @@ class Recognizer:
                     gray = cropimg(self.gray, scope)
                     res_img = cv2.cvtColor(res_img, cv2.COLOR_RGB2GRAY)
                     ssim = structural_similarity(gray, res_img)
-                    logger.debug(f"{ssim=}")
-                    threshold = 0.9
-                    if res in template_matching_score:
-                        threshold = template_matching_score[res]
+                    self._last_visual_score = float(ssim)
                     if ssim >= threshold:
                         return scope
 
@@ -938,8 +1050,9 @@ class Recognizer:
             img = cropimg(self.gray, scope)
             result = cv2.matchTemplate(img, res, cv2.TM_CCOEFF_NORMED)
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+            self._last_visual_score = float(max_val)
+            self._last_visual_threshold = threshold
             top_left = va(max_loc, scope[0])
-            logger.debug(f"{top_left=} {max_val=}")
             if max_val >= threshold:
                 return top_left, va(top_left, (w, h))
             return None
@@ -994,6 +1107,8 @@ class Recognizer:
             prescore=threshold,
             dpi_aware=dpi_aware,
         )
+        self._last_visual_score = matcher.last_score
+        self._last_visual_threshold = matcher.last_threshold
         if strict and ret is None:
             raise RecognizeError(f"Can't find '{res}'")
         return ret

@@ -187,7 +187,6 @@ class BaseSolver:
 
     def ctap(self, pos: tp.Location, max_seconds: int = 10):
         id = caller_info()
-        logger.debug(id)
         now = datetime.now()
         lid, ltime = self.tap_info
         if lid != id or (lid == id and now - ltime > timedelta(seconds=max_seconds)):

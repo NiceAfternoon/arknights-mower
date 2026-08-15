@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from logging.handlers import QueueHandler, QueueListener, TimedRotatingFileHandler
 from pathlib import Path
 from queue import Queue
-from threading import Thread
+from threading import Lock, Thread
 
 import colorlog
 
@@ -34,7 +34,6 @@ class PackagePathFilter(logging.Filter):
         return True
 
 
-last_screenshot = None
 filter = PackagePathFilter()
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,10 @@ class Handler(logging.StreamHandler):
         msg = f"{record.asctime} {record.levelname} {record.message}"
         if record.exc_info:
             msg += "\n" + "".join(traceback.format_exception(*record.exc_info))
-        config.log_queue.put(msg)
+        entry = {"data": msg}
+        if screenshot := getattr(record, "screenshot", None):
+            entry["screenshot"] = screenshot
+        config.log_queue.put(entry)
 
 
 # w(ebsocket)hlr: WebSocket
@@ -84,9 +86,39 @@ screenshot_queue = Queue()
 cleanup_time = datetime.now()
 
 
+class SceneSnapshotStore:
+    def __init__(self, folder: Path):
+        self.folder = folder
+        self.folder.mkdir(exist_ok=True, parents=True)
+        self.latest_filename = None
+        self.latest_scene = None
+        self._lock = Lock()
+
+    def publish(self, scene: int, image: bytes) -> str | None:
+        with self._lock:
+            if scene == self.latest_scene:
+                return None
+            filename = f"{time.time_ns()}.jpg"
+            self.folder.joinpath(filename).write_bytes(image)
+            self.latest_scene = scene
+            self.latest_filename = filename
+            return filename
+
+
+scene_snapshot_store = SceneSnapshotStore(screenshot_folder)
+
+
+def publish_scene_snapshot(scene: int, image: bytes) -> str | None:
+    return scene_snapshot_store.publish(scene, image)
+
+
+def get_latest_scene_snapshot() -> str:
+    return scene_snapshot_store.latest_filename or ""
+
+
 def screenshot_cleanup():
-    logger.info("清理过期截图")
     start_time_ns = time.time_ns() - config.conf.screenshot * 3600 * 10**9
+    latest_scene_snapshot = get_latest_scene_snapshot()
     for i in screenshot_folder.iterdir():
         if i.is_dir():
             if i.name in ["run_order", "workshop", "solve_captcha"]:
@@ -102,24 +134,22 @@ def screenshot_cleanup():
             shutil.rmtree(i)
         elif not i.stem.isnumeric():
             i.unlink()
-        elif int(i.stem) < start_time_ns:
+        elif i.name != latest_scene_snapshot and int(i.stem) < start_time_ns:
             i.unlink()
     global cleanup_time
     cleanup_time = datetime.now()
+    logger.info("operation=%s result=%s", "screenshot_cleanup", "completed")
 
 
 def screenshot_worker():
     screenshot_cleanup()
-    global last_screenshot
     while True:
         now = datetime.now()
         if now - cleanup_time > timedelta(hours=1):
             screenshot_cleanup()
-        img, filename, upate_last = screenshot_queue.get()
+        img, filename = screenshot_queue.get()
         with screenshot_folder.joinpath(filename).open("wb") as f:
             f.write(img)
-            if upate_last:
-                last_screenshot = filename
 
 
 Thread(target=screenshot_worker, daemon=True).start()
@@ -127,12 +157,11 @@ Thread(target=screenshot_worker, daemon=True).start()
 
 def save_screenshot(img: bytes, sub_folder=None) -> None:
     filename = f"{time.time_ns()}.jpg"
-    logger.debug(filename)
     if sub_folder:
         sub_folder_path = Path(screenshot_folder) / sub_folder
         sub_folder_path.mkdir(parents=True, exist_ok=True)
         filename = f"{sub_folder}/{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-    screenshot_queue.put((img, filename, not sub_folder))
+    screenshot_queue.put((img, filename))
 
 
 def get_log_by_time(target_time, time_range=1):

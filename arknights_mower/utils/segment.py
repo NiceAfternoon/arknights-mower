@@ -308,7 +308,6 @@ def base(
             plt.imshow(img)
             plt.show()
 
-        logger.debug(f"segment.base: {ret}")
         return ret
 
     except Exception as e:

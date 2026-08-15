@@ -29,7 +29,6 @@ class Client:
         if self.adb_bin is not None:
             return
         adb_bin = config.conf.maa_adb_path
-        logger.debug(f"try adb binary: {adb_bin}")
         if self.__check_adb(adb_bin):
             self.adb_bin = adb_bin
             return
@@ -56,12 +55,13 @@ class Client:
         #     else:
         #         Session().connect(self.connect)
         #     self.device_id = self.__choose_devices()
-        logger.info(self.__available_devices())
-        if self.device_id not in self.__available_devices():
+        available_devices = self.__available_devices()
+        if self.device_id not in available_devices:
             logger.error(
                 "未检测到相应设备。请运行 `adb devices` 确认列表中列出了目标模拟器或设备。"
             )
             raise RuntimeError("Device connection failure")
+        logger.info("operation=%s result=%s", "adb_connect", "connected")
 
     def __choose_devices(self) -> Optional[str]:
         """choose available devices"""
@@ -78,7 +78,6 @@ class Client:
 
     def __exec(self, cmd: str, adb_bin: str = None) -> None:
         """exec command with adb_bin"""
-        logger.debug(f"client.__exec: {cmd}")
         if adb_bin is None:
             adb_bin = self.adb_bin
         subprocess.run(
@@ -137,7 +136,6 @@ class Client:
 
     def run(self, cmd: str) -> Optional[bytes]:
         """run adb exec command"""
-        logger.debug(f"command: {cmd}")
         error_limit = 3
         while True:
             try:
@@ -159,8 +157,6 @@ class Client:
                         self.__init_device()
                     continue
                 raise e
-        if len(resp) <= 256:
-            logger.debug(f"response: {repr(resp)}")
         return resp
 
     def cmd(self, cmd: str | list[str], decode: bool = False) -> Union[bytes, str]:
@@ -183,7 +179,6 @@ class Client:
     def process(
         self, path: str, args: list[str] = [], stderr: int = subprocess.DEVNULL
     ) -> subprocess.Popen:
-        logger.debug(f"run process: {path}, args: {args}")
         cmd = [self.adb_bin, "-s", self.device_id, "shell", path] + args
         return subprocess.Popen(
             cmd,

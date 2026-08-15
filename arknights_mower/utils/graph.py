@@ -417,7 +417,7 @@ class SceneGraphSolver(BaseSolver):
     def scene_graph_navigation(self, scene: int):
         if scene not in DG.nodes:
             logger.error(f"{SceneComment[scene]}不在场景图中")
-            return
+            return False
 
         error_count = 0
 
@@ -442,7 +442,7 @@ class SceneGraphSolver(BaseSolver):
                     logger.warning(
                         f"scene_graph_navigation abort: unknown scene persists current={current} target={scene}"
                     )
-                    return
+                    return False
                 continue
 
             try:
@@ -456,9 +456,7 @@ class SceneGraphSolver(BaseSolver):
                     self.device.start_droidcast()
                 if config.conf.touch_method == "scrcpy":
                     self.device.control.scrcpy = Scrcpy(self.device.client)
-                return
-
-            logger.debug(sp)
+                return False
 
             next_scene = sp[1]
             transition = DG.edges[current, next_scene]["transition"]
@@ -485,13 +483,16 @@ class SceneGraphSolver(BaseSolver):
                 else:
                     self.restart_game()
                 error_count = 0
+        return True
 
     def back_to_index(self):
-        logger.info("场景图导航：back_to_index")
-        self.scene_graph_navigation(Scene.INDEX)
+        if self.scene() == Scene.INDEX:
+            return
+        if self.scene_graph_navigation(Scene.INDEX):
+            logger.info("operation=%s result=%s", "scene_navigation", "index")
 
     def back_to_infrastructure(self):
-        logger.info("场景图导航：back_to_infrastructure")
         if self.scene() == Scene.INFRA_MAIN:
             return
-        self.scene_graph_navigation(Scene.INFRA_MAIN)
+        if self.scene_graph_navigation(Scene.INFRA_MAIN):
+            logger.info("operation=%s result=%s", "scene_navigation", "infrastructure")

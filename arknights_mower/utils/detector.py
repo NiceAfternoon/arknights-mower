@@ -1,7 +1,6 @@
 import numpy as np
 
 from . import typealias as tp
-from .log import logger
 
 
 def infra_notification(img: tp.Image) -> tp.Coordinate:
@@ -37,5 +36,4 @@ def infra_notification(img: tp.Image) -> tp.Coordinate:
 
     # detect successful
     point = (right - 10, (up + down) // 2)
-    logger.debug(f"detector.infra_notification: {point}")
     return point

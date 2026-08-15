@@ -134,8 +134,6 @@ class Device:
 
     def launch(self) -> None:
         """launch the application"""
-        logger.info("明日方舟，启动！")
-
         launch_conf = config.conf.tap_to_launch_game
         mode = launch_conf.mode or ("tap" if launch_conf.enable else "adb")
 
@@ -150,14 +148,12 @@ class Device:
             self.run(command)
         else:
             self.run(f"am start -n {config.conf.APPNAME}/{config.APP_ACTIVITY_NAME}")
+        logger.info("operation=%s result=%s", "device_launch", "completed")
 
     def exit(self) -> None:
         """exit the application"""
-        import traceback
-
-        logger.info("退出游戏")
-        logger.debug("device.exit 调用来源:\n" + "".join(traceback.format_stack()[:-1]))
         self.run(f"am force-stop {config.conf.APPNAME}")
+        logger.info("operation=%s result=%s", "device_exit", "completed")
 
     def return_home(self) -> None:
         """exit the application"""
@@ -166,7 +162,6 @@ class Device:
 
     def send_keyevent(self, keycode: int) -> None:
         """send a key event"""
-        logger.debug(f"keyevent: {keycode}")
         command = f"input keyevent {keycode}"
         self.run(command)
 
@@ -181,8 +176,7 @@ class Device:
         try:
             output = self.client.cmd_shell(f"pidof {config.conf.APPNAME}")
             return bool(output.strip())
-        except Exception as e:
-            logger.debug(f"检查应用是否在后台运行时出错：{e}")
+        except Exception:
             return False
 
     def bring_to_foreground(self):
@@ -203,7 +197,7 @@ class Device:
         end = out.rfind(postfix)
         class_path = out[beg + len(prefix) : (end + len(postfix))].strip()
         class_path = "CLASSPATH=" + class_path
-        logger.info(f"成功获取CLASSPATH：{class_path}")
+        logger.info("operation=%s result=%s", "droidcast_classpath", "available")
         return class_path
 
     def start_droidcast(self) -> bool:
@@ -245,7 +239,6 @@ class Device:
         else:
             logger.info(f"保持DroidCast端口为{port}")
         self.client.cmd(f"forward tcp:{port} tcp:{port}")
-        logger.info("ADB端口转发成功，启动DroidCast")
         if config.droidcast.process is not None:
             config.droidcast.process.terminate()
         process = self.client.process(
@@ -258,6 +251,7 @@ class Device:
             ],
         )
         config.droidcast.process = process
+        logger.info("operation=%s result=%s", "droidcast", "started")
         return True
 
     def screencap(self) -> bytes:
@@ -286,7 +280,6 @@ class Device:
                 try:
                     port = config.droidcast.port
                     url = f"http://127.0.0.1:{port}/screenshot"
-                    logger.debug(f"GET {url}")
                     r = session.get(url)
                     img = bytes2img(r.content)
                     if config.conf.droidcast.rotate:
@@ -381,23 +374,18 @@ class Device:
 
     def tap(self, point: tuple[int, int]) -> None:
         """tap"""
-        logger.debug(f"tap: {point}")
         self.control.tap(point)
 
     def swipe(
         self, start: tuple[int, int], end: tuple[int, int], duration: int = 100
     ) -> None:
         """swipe"""
-        logger.debug(f"swipe: {start} -> {end}, duration={duration}")
         self.control.swipe(start, end, duration)
 
     def swipe_ext(
         self, points: list[tuple[int, int]], durations: list[int], up_wait: int = 200
     ) -> None:
         """swipe_ext"""
-        logger.debug(
-            f"swipe_ext: points={points}, durations={durations}, up_wait={up_wait}"
-        )
         self.control.swipe_ext(points, durations, up_wait)
 
     def check_current_focus(self) -> bool:
@@ -452,7 +440,6 @@ class Device:
             return output_str.partition("size:")[2].strip()
 
         output = self.client.cmd_shell("wm size", True)
-        logger.debug(output.strip())
 
         physical_str, _, override_str = output.partition("Override")
 

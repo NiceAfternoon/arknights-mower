@@ -44,8 +44,6 @@ def operator_list(img, draw=False, full_scan=True):
         for y in name_y:
             name_p.append(tuple(zip(x, y)))
 
-    logger.debug(name_p)
-
     op_name = []
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
@@ -75,7 +73,6 @@ def operator_list(img, draw=False, full_scan=True):
 
     with ThreadPoolExecutor() as executor:
         op_name = list(executor.map(process_name_region, name_p))
-        logger.debug(op_name)
 
     if draw:
         display = img.copy()

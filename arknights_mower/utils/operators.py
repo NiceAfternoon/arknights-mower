@@ -300,7 +300,6 @@ class Operators:
                         for dorm in self.dorm
                     ]
                 )
-                logger.debug(config.conf.dorm_order)
                 config.save_conf()  # 保存配置
             else:
                 dorm_order = config.conf.dorm_order.split(",")
@@ -475,20 +474,15 @@ class Operators:
 
         返回: index 如果需要读取时间 None"""
         agent = self.operators[name]
-        logger.debug(f"{name},{mood},{current_room},{current_index},{update_time}")
         if update_time:
             if agent.time_stamp is not None and agent.mood > mood:
                 time_difference = datetime.now() - agent.time_stamp
                 if time_difference > timedelta(minutes=29):
-                    logger.debug("开始计算心情掉率")
                     logger.debug(
                         f"当前心情：{mood},上次{agent.mood},上次时间{agent.time_stamp}"
                     )
                     agent.depletion_rate = (
                         (agent.mood - mood) * 3600 / time_difference.total_seconds()
-                    )
-                    logger.debug(
-                        f"更新 {agent.name} 心情掉率为：{agent.depletion_rate}"
                     )
             agent.time_stamp = datetime.now()
         from_dorm = agent.current_room.startswith("dorm")
@@ -505,7 +499,6 @@ class Operators:
                 dorm.reset()
         if current_room not in self.true_exhaust_room:
             agent.exhaust_time = None
-            logger.debug(f"{name} 退出{current_room}，重置真实用尽时间")
         agent.current_room = current_room
         agent.current_index = current_index
         agent.mood = mood
@@ -553,7 +546,6 @@ class Operators:
                 )
             if time_elapsed < 0 or _agent.exhaust_time < datetime.now():
                 _agent.exhaust_time = datetime.now()
-            logger.debug(f"{_name} 真实用尽时间：{_agent.exhaust_time}")
             return
 
     def correct_dorm(self):
@@ -574,9 +566,6 @@ class Operators:
                         op.mood = op.upper_limit
                         op.time_stamp = self.dorm[idx].time
                         op.depletion_rate = 0
-                        logger.debug(
-                            f"检测到{op.name}心情恢复满，设置心情至{op.upper_limit}"
-                        )
 
     def get_train_support(self):
         for name in self.operators.keys():
@@ -606,14 +595,11 @@ class Operators:
 
     def get_dorm_by_name(self, name):
         _op = self.operators[name]
-        logger.debug(name)
         for idx, dorm in enumerate(self.dorm):
             if (
                 dorm.position[0] == _op.current_room
                 and dorm.position[1] == _op.current_index
             ):
-                logger.debug(idx)
-                logger.debug(dorm)
                 return idx, dorm
         return None, None
 
@@ -669,9 +655,6 @@ class Operators:
                 count += 1
         if total_mood == 0:
             return 0
-        logger.debug(
-            f"当前工作总计高效组：{count}, 当前平均心情百分比 {current_mood / total_mood}"
-        )
         return current_mood / total_mood
 
     def available_free(self, free_type="high", time=None):

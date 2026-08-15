@@ -71,9 +71,10 @@ class Matcher:
     """image matching module"""
 
     def __init__(self, origin: tp.GrayImage) -> None:
-        logger.debug(f"Matcher init: shape ({origin.shape})")
         self.origin = origin
         self.kp, self.des = keypoints(self.origin)
+        self.last_score = None
+        self.last_threshold = None
 
     def match(
         self,
@@ -85,6 +86,8 @@ class Matcher:
         judge: bool = True,
     ) -> Optional[tp.Scope]:
         """check if the image can be matched"""
+        self.last_score = None
+        self.last_threshold = prescore if prescore > 0 else None
         rect_score = self.score(
             query,
             draw,
@@ -96,18 +99,15 @@ class Matcher:
             return None  # failed in matching
         else:
             rect, score = rect_score
+            self.last_score = float(score[3])
 
         if prescore > 0:
             if score[3] >= prescore:
-                logger.debug(f"match success: {rect_score}")
                 return rect
             else:
-                logger.debug(f"score is not greater than {prescore}: {rect_score}")
                 return None
         if judge and not SVC.predict([score])[0]:
-            logger.debug(f"match fail: {rect_score}")
             return None
-        logger.debug(f"match success: {rect_score}")
         return rect
 
     def score(
@@ -122,7 +122,6 @@ class Matcher:
         try:
             # if feature points is empty
             if self.des is None:
-                logger.debug("feature points is None")
                 return None
 
             # specify the crop scope
@@ -137,14 +136,12 @@ class Matcher:
                     ):
                         ori_kp.append(_kp)
                         ori_des.append(_des)
-                logger.debug(f"match crop: {scope}, {len(self.kp)} -> {len(ori_kp)}")
                 ori_kp, ori_des = np.array(ori_kp), np.array(ori_des)
             else:
                 ori_kp, ori_des = self.kp, self.des
 
             # if feature points is less than 2
             if len(ori_kp) < 2:
-                logger.debug("feature points is less than 2")
                 return None
 
             # the height & width of query image
@@ -179,9 +176,6 @@ class Matcher:
                 plt.show()
             # if the number of good matches no more than 4
             if len(good) <= 4:
-                logger.debug(
-                    f"not enough good matches are found: {len(good)} / {len(qry_des)}"
-                )
                 return None
 
             # get the coordinates of good matches
@@ -193,10 +187,7 @@ class Matcher:
 
             # if transformation matrix is None
             if M is None:
-                logger.debug("calculated transformation matrix failed")
                 return None
-            else:
-                logger.debug(f"transform matrix: {M.tolist()}")
 
             M[0][1] = 0
             M[1][0] = 0
@@ -235,13 +226,11 @@ class Matcher:
                 rect[1][0] - rect[0][0] < min_width
                 or rect[1][1] - rect[0][1] < min_height
             ):
-                logger.debug(f"rectangle is too small: {rect}")
                 return None
 
             if not dpi_aware:
                 max_width = w * 1.25
                 if rect[1][0] - rect[0][0] > max_width:
-                    logger.debug(f"rectangle is too big: {rect}")
                     return None
 
             # measure the rate of good match within the rectangle (x-axis)
@@ -264,7 +253,6 @@ class Matcher:
 
             # if rect_img is too small
             if rect_img.shape[0] < min_height or rect_img.shape[1] < min_width:
-                logger.debug(f"rect_img is too small: {rect_img.shape}")
                 return None
 
             # transpose rect_img

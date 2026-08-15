@@ -87,7 +87,6 @@ class Client:
         self.__server_stream: Socket = self.client.stream_shell(cmdline)
         # Wait for server to start
         response = self.__server_stream.recv(100)
-        logger.debug(response)
         if b"[server]" not in response:
             raise ConnectionError(
                 "Failed to start scrcpy-server: " + response.decode("utf-8", "ignore")

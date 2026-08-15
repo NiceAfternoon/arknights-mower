@@ -224,7 +224,7 @@ class BaseMixin:
                 self.swipe_noinertia((650, 540), (2500, 0))
         return 0
 
-    def profession_filter(self, profession=None):
+    def profession_filter(self, profession=None, emit_result=True):
         """
                     confirm_blue	confirm_train
         训练位筛选开	1548 0.89		1554
@@ -234,11 +234,8 @@ class BaseMixin:
         """
         retry = 0
         open_threshold = 1650
-        if profession:
-            logger.info(f"打开 {profession} 筛选")
-        else:
-            logger.info("关闭职业筛选")
-            self.profession_filter("ALL")
+        if not profession:
+            self.profession_filter("ALL", False)
             while (
                 (confirm_btn := self.find("confirm_blue")) is not None
                 and confirm_btn[0][0] < open_threshold
@@ -250,6 +247,8 @@ class BaseMixin:
                 retry += 1
                 if retry > 5:
                     raise Exception("关闭职业筛选失败")
+            if emit_result:
+                logger.info("operation=%s result=%s", "profession_filter", "closed")
             return
         x = 1918
         label_pos = [(x, 135 + i * 110) for i in range(9)]
@@ -269,11 +268,16 @@ class BaseMixin:
         # 点击一次ALL先
         self.tap(label_pos_map["ALL"], 0.1)
         while self.get_color(label_pos_map[profession])[2] < 240:
-            logger.debug(f"配色为： {self.get_color(label_pos_map[profession])[2]}")
             self.tap(label_pos_map[profession], 0.1)
             retry += 1
             if retry > 5:
                 raise Exception("打开职业筛选失败")
+        if emit_result:
+            logger.info(
+                "operation=%s result=%s",
+                "profession_filter",
+                f"selected:{profession}",
+            )
 
     def detect_room_number(self, img) -> int:
         score = []
@@ -305,13 +309,10 @@ class BaseMixin:
             digit_2 = cropimg(img, ((253, 24), (274, 54)))
             digit_1 = self.detect_room_number(digit_1)
             digit_2 = self.detect_room_number(digit_2)
-            logger.debug(f"{colored_room}B{digit_1}0{digit_2}")
             return f"room_{digit_1}_{digit_2}"
         elif colored_room == "训练室":
-            logger.debug("训练室B305")
             return "train"
         elif colored_room == "加工站":
-            logger.debug("加工站B105")
             return "factory"
         white_room = ["central", "dormitory", "meeting", "contact"]
         score = []
@@ -322,19 +323,11 @@ class BaseMixin:
             score.append(max_val)
         room = white_room[score.index(max(score))]
         if room == "central":
-            logger.debug("控制中枢")
+            pass
         elif room == "dormitory":
             digit = cropimg(img, ((174, 24), (195, 54)))
             digit = self.detect_room_number(digit)
-            if digit == 4:
-                logger.debug("宿舍B401")
-            else:
-                logger.debug(f"宿舍B{digit}04")
             return f"dormitory_{digit}"
-        elif room == "meeting":
-            logger.debug("会客室1F02")
-        else:
-            logger.debug("办公室B205")
         return room
 
     def adjust_room(self, _room):
@@ -346,9 +339,6 @@ class BaseMixin:
         any_point_in_view = any(screen_min_x <= p[0] <= screen_max_x for p in _room)
 
         if any_point_in_view:
-            logger.debug(
-                f"At least one point of {_room} is within screen range [0, 1920]. No movement needed."
-            )
             for i in range(4):
                 _room[i, 0] = max(_room[i, 0], 0)
                 _room[i, 0] = min(_room[i, 0], self.recog.w)
@@ -365,11 +355,9 @@ class BaseMixin:
         if min_x < screen_min_x:
             # 左边超出，向右移动
             dx = screen_min_x - min_x
-            logger.debug(f"Moving right by {dx} to bring room into view.")
         elif max_x > screen_max_x:
             # 右边超出，向左移动
             dx = screen_max_x - max_x
-            logger.debug(f"Moving left by {-dx} to bring room into view.")
 
         # 如果需要移动，则移动视图
         if dx != 0:
@@ -462,7 +450,6 @@ class BaseMixin:
             return self.read_operator_in_room(img)
         try:
             ret = rapidocr.engine(img, use_det=False, use_cls=False, use_rec=True)[0]
-            logger.debug(ret)
             if not ret or not ret[0][0]:
                 raise Exception("识别失败")
             ret = ret[0][0]
@@ -493,7 +480,6 @@ class BaseMixin:
         ]
 
         avg_color = np.mean(region.reshape(-1, 3), axis=0)
-        logger.debug(f"平均颜色: {avg_color}")
 
         target_color = np.array([189.2, 163.8, 23.7])
 
@@ -615,7 +601,6 @@ class BaseMixin:
                 time_str = self.digit_reader.get_time(self.recog.gray)
             else:
                 time_str = self.read_screen(self.recog.img, type="time", cord=cord)
-            logger.debug(time_str)
             h, m, s = str(time_str).split(":")
             if int(m) > 60 or int(s) > 60:
                 raise Exception("读取错误")
