@@ -294,9 +294,11 @@ def get_next_idle_plan(path: Optional[str] = None) -> Optional[dict]:
 
 
 def get_failed_plans(path: Optional[str] = None) -> list[dict]:
-    """failed 状态的计划（含 failed_reason），供前端展示失败原因，避免计划"凭空消失"。
+    """failed 状态的计划（含 failed_reason）。
 
-    仅展示用途；执行循环仍走 get_all_plans（不含 failed，#4 SM-09）。
+    消费方：① 前端展示失败原因（避免计划"凭空消失"）；② `get_reconcile_plans`
+    （#98：reconcile 计划集 = 非终态 + failed，按截图恢复 training——§4 SM-09 的
+    「执行循环不含 failed」已随 #98 修改，reconcile 现在能看到 failed）。
     """
     try:
         with _conn(path) as conn:

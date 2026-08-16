@@ -553,6 +553,25 @@ def _can_adopt_expiry(plan, room: RoomState) -> bool:
     )
 
 
+def _can_recover_plan(plan, room: RoomState) -> bool:
+    """#98 恢复门：比 B8 采纳门更严——技能必须被解析器无歧义命中且等于计划 skill_index。
+
+    恢复的后果重（failed→training 写库 + 清 failed_reason + 排收取/换人），若技能 OCR
+    退化片段走 `_plan_matches_room` 的子串回退（如「技能」⊂ 所有技能名），会把同干员
+    另一技能的计划误恢复。故不允许子串回退：只有 `resolve_panel_skill` 唯一命中且等于
+    计划技能才恢复——截断前缀 OCR 由解析器正确解析（不受影响）；未知干员/含混片段 →
+    None → 不恢复，静默等待（B8 稳为先）。
+    """
+    op = room.panel.operator_name
+    sk = room.panel.skill_name
+    if not op or not sk:
+        return False
+    if not _plan_operator_matches(plan, op):
+        return False
+    resolved = resolve_panel_skill(op, sk)
+    return resolved is not None and resolved == plan.get("skill_index")
+
+
 def _plan_label(plan) -> str:
     name = plan.get("char_name") or plan.get("char_id")
     return f"{name} {plan.get('skill_name') or format_skill_label(plan.get('skill_index', 0))}"
@@ -1076,13 +1095,15 @@ def _collect_plan(solver, plan, room: RoomState):
     return _reconcile_after_collect(solver, plan, room.panel)
 
 
-def _collect_silent(solver, room: RoomState):
+def _collect_silent(solver, room: RoomState, suppress_help=False):
     """未命中计划纯收取：非专三且面板可读 → 通知④帮收（§16.3）；专三/面板不可读 → 静默。
 
     面板不可读（OCR 失败，干员名空）时不发④——档位可能误读为 0（如 TRAIN_FINISH
     完成页主面板区域不可读），专三完成会被错发「帮收」；稳为先：不可读则静默。
+    suppress_help（#98）：干员其实在 failed 计划里（failed 待收取不接管），发
+    「不在专精计划中」的帮收通知会误导 → 抑制。
     """
-    if room.panel.mastery_tier != 3 and room.panel.operator_name:
+    if not suppress_help and room.panel.mastery_tier != 3 and room.panel.operator_name:
         _notify_help_collect(solver, room)
     collect_flow(solver, None, room.panel)
 
@@ -1216,15 +1237,19 @@ def _reconcile_training(solver, room, active, plans):
 
     if hit is not None:
         if hit["status"] in ("failed", "idle"):
-            if room.panel.countdown is not None and _can_adopt_expiry(hit, room):
-                # #98：截图为准——failed/idle 计划对应干员正在训练（面板干员名+技能名
-                # 都可读且匹配 + 倒计时 active）→ 恢复 training，进入正常 active×训练中
-                # 管理（换人/收取，_refresh_training_plan）。
+            if room.panel.countdown is not None and _can_recover_plan(hit, room):
+                # #98：截图为准——failed/idle 计划对应干员正在训练（面板干员名可读且
+                # 技能被解析器无歧义命中计划技能 + 倒计时 active）→ 恢复 training，
+                # 进入正常 active×训练中管理（换人/收取，_refresh_training_plan）。
                 _recover_to_training(solver, hit, room)
                 _refresh_training_plan(solver, hit, room)
             else:
-                # B8：倒计时不可读或面板不可读 → 不恢复、不重检，静默等排班自然重读
-                logger.debug("命中计划但倒计时/面板不可读，不恢复，静默等待")
+                # 恢复门不通过（B8 稳为先，技能解析不可靠/倒计时不可读）→ 不误恢复；
+                # 技能可读时保留原重检（练完由 dispatch/gate 收），不可读静默等待。
+                if room.panel.skill_name:
+                    _wait_for_training(solver, room)
+                else:
+                    logger.debug("命中计划但技能不可读，不恢复、不排重检，静默等待")
             return None, True
         if _can_adopt_expiry(hit, room):
             # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
@@ -1263,10 +1288,13 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
     训练室再回归排班）。dispatch（reconcile_and_act）defer 恒 False 永不跳过。
     """
     hit = _match_plan(plans, room)  # 干员+技能都在计划
+    suppress_help = False
     if hit is not None and hit["status"] == "failed":
         # #98：failed 计划不在收取阶段接管——训练中已按截图恢复 training；收取阶段
         # 若仍 failed（恢复错过了训练期），保持静默收取、不按该计划记账/续训（避免
         # 无材料强开下一级、把他人训练误记为计划进度），由扫描 retry_failed_plans 兜底。
+        # 干员确实在 failed 计划里，「不在专精计划中」的帮收通知会误导 → 抑制④。
+        suppress_help = True
         hit = None
     tier = room.panel.mastery_tier
     # 日志用真实保护状态（_compute_protected 已按档位/状态算好）：专三待收取即使协助位
@@ -1338,7 +1366,7 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         协助位=room.support_slot,
         保护=protective,
     )
-    _collect_silent(solver, room)
+    _collect_silent(solver, room, suppress_help=suppress_help)
     return None, True
 
 
