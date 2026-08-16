@@ -2258,7 +2258,7 @@ class TestStartWithReconciledRoom(unittest.TestCase):
 
     def test_collect_continue_room_reused_through_dispatch(self):
         """#93 主场景接线：run_mastery_task → 真实 reconcile_and_act（mock 读房与对账）
-        → 真实 _start_new_training 复用 waiting_collect room 槽位（arrange_support=False）。"""
+        → 真实 _start_new_training 复用 waiting_collect room 槽位（arrange_support=True）。"""
         from arknights_mower.utils.scheduler_task import SchedulerTask
 
         solver = self._solver(
@@ -2285,7 +2285,7 @@ class TestStartWithReconciledRoom(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=None
             ),
             patch("arknights_mower.utils.mastery_db.get_all_plans", return_value=[]),
-            patch.object(mastery_reader, "_reconcile", return_value=(plan, False)),
+            patch.object(mastery_reader, "_reconcile", return_value=(plan, True)),
             patch.object(mastery, "datetime", FixedDateTime),
             patch.object(mastery_reader, "datetime", FixedDateTime),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
@@ -2366,6 +2366,7 @@ class TestRunMasteryTaskDispatch(unittest.TestCase):
     @patch("arknights_mower.utils.mastery_db.get_plan_by_id")
     def test_collect_task_also_resolves_scan_plan(self, g):
         # 收取任务（meta_data=收取标签，无任何标记）带 plan_key → 同样解析 scan_plan
+        # （arrange_support=True：#104 收取→开下一级也照常安排路线 operator）
         from arknights_mower.utils.scheduler_task import SchedulerTask
 
         solver = self._solver()
@@ -2382,14 +2383,14 @@ class TestRunMasteryTaskDispatch(unittest.TestCase):
         with (
             patch.object(config_mod.conf, "enable_mastery", True),
             patch.object(
-                mastery_reader, "reconcile_and_act", return_value=(plan, False, room)
+                mastery_reader, "reconcile_and_act", return_value=(plan, True, room)
             ) as ra,
             patch.object(mastery, "_start_new_training") as snt,
         ):
             mastery.run_mastery_task(solver)
         ra.assert_called_once_with(solver, scan_plan=plan)
         snt.assert_called_once_with(
-            solver, plan, arrange_support=False, room=room, step_level=None
+            solver, plan, arrange_support=True, room=room, step_level=None
         )
 
     def test_recheck_task_passes_no_scan_plan(self):

@@ -201,9 +201,14 @@
 **#79 协助位确认（2026-08-15）**：倒计时确认后开进驻浮窗（`_read_slots`，读后自动关）读实际协助位——**协助位 ∉ {operator, swap_target}（陌生人/坐错）先 `choose_train([operator, "Current"])` 纠错**，纠错成功重读倒计时（此时效率已知 = route["efficiency"]）才算换人；**纠错失败 → ⑦ 邮件通知 + 不换人 + 排收取退出**。**协助位已 = swap_target（已减半）→ 不再换、不置 swap_frozen**（防跨步残留重复换）。换人公式/路线仍沿用稳定方案。
 **#80/#81 换人值得门（2026-08-15）**：`did_swap` 追加 **`_swap_worthwhileness` 判定**（= calc_swap_threshold 的 301 守卫，换后真实剩余 <5h 不值得）——纠错任务由 reconcile 排（排程时不做值得判定，专三/时间不足的步也纠），派发到这里守住「纠错不触发不该发生的减半换人」（#80 acceptance 2）；正常减半任务排程时已判值得，这里复查只更保守，无回归。
 
-### 减半守卫（C-15）
+### 协助位安排（C-15，2026-08-17 修订）
+- **路线 operator 每次开始照常安排**：`_arrange_support` 在每次确认开始后把路线
+  operator 放进协助位——包括「收取 → 下一次开始」级联边界（2026-08-17 用户拍板，
+  原 #63 减半守卫的 `arrange_support=False` 已删：它把「专三不换减半对象」过度实现成
+  「完全不动协助位」，路线 operator 也没放，专三只留上一级减半干员）。
+- **减半换人**由路线 `swap_target` + `_schedule_swap_if_needed` 决定：专一/专二步
+  swap_target 非空 → 阈值时刻换减半对象；专三步 swap_target=None → 不换（铁律 7）。
 - 协助位换人**只在训练确认开始之后**（读到有效倒计时、DB 已置 training）。
-- 跨「收取 → 下一次开始」**不动协助位**：收集级联、已到target完成级联传 `arrange_support=False`。
 - `assistant_follows_schedule=True` 时跳过全部协助位安排与换人（协助位归排班系统管）。（C-21 / C-28）
 
 ### 路线配置（`_get_plan_route` → `get_route_config`）

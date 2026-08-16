@@ -1735,16 +1735,16 @@ class TestReconcileMatrix(unittest.TestCase):
             reader._reconcile(solver, room, None, [])
         cs.assert_called_once()
 
-    def test_collect_return_no_arrange_support(self):
-        # 继续本级（#74 第3段「都去掉」后一律当场开）→ 返回计划 + arrange_support=False
-        # （减半守卫：跨「收取→下一次开始」边界不重排协助位）
+    def test_collect_continue_returns_arrange_support(self):
+        # 继续本级（#74 第3段「都去掉」后一律当场开）→ 返回计划 + arrange_support=True
+        # （2026-08-17 用户拍板：收取→开下一级边界也照常安排路线 operator）
         solver = MagicMock()
         room = make_room("waiting_collect")
         plan = make_plan()
         with patch.object(reader, "_collect_plan", return_value=make_plan()):
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         self.assertIsNotNone(start)
-        self.assertFalse(arrange_support)
+        self.assertTrue(arrange_support)
 
 
 class TestReconcile73(unittest.TestCase):
@@ -1766,14 +1766,15 @@ class TestReconcile73(unittest.TestCase):
         self.assertIsNone(start)
 
     def test_waiting_collect_m3_matched_no_cascade(self):
-        # 专三 + 都在计划 → 正常收取对账（收取完成不级联，#74 第2段）
+        # 专三 + 都在计划 → 正常收取对账（收取完成不级联，#74 第2段；plan=None 无开始，
+        # arrange_support 恒 True 但未消费）
         solver = MagicMock()
         room = make_room("waiting_collect", mastery_tier=3)
         plan = make_plan(target_level=3)
         with patch.object(reader, "_collect_plan", return_value=None) as cp:
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         cp.assert_called_once()
-        self.assertFalse(arrange_support, "收集 → 减半守卫不重排协助位")
+        self.assertTrue(arrange_support)
         self.assertIsNone(start, "收取完成不级联开始下一个计划")
 
     def test_waiting_collect_below_m3_unmatched_help_collect(self):
@@ -1790,7 +1791,7 @@ class TestReconcile73(unittest.TestCase):
 
     def test_waiting_collect_below_m3_matched_recovers_and_promotes(self):
         # 非专三 + 都在计划 → 恢复流程（§16.6）：收取 + 优先级排前 + 继续本级当场开
-        # （#74 第3段「都去掉」后一律当场开，不分扫描链/重启）
+        # （#74 第3段「都去掉」后一律当场开，不分扫描链/重启；路线 operator 照常安排）
         solver = MagicMock()
         room = make_room("waiting_collect", mastery_tier=2)
         plan = make_plan(target_level=3)
@@ -1801,7 +1802,7 @@ class TestReconcile73(unittest.TestCase):
             start, arrange_support = reader._reconcile(solver, room, None, [plan])
         cp.assert_called_once()
         pp.assert_called_once()
-        self.assertFalse(arrange_support)
+        self.assertTrue(arrange_support)
         self.assertIsNotNone(start)
 
     def test_waiting_collect_m3_completed_does_not_promote(self):

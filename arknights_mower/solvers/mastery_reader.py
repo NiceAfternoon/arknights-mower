@@ -1193,7 +1193,9 @@ def reconcile_and_act(solver, scan_plan=None):
 
     返回 (start_plan, arrange_support, room)：
     - start_plan：需要开始训练的计划（长动作由 SKILL_UPGRADE dispatch 执行），无则 None；
-    - arrange_support：False 表示是「收取→下一次开始」边界（减半守卫：不重排协助位）；
+    - arrange_support：是否安排路线 operator（2026-08-17 用户拍板恒 True——「收取→
+      下一次开始」边界也照常安排；减半与否由路线 swap_target 决定，不再有减半守卫的
+      False）；
     - room：本次进房读取的 RoomState（截图权威）。dispatch 把它传给 _start_new_training，
       开始流程直接复用已读的槽位/面板，不再重复进房、重复开浮窗（#93）。
     一次进房做完全部动作；无开始计划时保证离开训练室。
@@ -1229,7 +1231,8 @@ def _reconcile(
     """#61/#73 状态矩阵。行=DB 状态，列=截图房间状态。
 
     返回 (start_plan, arrange_support)：start_plan 为需要开始训练的计划或 None；
-    arrange_support=False 表示「收取→下一次开始」边界（减半守卫：不重排协助位）。
+    arrange_support 是否安排路线 operator（2026-08-17 用户拍板恒 True——「收取→下一
+    次开始」边界也照常安排，不再有减半守卫的 False）。
 
     §16.2 矩阵：待收取/空闲/训练中；OCR 失败 5 次仍不一致 → 保守训练中。
     scan_plan：任务 plan_key 指定的开始计划（#74 第3段）；None 表示无指定（plan_key=None）。
@@ -1404,15 +1407,19 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
             保护=protective,
         )
         if hit is not None:
-            return _collect_plan(solver, hit, room), False
+            return _collect_plan(solver, hit, room), True
         _collect_silent(solver, room)
         return None, True
 
     if hit is not None:
         # 干员+技能都在计划（非专三）：恢复流程（§16.6）——正常收取 → 优先级排前 +
         # 置 idle → 继续本级**当场开下一级**（2026-08-14 用户拍板「都去掉」：不再区分
-        # 扫描链/重启，一律当场开；重启后也不保守等扫描）。减半守卫：跨「收取→下一次
-        # 开始」边界不动协助位。
+        # 扫描链/重启，一律当场开；重启后也不保守等扫描）。**路线 operator 照常安排**
+        # （2026-08-17 用户拍板：原「减半守卫」跨「收取→下一次开始」边界传
+        # arrange_support=False、不重排协助位，把「专三不换减半对象」过度实现成「完全
+        # 不动协助位」——路线 operator 也没放，专三只留上一级减半换入的干员；减半与否
+        # 由路线 swap_target + _schedule_swap_if_needed 管，专三 swap_target=None 本
+        # 就不排换人，路线 operator 照常进协助位拿加成）。
         _log_judgment(
             solver,
             room,
@@ -1424,9 +1431,9 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         plan = _collect_plan(solver, hit, room)
         if plan is not None and plan["id"] == hit["id"]:
             _promote_plan(solver, plan)  # 非专三继续本级 → 排前
-            return plan, False
+            return plan, True
         # 收取完成（档位==target）不级联，等扫描
-        return plan, False
+        return plan, True
 
     # 干员不在计划 / 干员在技能不在：收取 + 通知④帮收（非专三，无论保护与否）
     _log_judgment(

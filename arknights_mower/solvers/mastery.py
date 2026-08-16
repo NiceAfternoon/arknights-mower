@@ -569,8 +569,10 @@ def _start_new_training(solver, plan, arrange_support=True, room=None, step_leve
 
     #16 决议：进房先读倒计时定分支，不盲点技能按钮。
     #15 决议：全程纯墙钟 5 分钟 deadline，各分支短处理、超时走统一退出路径。
-    #63 减半守卫：跨「收取→下一次开始」边界不动协助位（保留驻留/激活），
-    调用方在「收取→下一次开始」边界传 arrange_support=False（收取后不重新安排协助位）。
+    #103：路线 operator 每次开始照常安排（2026-08-17 用户拍板）——原 #63 减半守卫在
+    「收取→下一次开始」边界传 arrange_support=False、不动协助位，把「专三不换减半对象」
+    过度实现成「完全不动协助位」（路线 operator 也没放，专三只留上一级减半干员）；
+    减半与否由路线 swap_target + _schedule_swap_if_needed 管，与 arrange_support 无关。
     #93：room 是 dispatch 的 reconcile_and_act 已读的房间状态（截图权威，含槽位）——
     开始流程直接复用，不再重复 enter_room、不再开进驻详情浮窗重读槽位（消除重复进房
     与重复浮窗开关）。room=None（冷启动/直接调用）保持旧行为：进房 + 现读槽位。
@@ -742,7 +744,8 @@ def _confirm_training_started(
     - started: 已转入 TRAINING 并完成协助位/收取安排
     - failed: 材料不足 或 #69/B2 面板干员/技能与计划不符，已标记 failed + 通知 + 退出训练室
     - timeout: deadline 内未确认训练开始（含面板不可读无法校验归属），由调用方走统一超时出口
-    #63 减半守卫：arrange_support=False（收取后级联）不重新安排协助位。
+    #103：路线 operator 每次开始照常安排（2026-08-17 用户拍板，原 #63 减半守卫的
+    arrange_support=False 已删——「收取后级联」也安排路线 operator，见 _start_new_training）。
     """
     from arknights_mower.utils.email import send_message
     from arknights_mower.utils.mastery_db import update_plan_status
