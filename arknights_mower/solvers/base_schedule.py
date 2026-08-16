@@ -782,6 +782,24 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             logger.info(
                                 f"房间 {self.translate_room(room)}  {mood_info}"
                             )
+                        # 重启后训练室可能停在待收取（专精练完但没人收）：进训练室读心情时
+                        # 顺便 reconcile——发现待收取就收（defer_collect=False 此刻就是要收），
+                        # 修正 DB（截图为准），打破「不收→等级不刷新→材料不够→不调度→更不收」
+                        # 死锁。enable_mastery 关闭时不干扰通用心情读取。
+                        if config.conf.enable_mastery:
+                            from arknights_mower.solvers.mastery_reader import (
+                                read_room_state,
+                                reconcile_short,
+                            )
+
+                            try:
+                                room_state = read_room_state(self, enter=False)
+                                if room_state is not None:
+                                    reconcile_short(
+                                        self, room_state, defer_collect=False
+                                    )
+                            except Exception as e:
+                                logger.warning(f"训练室顺路对账失败: {e}")
                     else:
                         num = len(self.op_data.plan[room])
                         _mood_data = self.get_agent_from_room(
