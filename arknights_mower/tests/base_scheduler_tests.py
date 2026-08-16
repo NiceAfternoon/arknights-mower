@@ -395,6 +395,35 @@ class TestBaseScheduler(unittest.TestCase):
         )
 
     @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_agent_get_mood_train_branch_unified_reader(self):
+        # #94：训练室分支统一走 read_room_state(want_mood=True) 一次读全（含心情）
+        # + reconcile_short，不再 get_agent_from_room 与 read_room_state 各开一次浮窗。
+        solver = BaseSchedulerSolver()
+        solver.global_plan = MagicMock()
+        solver.initialize_operators()
+        solver.op_data.add(Operator("艾雅法拉", "train"))
+        solver.tasks = []
+        solver._training_sm = MagicMock()
+
+        room_state = MagicMock()
+        mood_data = [{"agent": "艾雅法拉", "mood": 20.1234}]
+        with (
+            patch.object(BaseSchedulerSolver, "enter_room"),
+            patch.object(BaseSchedulerSolver, "back"),
+            patch.object(
+                mastery_reader,
+                "read_room_state",
+                return_value=(room_state, mood_data),
+            ) as mock_read,
+            patch.object(mastery_reader, "reconcile_short") as mock_reconcile,
+        ):
+            result = solver.agent_get_mood()
+
+        self.assertIsNone(result)
+        mock_read.assert_called_once_with(solver, enter=False, want_mood=True)
+        mock_reconcile.assert_called_once_with(solver, room_state, defer_collect=False)
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
     def test_no_keepalive_enqueue_for_idle_plan(self):
         # #74 第3段：keepalive 完全删除——DB 有 idle 计划也不再每轮补 now-task
         # SKILL_UPGRADE（开始训练只由扫描派发；重启恢复靠 gate 顺路重读 + 扫描派发兜底）。

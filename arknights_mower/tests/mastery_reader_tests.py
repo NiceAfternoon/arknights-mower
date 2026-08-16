@@ -538,6 +538,51 @@ class TestReadRoomState(unittest.TestCase):
         self.assertEqual(room.state, "training")
         self.assertFalse(room.read_failed)
 
+    def test_want_mood_collects_slots_and_mood_once(self):
+        # #94：待收取开浮窗读槽位时顺带收集心情——get_agent_from_room 只开一次
+        solver = self._solver(0)
+        scan = [
+            {"agent": "支援干员", "mood": 20.1234},
+            {"agent": "训练干员", "mood": 15.5678},
+        ]
+        solver.get_agent_from_room.return_value = scan
+        room, mood = reader.read_room_state(solver, want_mood=True)
+        self.assertEqual(room.state, "waiting_collect")
+        self.assertEqual(room.support_slot, "支援干员")
+        self.assertEqual(room.train_slot, "训练干员")
+        self.assertEqual(mood, scan)
+        solver.get_agent_from_room.assert_called_once_with("train")
+
+    def test_want_mood_training_state_reads_mood(self):
+        # 训练中（倒计时非 0）也要读心情：开一次浮窗读全再关回 TRAIN_MAIN
+        solver = self._solver(7200)
+        scan = [
+            {"agent": "支援干员", "mood": 20.1234},
+            {"agent": "训练干员", "mood": 15.5678},
+        ]
+        solver.get_agent_from_room.return_value = scan
+        room, mood = reader.read_room_state(solver, want_mood=True)
+        self.assertEqual(room.state, "training")
+        self.assertEqual(room.support_slot, "支援干员")
+        self.assertEqual(room.train_slot, "训练干员")
+        self.assertEqual(mood, scan)
+        solver.get_agent_from_room.assert_called_once_with("train")
+
+    def test_want_mood_finish_scene_empty_mood(self):
+        # TRAIN_FINISH（完成横幅页）只读面板：浮窗不可靠 → 心情返回空列表
+        solver = self._solver(0)
+        solver.train_scene.side_effect = [Scene.TRAIN_FINISH]
+        room, mood = reader.read_room_state(solver, want_mood=True)
+        self.assertEqual(room.state, "waiting_collect")
+        self.assertEqual(mood, [])
+        solver.get_agent_from_room.assert_not_called()
+
+    def test_want_mood_default_returns_room_only(self):
+        # 不破坏现有调用：默认 want_mood=False 返回 RoomState（非元组）
+        solver = self._solver(7200)
+        room = reader.read_room_state(solver)
+        self.assertIsInstance(room, reader.RoomState)
+
 
 class TestReconcileShort(unittest.TestCase):
     """reconcile_short：排班路径顺路短动作（不开始训练、不退出房间）。"""
