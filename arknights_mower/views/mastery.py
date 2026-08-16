@@ -46,7 +46,8 @@ def _require_token(f):
 def _purge_plan_tasks(plan_id):
     """#97：删除计划后清理队列残留任务（SKILL_UPGRADE/SWAP 按 plan_key 派发到已删计划）。
 
-    补位任务用 fill-{id} 键，一并清。in-place 改列表（不重绑引用，避免与主循环
+    #101：补位不再用独立 fill-{id} 键（空位与半程换人共用 plan_key=计划ID），只需清
+    plan_key=计划ID。in-place 改列表（不重绑引用，避免与主循环
     `self.tasks[0]`/`del self.tasks[0]` 竞争）；**跳过当前派发任务**——主循环 dispatch
     完按 `del self.tasks[0]` 删除它，若把它移走，del 会误删下一个排队任务（review 修复）。
     base_scheduler 未运行（None）或 tasks 不可迭代时防御按无任务处理。
@@ -59,7 +60,7 @@ def _purge_plan_tasks(plan_id):
     if not isinstance(tasks, list):
         return
     current = getattr(base_scheduler, "task", None)
-    keys = {str(plan_id), f"fill-{plan_id}"}
+    keys = {str(plan_id)}
     tasks[:] = [
         t for t in tasks if t is current or getattr(t, "plan_key", None) not in keys
     ]

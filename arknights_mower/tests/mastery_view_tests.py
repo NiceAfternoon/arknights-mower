@@ -307,7 +307,8 @@ class TestMasteryPlanView(unittest.TestCase):
         delete_mock.assert_not_called()
 
     def test_purge_plan_tasks_removes_plan_key_tasks(self):
-        # #97：_purge_plan_tasks 清掉该计划 plan_key 与 fill-{id} 的队列任务，保留其它
+        # #97：_purge_plan_tasks 清掉该计划 plan_key 的队列任务（SKILL_UPGRADE/SWAP，
+        # #101 补位不再有独立 fill-{id} 键），保留其它
         from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
         from arknights_mower.views.mastery import _purge_plan_tasks
 
@@ -316,7 +317,7 @@ class TestMasteryPlanView(unittest.TestCase):
         t1 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
         t1.plan_key = "5"
         t2 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SWAP_SUPPORT)
-        t2.plan_key = "fill-5"
+        t2.plan_key = "5"
         t3 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
         t3.plan_key = "9"
         sched.tasks = [t1, t2, t3]
@@ -324,7 +325,7 @@ class TestMasteryPlanView(unittest.TestCase):
         with patch.dict(sys.modules, {"arknights_mower.__main__": fake}):
             _purge_plan_tasks(5)
         remaining = [getattr(t, "plan_key", None) for t in sched.tasks]
-        self.assertEqual(remaining, ["9"], "plan_key=5 与 fill-5 应清掉，plan_key=9 保留")
+        self.assertEqual(remaining, ["9"], "plan_key=5 应清掉，plan_key=9 保留")
 
     def test_purge_plan_tasks_keeps_current_dispatch(self):
         # #97 review 修复：当前派发任务（base_scheduler.task）不删——主循环 dispatch 完
@@ -337,7 +338,7 @@ class TestMasteryPlanView(unittest.TestCase):
         t1 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
         t1.plan_key = "5"
         t2 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SWAP_SUPPORT)
-        t2.plan_key = "fill-5"
+        t2.plan_key = "5"
         t3 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
         t3.plan_key = "9"
         sched.tasks = [t1, t2, t3]
@@ -349,7 +350,7 @@ class TestMasteryPlanView(unittest.TestCase):
         self.assertEqual(
             remaining,
             ["5", "9"],
-            "当前派发任务(plan_key=5)保留（del self.tasks[0] 会删它），fill-5 清掉",
+            "当前派发任务(plan_key=5)保留（del self.tasks[0] 会删它），另一条 plan_key=5 清掉",
         )
 
     def test_purge_plan_tasks_guards_no_scheduler(self):
