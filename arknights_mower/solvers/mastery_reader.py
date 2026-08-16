@@ -604,13 +604,16 @@ def _schedule_collect(solver, plan, execute_time, tier=None):
     )
 
 
-def _schedule_scan_start(solver, plan):
+def _schedule_scan_start(solver, plan, step_level=None):
     """#74 第3段：仓库扫描确认材料后，为材料足够的 idle 计划入队「开始训练」任务。
 
     时间=now（扫描完尽快开练）；plan_key=计划ID 定位 + 复用 TASK-01 按 plan_key 去重
     （每计划恒 ≤1 条 SKILL_UPGRADE，重复扫描原地刷新不新增）。开始/收取/重检任务
     同形（均 plan_key 定位，房间状态决定行为：空闲→开始、待收取→收集），故无专门
     标记。计划开始训练后该任务按 plan_key 原位升级为收取任务（_schedule_collect 去重命中）。
+
+    step_level：扫描算出的本次安排步级（current_level+1，森空岛数据），存在任务上，
+    供 dispatch 传给安排流程——失败邮件要报「这次要练的专几」，不依赖现场图标。
     """
     _upsert_skill_upgrade_task(
         solver,
@@ -618,6 +621,9 @@ def _schedule_scan_start(solver, plan):
         meta_data=f"{_plan_label(plan)} 开始训练",
         plan_key=str(plan["id"]),
     )
+    task = _find_plan_task(solver, str(plan["id"]))
+    if task is not None:
+        task.step_level = step_level
 
 
 # --- 矩阵动作 ---
@@ -832,8 +838,10 @@ def _notify_help_collect(solver, room):
     op = room.panel.operator_name or "未知干员"
     key = f"{op}:{room.panel.skill_name or ''}"
     if should_notify("help_collect", key):
+        tier = room.panel.mastery_tier
+        tier_text = f"专{tier}" if tier else "专精等级未知"
         msg = (
-            f"训练室 {op}（{room.panel.skill_name or '技能未知'}）训练完成，"
+            f"训练室 {op}（{room.panel.skill_name or '技能未知'}）{tier_text} 训练完成，"
             "不在专精计划中，mower 已帮忙收取"
         )
         send_message(msg, level="INFO")

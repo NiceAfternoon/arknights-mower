@@ -4548,16 +4548,20 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         from arknights_mower.solvers.mastery_reader import _schedule_scan_start
         from arknights_mower.utils.mastery_db import get_all_plans
 
+        # 带 current_level 的扫描条目：安排步级 = 当前级 + 1（森空岛数据，最可靠）
         confirmed = {
-            (entry.get("char_id"), entry.get("skill_index")) for entry in scheduled
+            (entry.get("char_id"), entry.get("skill_index")): entry
+            for entry in scheduled
         }
         dispatched = 0
         for plan in get_all_plans():  # 非终态，按 priority, id 排序
             if plan["status"] != "idle":
                 continue
-            if (plan["char_id"], plan["skill_index"]) not in confirmed:
+            entry = confirmed.get((plan["char_id"], plan["skill_index"]))
+            if entry is None:
                 continue
-            _schedule_scan_start(self, plan)
+            step_level = entry.get("current_level", 0) + 1
+            _schedule_scan_start(self, plan, step_level=step_level)
             dispatched += 1
         if dispatched:
             logger.info(
