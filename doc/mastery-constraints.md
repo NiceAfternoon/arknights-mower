@@ -172,10 +172,14 @@
    连续 SWAP_RETRY_LIMIT 次仍失败 / 剩余不足 5h → 放弃 + ⑧ 通知，**不再置
    swap_frozen=1**——reconcile 下次进房重新补排再试一轮，暂时性失败可被救回。
    **#100 空协助位补位（2026-08-16）**：受管理计划训练中协助位**空着**同样需纠——
-   `_maybe_recover_swap` 读协助位为空 → 排补位任务（`_schedule_fill_support`，填路线
-   operator、不碰训练位）；run_swap_support 空位先补 operator，再按值得门换 swap_target。
-   门控同 #77/#80（enable_mastery 开、非跟随排班、swap_frozen=0、队列无同计划 SWAP）；
-   已减半（协助位 == swap_target）/ 保护（逻各斯/艾丽妮在协助位）→ 不补。
+   `_maybe_recover_swap` 读协助位**可靠地空着**（`_read_slots_checked`，读失败不算空）
+   → 排补位任务（`_schedule_fill_support`，填路线 operator、不碰训练位）；补位与半程
+   换人**独立去重**（fill-{id} 键，不被阈值时刻的半程换人任务掩盖），补位后仍落半程
+   换人去重/排程。run_swap_support 空位先补 operator 再按值得门换 swap_target；**只在
+   倒计时 active 时动协助位**（00:00:00 收取边界不动，铁律 6）、**读失败不动**（稳为先）；
+   空位补位失败 → 不阻塞减半（落到 did_swap 直接换 swap_target）。
+   门控：enable_mastery 开、非跟随排班、swap_frozen=0；已减半（协助位 == swap_target）/
+   保护（逻各斯/艾丽妮在协助位）→ 不补。
 
 ### `calc_swap_threshold` 公式（`mastery.py:238-271`）
 - `target_minutes = 300 + buffer`（buffer 默认 10）。
