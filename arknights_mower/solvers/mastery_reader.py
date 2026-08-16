@@ -512,13 +512,19 @@ def _plan_matches_room(plan, room: RoomState) -> bool:
 
 
 def _match_plan(plans, room: RoomState):
-    """截图 (干员,技能) → 非终态计划命中；未命中返回 None。"""
+    """截图 (干员,技能) → 计划命中；未命中返回 None。
+
+    #98：failed 也纳入匹配（此前排除 → DB failed 但实际在训练时永不命中，见
+    `get_reconcile_plans`）；completed 仍排除（真正终态，不恢复）。命中后按状态决定
+    动作：failed/idle → 恢复 training（`_reconcile_training`），failed 待收取不接管
+    （`_reconcile_waiting_collect` 守卫）。
+    """
     op = room.panel.operator_name
     if not op:
         return None
     sk = room.panel.skill_name
     for p in plans:
-        if p["status"] in ("completed", "failed"):
+        if p["status"] == "completed":
             continue
         if not _plan_operator_matches(p, op):
             continue
@@ -743,6 +749,38 @@ def _update_expiry(solver, plan, room):
     expires_at = countdown.strftime("%Y-%m-%d %H:%M:%S")
     if plan.get("expires_at") != expires_at:
         update_plan_status(plan["id"], "training", expires_at=expires_at)
+
+
+def _recover_to_training(solver, plan, room):
+    """#98：failed/idle 计划读到面板匹配 + 倒计时 active → 恢复 training（截图为准）。
+
+    failed 撤销 false-failure（#69 归属校验的误判）；同一 update_plan_status 写
+    status=training + expires_at + swap_frozen=0（对齐 SM-03），并清 failed_reason。
+    本地 plan dict 同步更新，供调用方继续 `_refresh_training_plan`（换人/收取）使用。
+    """
+    from arknights_mower.utils.mastery_db import update_plan_status
+
+    prev = plan["status"]
+    countdown = room.panel.countdown
+    expires_at = (
+        countdown.strftime("%Y-%m-%d %H:%M:%S") if countdown is not None else None
+    )
+    update_plan_status(
+        plan["id"],
+        "training",
+        expires_at=expires_at,
+        swap_frozen=0,
+        failed_reason="",  # 清 false-failure 原因（update_plan_status 仅非 None 才写）
+    )
+    plan["status"] = "training"
+    plan["swap_frozen"] = 0
+    plan["failed_reason"] = None
+    if expires_at is not None:
+        plan["expires_at"] = expires_at
+    logger.info(
+        f"[mastery] #98 截图为准：{_plan_label(plan)} 由 {prev} 恢复为 training"
+        f"（面板匹配 + 倒计时 {expires_at}）"
+    )
 
 
 def _refresh_training_plan(solver, plan, room):
@@ -1074,13 +1112,13 @@ def reconcile_and_act(solver, scan_plan=None):
     计划开始训练，其他情况交还排班。材料判断在扫描时完成（auto_schedule 的 scheduled
     结果），不违背「删材料门控」。
     """
-    from arknights_mower.utils.mastery_db import get_active_plan, get_all_plans
+    from arknights_mower.utils.mastery_db import get_active_plan, get_reconcile_plans
 
     if not config.conf.enable_mastery:
         return None, True, None
     room = read_room_state(solver)
     active = get_active_plan()
-    plans = get_all_plans()
+    plans = get_reconcile_plans()
     plan, arrange_support = _reconcile(solver, room, active, plans, scan_plan=scan_plan)
     if plan is None:
         # 各矩阵路径已 back 的不会重复退出；收集后无级联 / 空房无计划时在此退出
@@ -1159,6 +1197,8 @@ def _reconcile_training(solver, room, active, plans):
     B8：采纳倒计时（`_update_expiry`）只在 `_can_adopt_expiry` 通过时发生——面板
     干员名+技能名任一不可读 → 不采纳（不刷新、不改写状态）、不排重检，静默等排班
     系统下次自然进房重读（用户 08-15 定案）。
+    #98：failed/idle 命中训练 + 面板可读且匹配（倒计时 active 由本函数前提保证）→
+    恢复 training（截图为准适用于所有状态），此后进入正常 active×训练中管理。
     """
     hit = _match_plan(plans, room)
     if active is not None:
@@ -1175,13 +1215,16 @@ def _reconcile_training(solver, room, active, plans):
             return None, True
 
     if hit is not None:
-        if hit["status"] == "idle":
-            if room.panel.skill_name:
-                # idle×🔴 命中：静默等它练完（级联靠后续收取），不打断
-                _wait_for_training(solver, room)
+        if hit["status"] in ("failed", "idle"):
+            if room.panel.countdown is not None and _can_adopt_expiry(hit, room):
+                # #98：截图为准——failed/idle 计划对应干员正在训练（面板干员名+技能名
+                # 都可读且匹配 + 倒计时 active）→ 恢复 training，进入正常 active×训练中
+                # 管理（换人/收取，_refresh_training_plan）。
+                _recover_to_training(solver, hit, room)
+                _refresh_training_plan(solver, hit, room)
             else:
-                # B8：命中但技能不可读 → 不排重检，静默等排班下次自然进房重读
-                logger.debug("命中计划但面板技能不可读，不排重检，静默等待")
+                # B8：倒计时不可读或面板不可读 → 不恢复、不重检，静默等排班自然重读
+                logger.debug("命中计划但倒计时/面板不可读，不恢复，静默等待")
             return None, True
         if _can_adopt_expiry(hit, room):
             # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
@@ -1220,6 +1263,11 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
     训练室再回归排班）。dispatch（reconcile_and_act）defer 恒 False 永不跳过。
     """
     hit = _match_plan(plans, room)  # 干员+技能都在计划
+    if hit is not None and hit["status"] == "failed":
+        # #98：failed 计划不在收取阶段接管——训练中已按截图恢复 training；收取阶段
+        # 若仍 failed（恢复错过了训练期），保持静默收取、不按该计划记账/续训（避免
+        # 无材料强开下一级、把他人训练误记为计划进度），由扫描 retry_failed_plans 兜底。
+        hit = None
     tier = room.panel.mastery_tier
     # 日志用真实保护状态（_compute_protected 已按档位/状态算好）：专三待收取即使协助位
     # 是逻各斯/艾丽妮也不保护（§16.3 第1格），只看协助位会误报保护=True。
@@ -1304,13 +1352,13 @@ def reconcile_short(solver, room_state: RoomState, defer_collect=False):
     defer_collect（#75 方案 C）：gate 传 True——待收取格跳过「队列已有专精任务」的
     收集，留给队列任务收；dispatch 不经由本函数。
     """
-    from arknights_mower.utils.mastery_db import get_active_plan, get_all_plans
+    from arknights_mower.utils.mastery_db import get_active_plan, get_reconcile_plans
 
     _reconcile(
         solver,
         room_state,
         get_active_plan(),
-        get_all_plans(),
+        get_reconcile_plans(),
         defer_collect=defer_collect,
     )
 
