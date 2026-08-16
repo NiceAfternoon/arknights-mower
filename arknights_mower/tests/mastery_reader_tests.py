@@ -976,8 +976,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         sched.assert_not_called()
 
     def test_recover_empty_assist_slot_fills(self):
-        # #100：协助位空着 → 排补位任务（填路线 operator，带 plan_key），不走
-        # _schedule_swap_if_needed（减半与否由 dispatch 时再判）
+        # #100：协助位空着 → 排补位任务（填路线 operator，独立 fill-{id} 去重键）+
+        # 半程换人照常排（补位现在、减半阈值时刻，两件事不互斥——review 修复）
         solver = self._solver()
         solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": "能天使"}]
         plan = self._training_plan()
@@ -987,15 +987,83 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.solvers.mastery._get_plan_route",
                 return_value=self._correction_route(),
             ),
-            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
+            patch(
+                "arknights_mower.solvers.mastery._schedule_swap_if_needed",
+                return_value=None,
+            ) as sched,
         ):
             result = reader._maybe_recover_swap(solver, plan, room)
         self.assertTrue(result, "排了补位任务 → 调用方不排收取")
-        sched.assert_not_called()
-        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
-        self.assertEqual(len(swaps), 1)
-        self.assertEqual(swaps[0].plan_key, str(plan["id"]))
-        self.assertIn("补位为 夜半", swaps[0].meta_data)
+        sched.assert_called_once_with(solver, plan, room.panel.countdown, 2)
+        fills = [
+            t
+            for t in solver.tasks
+            if t.type == reader.TaskTypes.SWAP_SUPPORT
+            and t.plan_key == f"fill-{plan['id']}"
+        ]
+        self.assertEqual(len(fills), 1)
+        self.assertIn("补位为 夜半", fills[0].meta_data)
+
+    def test_recover_empty_assist_slot_fills_despite_queued_swap(self):
+        # #100 review 修复（major：去重掩盖）：已排半程换人任务**不掩盖**空位补位——
+        # 补位用独立 fill-{id} 去重键，不被阈值时刻的半程换人任务挡住
+        solver = self._solver()
+        solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": "能天使"}]
+        plan = self._training_plan()
+        room = self._room()
+        swap_task = reader.SchedulerTask(
+            time=datetime.now() + timedelta(hours=3),
+            task_type=reader.TaskTypes.SWAP_SUPPORT,
+        )
+        swap_task.plan_key = str(plan["id"])
+        solver.tasks = [swap_task]
+        with (
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
+            patch(
+                "arknights_mower.solvers.mastery._schedule_swap_if_needed"
+            ) as sched,
+        ):
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertTrue(result)
+        sched.assert_not_called()  # 队列已有半程换人 → 不重复排
+        fills = [
+            t
+            for t in solver.tasks
+            if t.type == reader.TaskTypes.SWAP_SUPPORT
+            and t.plan_key == f"fill-{plan['id']}"
+        ]
+        self.assertEqual(len(fills), 1, "半程换人在队不掩盖空位补位")
+
+    def test_recover_unreliable_slot_read_no_fill(self):
+        # #100 review 修复（major：读失败当空位）：get_agent_from_room 异常（OCR 坏名
+        # KeyError）→ reliable=False → 不算空位，不排补位（稳为先：读不到就不动作）
+        solver = self._solver()
+        solver.get_agent_from_room.side_effect = KeyError("坏名")
+        plan = self._training_plan()
+        room = self._room()
+        with (
+            patch(
+                "arknights_mower.solvers.mastery._get_plan_route",
+                return_value=self._correction_route(),
+            ),
+            patch(
+                "arknights_mower.solvers.mastery._schedule_swap_if_needed",
+                return_value=None,
+            ) as sched,
+        ):
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertFalse(result, "读失败不算空位 → 无任务可排")
+        fills = [
+            t
+            for t in solver.tasks
+            if t.type == reader.TaskTypes.SWAP_SUPPORT
+            and t.plan_key == f"fill-{plan['id']}"
+        ]
+        self.assertEqual(len(fills), 0, "读失败不补位（稳为先）")
+        sched.assert_called_once()
 
     def test_recover_route_no_operator_no_correction(self):
         # 路线拿不到 operator → 不纠错（无法判期望协助位），走 _schedule_swap_if_needed

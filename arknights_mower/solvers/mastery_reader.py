@@ -307,6 +307,42 @@ def _settle_in_room(solver, max_iters=15) -> int:
     return solver.train_scene()
 
 
+def _read_slots_raw(solver):
+    """读进驻详情浮窗原始扫描：返回 (scan, reliable)。
+
+    reliable=False = get_agent_from_room 异常（如 OCR 坏名 KeyError）或返回非列表。
+    与「真空位」不可混淆：真空位是 scan 内 agent 为空的项（train 房恒 2 槽），
+    读失败才是 scan 空。补位等 mutation 必须只在 reliable 时做（稳为先：读不到不动）。
+    """
+    try:
+        scan = solver.get_agent_from_room("train")
+    except Exception as e:
+        logger.debug(f"进驻详情读取失败: {e}")
+        return [], False
+    if not isinstance(scan, list):
+        logger.debug(f"进驻详情返回非列表: {type(scan)}")
+        return [], False
+    return scan, True
+
+
+def _read_slots_checked(solver):
+    """读进驻详情浮窗：返回 (协助位, 训练位, scan, reliable)。读后关浮窗。
+
+    #100：reliable=False（读失败）时返回 ("", "", scan, False)——调用方不得把读失败
+    当真空位做补位/纠错 mutation（与「真空」区分，稳为先：读不到就不动作）。
+    scan 为 get_agent_from_room 原始列表（want_mood 用，含 mood）。
+    """
+    scan, reliable = _read_slots_raw(solver)
+    try:
+        if solver.train_scene() == Scene.INFRA_DETAILS:
+            _close_room_detail(solver)
+    except Exception:
+        pass
+    if len(scan) < 2:
+        return "", "", scan, reliable
+    return scan[0].get("agent", ""), scan[1].get("agent", ""), scan, reliable
+
+
 def _read_slots(solver, want_mood=False):
     """读进驻详情浮窗：返回 (协助位, 训练位)。读后关浮窗回训练室主界面。
 
@@ -315,20 +351,8 @@ def _read_slots(solver, want_mood=False):
     槽位约定：scan[0]=上排=协助位，scan[1]=下排=训练位（与 choose_train 一致）。
     读失败/无两人 → ("", "")；want_mood 时 mood_data 为空列表。
     """
-    try:
-        scan = solver.get_agent_from_room("train")
-    except Exception as e:
-        logger.debug(f"进驻详情读取失败: {e}")
-        scan = []
-    try:
-        if solver.train_scene() == Scene.INFRA_DETAILS:
-            _close_room_detail(solver)
-    except Exception:
-        pass
-    if len(scan) < 2:
-        slots = "", ""
-    else:
-        slots = scan[0].get("agent", ""), scan[1].get("agent", "")
+    support_slot, train_slot, scan, _ = _read_slots_checked(solver)
+    slots = support_slot, train_slot
     if want_mood:
         return slots, scan
     return slots
@@ -627,6 +651,30 @@ def _find_swap_task(solver, plan_key):
         return None
 
 
+def _find_fill_task(solver, plan_id):
+    """#100：队列中该计划的补位任务（plan_key=f"fill-{id}"），无则 None。
+
+    补位与半程换人都是 SWAP_SUPPORT 且共用 plan_key=计划ID 会互相掩盖——已排的
+    半程换人任务（确认时排到阈值时刻）会让 `_find_swap_task` 恒命中 → 空协助位补位
+    永远排不上。补位任务用独立 plan_key 前缀 `fill-`，去重互不干扰。
+    """
+    current = getattr(solver, "task", None)
+    try:
+        tasks = solver.tasks
+        return next(
+            (
+                t
+                for t in tasks
+                if t.type == TaskTypes.SWAP_SUPPORT
+                and t is not current
+                and getattr(t, "plan_key", None) == f"fill-{plan_id}"
+            ),
+            None,
+        )
+    except (AttributeError, TypeError):
+        return None
+
+
 def _upsert_skill_upgrade_task(solver, target_time, meta_data="", plan_key=None):
     """入队/改期一条 SKILL_UPGRADE 任务，队列恒 ≤1 条同形任务（#62 Q3 收敛）。
 
@@ -825,7 +873,7 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     门控（照搬 run_swap_support / _schedule_swap_if_needed）：
     - enable_mastery 开、非跟随排班（协助位归排班系统管）；
     - swap_frozen=1（换人已完成）→ 跳过；
-    - 队列已有同计划 SWAP 任务 → 跳过（去重，重启恢复的队列可能还留着旧任务）；
+    - 队列已有同计划 SWAP 任务 → 半程换人不重复排（去重，重启恢复的队列可能还留着旧任务）；
     - 倒计时可读且 `calc_swap_threshold` 判剩余够（<5h 不补排）→ 补排 SWAP 任务。
     #80：判陌生人时**自己读协助位**（作为读房的一部分，铁律 3 一次进房做完全部；
     不依赖排班读心情的数据——数据未留存、时间点不可控）——协助位 ∉ {operator,
@@ -833,9 +881,11 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     run_swap_support：先纠成路线 operator，重读倒计时判值不值得再换 swap_target）。
     专三/时间不足的步也纠（swap_target=None / <5h 只是不换减半对象，协助位仍要纠成
     路线人）。已减半（协助位 == swap_target）→ 不再排换人，只排收取。
-    #100：协助位**空着**同样需纠——排补位任务填路线 operator（不碰训练位）；减半与否
-    由 dispatch 时再判（空位先补 operator，再按值得门换 swap_target）。
-    返回 True = 已排换人任务（或队列已有）→ 调用方不排收取。
+    #100：协助位**可靠地空着**（`_read_slots_checked` 读成功，读失败不算空）同样需纠——
+    排补位任务填路线 operator（不碰训练位）；补位与半程换人独立（fill-{id} 去重键，
+    不被阈值时刻的半程换人任务掩盖），补位后仍落到半程换人去重/排程。减半与否由
+    dispatch 时再判（空位先补 operator，再按值得门换 swap_target）。
+    返回 True = 已排补位/换人任务（或队列已有）→ 调用方不排收取。
     """
     from arknights_mower.utils import config
 
@@ -845,8 +895,6 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
         return False
     if plan.get("swap_frozen"):
         return False
-    if _find_swap_task(solver, str(plan["id"])) is not None:
-        return True  # 已有换人任务在队列 → 调用方不排收取（该任务完成时会排收取）
     countdown = room.panel.countdown
     if countdown is None:
         return False
@@ -858,28 +906,39 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     )
 
     route = _get_plan_route(plan, step_level)
+    scheduled = False
     if route and route.get("operator"):
         operator = route["operator"]
         swap_target = route.get("swap_target")
-        support_slot, _ = _read_slots(solver)
-        if not support_slot:
-            # #100：协助位空着 → 排补位任务（填路线 operator，不碰训练位）。受管理
-            # 计划训练中空协助位得不到任何加成——协助位只在开始那一刻 _arrange_support
-            # 安排过，之后空着无人补（若叶睦 15:08–08-17 06:39 协助位一直空着）。
+        support_slot, _, _, reliable = _read_slots_checked(solver)
+        if reliable and not support_slot and _find_fill_task(solver, plan["id"]) is None:
+            # #100：协助位**可靠地**空着（读失败不算空）→ 排补位任务（填路线 operator，
+            # 不碰训练位）。独立去重键 fill-{id} 不被半程换人任务掩盖——补位（现在）
+            # 与减半换人（阈值时刻）是两件事，都要排。受管理计划训练中空协助位得不到
+            # 任何加成（若叶睦 15:08–08-17 06:39 协助位一直空着）。
             _schedule_fill_support(solver, plan, operator)
-            return True
-        if support_slot not in (operator, swap_target):
+            scheduled = True
+        elif (
+            reliable
+            and support_slot
+            and support_slot not in (operator, swap_target)
+            and _find_swap_task(solver, str(plan["id"])) is None
+        ):
             # 陌生人/坐错 → 排纠错任务（纠成 operator；减半与否由 dispatch 时再判）
             _schedule_correction_swap(solver, plan, operator)
-            return True
-        if support_slot == swap_target:
+            scheduled = True
+        elif reliable and support_slot == swap_target:
             # 已减半（协助位已是 swap_target）→ 不再排换人，调用方排收取
             return False
 
+    # 半程换人（减半）：队列已有同计划 SWAP 任务 → 不重复排（#77 去重）。空位补位
+    # 后仍落到这里——补位失败不阻塞减半（dispatch 时 did_swap 兜底）。
+    if _find_swap_task(solver, str(plan["id"])) is not None:
+        return True
     if _schedule_swap_if_needed(solver, plan, countdown, step_level) is not None:
         logger.info(f"[mastery] #77 重启恢复：补排换人任务 id={plan['id']}")
-        return True
-    return False
+        scheduled = True
+    return scheduled
 
 
 def _schedule_correction_swap(solver, plan, operator):
@@ -906,8 +965,9 @@ def _schedule_correction_swap(solver, plan, operator):
 def _schedule_fill_support(solver, plan, operator):
     """#100：协助位空着 → 排补位任务（填路线 operator，不碰训练位）。
 
-    与 #80 纠错同形（SWAP_SUPPORT + plan_key 去重）：派发走 run_swap_support，
-    空位先填 operator，再按值得门换 swap_target。
+    与 #80 纠错同形（SWAP_SUPPORT，但 plan_key 用独立前缀 `fill-{id}`——补位与半程
+    换人共用 plan_key=计划ID 会互相掩盖，见 `_find_fill_task`）。派发走
+    run_swap_support：空位先填 operator，再按值得门换 swap_target。
     """
     from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
 
@@ -916,7 +976,7 @@ def _schedule_fill_support(solver, plan, operator):
         task_type=TaskTypes.SWAP_SUPPORT,
         meta_data=f"{_plan_label(plan)} 协助位补位为 {operator}",
     )
-    task.plan_key = str(plan["id"])
+    task.plan_key = f"fill-{plan['id']}"  # 独立去重键，不与半程换人（plan_key=计划id）互掩
     solver.tasks.append(task)
     logger.info(
         f"[mastery] #100 协助位补位：排换人任务 id={plan['id']} 期望={operator}"
