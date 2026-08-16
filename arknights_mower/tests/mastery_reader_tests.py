@@ -975,8 +975,9 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         self.assertFalse(result)
         sched.assert_not_called()
 
-    def test_recover_empty_assist_slot_no_correction(self):
-        # 协助位读不到（空）→ 不纠错，走 _schedule_swap_if_needed（时间判定）
+    def test_recover_empty_assist_slot_fills(self):
+        # #100：协助位空着 → 排补位任务（填路线 operator，带 plan_key），不走
+        # _schedule_swap_if_needed（减半与否由 dispatch 时再判）
         solver = self._solver()
         solver.get_agent_from_room.return_value = [{"agent": ""}, {"agent": "能天使"}]
         plan = self._training_plan()
@@ -988,8 +989,13 @@ class TestReconcileRecoverSwap(unittest.TestCase):
             ),
             patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
-            reader._maybe_recover_swap(solver, plan, room)
-        sched.assert_called_once()
+            result = reader._maybe_recover_swap(solver, plan, room)
+        self.assertTrue(result, "排了补位任务 → 调用方不排收取")
+        sched.assert_not_called()
+        swaps = [t for t in solver.tasks if t.type == reader.TaskTypes.SWAP_SUPPORT]
+        self.assertEqual(len(swaps), 1)
+        self.assertEqual(swaps[0].plan_key, str(plan["id"]))
+        self.assertIn("补位为 夜半", swaps[0].meta_data)
 
     def test_recover_route_no_operator_no_correction(self):
         # 路线拿不到 operator → 不纠错（无法判期望协助位），走 _schedule_swap_if_needed

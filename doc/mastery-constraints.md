@@ -171,6 +171,11 @@
    run_swap_support 减半换人失败 → **立刻原地重试**（无 +5min 间隔，不排新任务），
    连续 SWAP_RETRY_LIMIT 次仍失败 / 剩余不足 5h → 放弃 + ⑧ 通知，**不再置
    swap_frozen=1**——reconcile 下次进房重新补排再试一轮，暂时性失败可被救回。
+   **#100 空协助位补位（2026-08-16）**：受管理计划训练中协助位**空着**同样需纠——
+   `_maybe_recover_swap` 读协助位为空 → 排补位任务（`_schedule_fill_support`，填路线
+   operator、不碰训练位）；run_swap_support 空位先补 operator，再按值得门换 swap_target。
+   门控同 #77/#80（enable_mastery 开、非跟随排班、swap_frozen=0、队列无同计划 SWAP）；
+   已减半（协助位 == swap_target）/ 保护（逻各斯/艾丽妮在协助位）→ 不补。
 
 ### `calc_swap_threshold` 公式（`mastery.py:238-271`）
 - `target_minutes = 300 + buffer`（buffer 默认 10）。

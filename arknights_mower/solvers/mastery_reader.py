@@ -833,6 +833,8 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     run_swap_support：先纠成路线 operator，重读倒计时判值不值得再换 swap_target）。
     专三/时间不足的步也纠（swap_target=None / <5h 只是不换减半对象，协助位仍要纠成
     路线人）。已减半（协助位 == swap_target）→ 不再排换人，只排收取。
+    #100：协助位**空着**同样需纠——排补位任务填路线 operator（不碰训练位）；减半与否
+    由 dispatch 时再判（空位先补 operator，再按值得门换 swap_target）。
     返回 True = 已排换人任务（或队列已有）→ 调用方不排收取。
     """
     from arknights_mower.utils import config
@@ -860,7 +862,13 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
         operator = route["operator"]
         swap_target = route.get("swap_target")
         support_slot, _ = _read_slots(solver)
-        if support_slot and support_slot not in (operator, swap_target):
+        if not support_slot:
+            # #100：协助位空着 → 排补位任务（填路线 operator，不碰训练位）。受管理
+            # 计划训练中空协助位得不到任何加成——协助位只在开始那一刻 _arrange_support
+            # 安排过，之后空着无人补（若叶睦 15:08–08-17 06:39 协助位一直空着）。
+            _schedule_fill_support(solver, plan, operator)
+            return True
+        if support_slot not in (operator, swap_target):
             # 陌生人/坐错 → 排纠错任务（纠成 operator；减半与否由 dispatch 时再判）
             _schedule_correction_swap(solver, plan, operator)
             return True
@@ -892,6 +900,26 @@ def _schedule_correction_swap(solver, plan, operator):
     solver.tasks.append(task)
     logger.info(
         f"[mastery] #80 陌生人协助位纠错：排换人任务 id={plan['id']} 期望={operator}"
+    )
+
+
+def _schedule_fill_support(solver, plan, operator):
+    """#100：协助位空着 → 排补位任务（填路线 operator，不碰训练位）。
+
+    与 #80 纠错同形（SWAP_SUPPORT + plan_key 去重）：派发走 run_swap_support，
+    空位先填 operator，再按值得门换 swap_target。
+    """
+    from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+
+    task = SchedulerTask(
+        time=datetime.now(),
+        task_type=TaskTypes.SWAP_SUPPORT,
+        meta_data=f"{_plan_label(plan)} 协助位补位为 {operator}",
+    )
+    task.plan_key = str(plan["id"])
+    solver.tasks.append(task)
+    logger.info(
+        f"[mastery] #100 协助位补位：排换人任务 id={plan['id']} 期望={operator}"
     )
 
 

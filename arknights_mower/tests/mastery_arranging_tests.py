@@ -1182,6 +1182,63 @@ class TestSwapCollectGating(unittest.TestCase):
         upd.assert_called_once_with(1, "training", swap_frozen=1)
         sc.assert_called_once()
 
+    def test_swap_support_fills_empty_slot_then_swap(self):
+        # #100：协助位空着 → 先补位成路线 operator，值得时再换入 swap_target
+        solver = self._solver()
+        solver.read_time.return_value = 15000  # 250 分钟，换后真实 ≈ 330 分钟，值得
+        solver.get_agent_from_room.return_value = self._slots("")
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        calls = [c.args[0] for c in solver.choose_train.call_args_list]
+        self.assertEqual(
+            calls,
+            [["夜半", "Current"], ["逻各斯", "Current"]],
+            "空位 → 先补 operator，再换入 swap_target",
+        )
+        upd.assert_called_once_with(1, "training", swap_frozen=1)
+        sc.assert_called_once()
+
+    def test_swap_support_fills_empty_slot_no_swap(self):
+        # #100：空位补位 + 时间不足 → 只补 operator、不换减半对象（只排收取退出）
+        solver = self._solver()
+        solver.read_time.return_value = 3600  # 60 分钟，换后真实 ≈ 79 分钟，不值得
+        solver.get_agent_from_room.return_value = self._slots("")
+        plan = make_plan(status="training", swap_frozen=0, target_level=2)
+        with (
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
+            patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
+            patch.object(mastery, "_schedule_collect") as sc,
+            patch.object(config_mod.conf, "assistant_follows_schedule", False),
+            patch.object(config_mod.conf, "enable_mastery", True),
+            patch.object(mastery, "datetime", FixedDateTime),
+            patch.object(mastery_reader, "datetime", FixedDateTime),
+        ):
+            mastery.run_swap_support(solver)
+        solver.choose_train.assert_called_once_with(
+            ["夜半", "Current"]
+        )  # 只补位，不换人
+        upd.assert_not_called()  # 不置 swap_frozen
+        solver.back.assert_called_once()  # 排收取后退出
+        sc.assert_called_once()
+
     def test_swap_support_correction_not_worthwhile_no_swap(self):
         # #80 acceptance 2：时间不足（换后真实 < 301）的步，纠错只纠成 operator，
         # **不触发不该发生的减半换人**（只排收取退出）

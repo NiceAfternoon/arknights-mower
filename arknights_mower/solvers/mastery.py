@@ -1049,19 +1049,23 @@ def run_swap_support(solver):
     # 协助位 ∉ {operator, swap_target}（陌生人/读不到）→ 先纠错成 operator，换完再
     # 读一遍（此时效率已知 = route["efficiency"]）才算换人。
     support_slot, _ = _read_slots(solver)
-    if support_slot and support_slot not in (operator, swap_target):
-        logger.info(f"协助位坐着 {support_slot}，纠错为 {operator}")
-        logger.debug(f"[mastery] 协助位纠错 id={plan['id']} 期望={operator} 动作=纠错")
+    if operator and (not support_slot or support_slot not in (operator, swap_target)):
+        if support_slot:
+            logger.info(f"协助位坐着 {support_slot}，纠错为 {operator}")
+            logger.debug(f"[mastery] 协助位纠错 id={plan['id']} 期望={operator} 动作=纠错")
+        else:
+            logger.info(f"协助位空着，补位为 {operator}")
+            logger.debug(f"[mastery] 协助位补位 id={plan['id']} 期望={operator} 动作=补位")
         try:
             solver.choose_train([operator, "Current"])
         except Exception as e:
-            logger.warning(f"协助位纠错失败: {e}")
-            logger.debug(f"[mastery] 协助位纠错 id={plan['id']} 结果=失败 err={e}")
+            logger.warning(f"协助位补位/纠错失败: {e}")
+            logger.debug(f"[mastery] 协助位补位/纠错 id={plan['id']} 结果=失败 err={e}")
             _notify_swap_correction_failed(solver, plan, support_slot, operator)
             _schedule_collect_after_swap(solver, plan)
             solver.back()
             return
-        logger.debug(f"[mastery] 协助位纠错 id={plan['id']} 结果=ok")
+        logger.debug(f"[mastery] 协助位补位/纠错 id={plan['id']} 结果=ok")
         support_slot = operator
         # 纠错消耗时间 → 重读倒计时（铁律 1 动作前先读房）
         scene = solver.train_scene()
@@ -1137,9 +1141,10 @@ def _try_swap(solver, plan, swap_target) -> bool:
 
 
 def _notify_swap_correction_failed(solver, plan, support_slot, operator):
-    """#79 协助位纠错失败通知：换入 operator 失败，减半收益可能丢 + 协助位坐错人。
+    """#79 协助位纠错失败通知：换入 operator 失败，减半收益可能丢 + 协助位坐错人/空。
 
-    去重按 plan id（同计划只通知一次）；异常时 fail open 照发（宁可多发不漏发）。
+    #100：support_slot 空（协助位空着补位失败）时显示「空」；去重按 plan id
+    （同计划只通知一次）；异常时 fail open 照发（宁可多发不漏发）。
     """
     from arknights_mower.utils.email import send_message
     from arknights_mower.utils.mastery_db import should_notify
@@ -1148,7 +1153,7 @@ def _notify_swap_correction_failed(solver, plan, support_slot, operator):
         return
     label = _plan_fail_label(plan)
     msg = (
-        f"{label} 协助位 {support_slot} 纠错失败（未能换入 {operator}），"
+        f"{label} 协助位 {support_slot or '空'} 补位/纠错失败（未能换入 {operator}），"
         "本次跳过减半换人，减半收益可能丢失"
     )
     send_message(msg, level="WARNING")
