@@ -744,7 +744,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
         for room in need_read:
             error_count = 0
-            # 由于训练室不纠错，如果训练室有干员且时间读取过就跳过
+            # 训练室排除在通用跳过之外（room != "train"）：进训练室读心情时顺路
+            # reconcile（破「重启后待收取无人收」死锁，522b7fa1），不能因干员近期
+            # 已读就跳过；非训练室按「当前房内干员都近期读过」跳过。
             current_working = [
                 value
                 for key, value in self.op_data.operators.items()
@@ -3281,11 +3283,15 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 reconcile_short(self, room_state, defer_collect=True)
                             except Exception as e:
                                 logger.warning(f"训练室顺路对账失败: {e}")
-                            # 对账后房间状态可能变化（帮收后空出），重读状态决定 gate
-                            try:
-                                room_state = read_room_state(self, enter=False)
-                            except Exception:
-                                room_state = None
+                            # 对账后房间状态可能变化（帮收后空出），重读状态决定 gate。
+                            # 只有待收取态 reconcile 会收走房间（变空）；训练/空闲态
+                            # reconcile 只改 DB，物理房间不变，重读纯浪费（面板 OCR +
+                            # 可能重开进驻浮窗/技能页深读）。
+                            if room_state.state == "waiting_collect":
+                                try:
+                                    room_state = read_room_state(self, enter=False)
+                                except Exception:
+                                    room_state = None
                         # §16.5 保护检查：locked（训练中/待收取）或 protected（逻各斯/
                         # 艾丽妮 保护训练室）都算「不能排班」→ 冻结/跳过。
                         if room_state is not None and (

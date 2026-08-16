@@ -583,6 +583,14 @@ class TestReadRoomState(unittest.TestCase):
         room = reader.read_room_state(solver)
         self.assertIsInstance(room, reader.RoomState)
 
+    def test_off_mode_skips_slot_read_for_waiting_collect(self):
+        # 审计修复：enable_mastery OFF 时槽位/保护无人消费，待收取态不白开进驻浮窗
+        solver = self._solver(0)
+        with patch.object(reader.config.conf, "enable_mastery", False):
+            room = reader.read_room_state(solver)
+        self.assertEqual(room.state, "waiting_collect")
+        solver.get_agent_from_room.assert_not_called()
+
 
 class TestReconcileShort(unittest.TestCase):
     """reconcile_short：排班路径顺路短动作（不开始训练、不退出房间）。"""

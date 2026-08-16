@@ -400,10 +400,17 @@ def _classify_panel(solver, panel) -> str:
 
 
 def _fill_slots_and_protection(solver, room, want_mood=False):
-    if want_mood:
-        (room.support_slot, room.train_slot), mood = _read_slots(solver, want_mood=True)
+    # enable_mastery OFF：槽位/保护无人消费（reconcile 被 gate、_compute_protected 恒 False），
+    # 不白开进驻浮窗（§16.11 防卡检查只看 locked，面板态即可）。
+    if config.conf.enable_mastery:
+        if want_mood:
+            (room.support_slot, room.train_slot), mood = _read_slots(
+                solver, want_mood=True
+            )
+        else:
+            room.support_slot, room.train_slot = _read_slots(solver)
+            mood = None
     else:
-        room.support_slot, room.train_slot = _read_slots(solver)
         mood = None
     room.protected = _compute_protected(solver, room)
     return mood

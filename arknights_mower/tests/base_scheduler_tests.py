@@ -718,6 +718,47 @@ class TestTrainGateReadThenJudge(unittest.TestCase):
         solver.turn_on_room_detail.assert_called_with("train")
         self.assertEqual(result, {})
 
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_gate_no_second_read_for_training_state(self):
+        # 审计修复：training/空闲态 reconcile 只改 DB，物理房间不变——不二次读
+        # read_room_state（面板 OCR + 可能重开进驻浮窗/技能页深读是纯浪费）。
+        plan = {"train": ["干员A", "干员B"]}
+        solver = self._make_solver(plan)
+        with (
+            patch.object(base_schedule.config.conf, "enable_mastery", True),
+            patch.object(
+                base_schedule.config.conf, "assistant_follows_schedule", False
+            ),
+            patch(
+                "arknights_mower.solvers.mastery_reader.read_room_state",
+                return_value=self._training_room(),
+            ) as mock_read,
+            patch("arknights_mower.solvers.mastery_reader.reconcile_short"),
+        ):
+            solver.agent_arrange_room({}, "train", plan)
+        self.assertEqual(mock_read.call_count, 1)
+        self.assertNotIn("train", plan)  # 锁定 → 跳过
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_gate_second_read_only_for_waiting_collect(self):
+        # 待收取：reconcile 可能收走房间（变空）→ 需重读决定 gate（正对照）
+        plan = {"train": ["干员A", "干员B"]}
+        solver = self._make_solver(plan)
+        wc = mastery_reader.RoomState("waiting_collect", mastery_reader.RoomPanel())
+        with (
+            patch.object(base_schedule.config.conf, "enable_mastery", True),
+            patch.object(
+                base_schedule.config.conf, "assistant_follows_schedule", False
+            ),
+            patch(
+                "arknights_mower.solvers.mastery_reader.read_room_state",
+                return_value=wc,
+            ) as mock_read,
+            patch("arknights_mower.solvers.mastery_reader.reconcile_short"),
+        ):
+            solver.agent_arrange_room({}, "train", plan)
+        self.assertEqual(mock_read.call_count, 2)
+
 
 class TestScanDispatchMastery(unittest.TestCase):
     """#74 第3段：扫描 = 唯一周期派发点——`_auto_schedule_mastery_after_scan` 对材料
