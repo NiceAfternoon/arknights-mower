@@ -424,6 +424,68 @@ class TestBaseScheduler(unittest.TestCase):
         mock_reconcile.assert_called_once_with(solver, room_state, defer_collect=False)
 
     @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_agent_get_mood_train_skips_when_occupants_fresh(self):
+        # 审计修正（2026-08-16）：训练室与其他房间一致——当前房内干员都近期读过则跳过，
+        # 不再被「计划在训练室但未进驻（等待中）的陈旧干员」每轮循环强制进房读心情
+        # （10+ 次/2h 根因：get_agent_from_room 只刷房里干员的 time_stamp，等位干员
+        # 永远陈旧 → 训练室永远在待读集合 → 原 room != "train" 免除永不跳过）。
+        solver = BaseSchedulerSolver()
+        solver.global_plan = MagicMock()
+        solver.initialize_operators()
+        solver.op_data.add(
+            Operator(
+                "艾雅法拉", "train", current_room="train", time_stamp=datetime.now()
+            )
+        )
+        solver.op_data.add(
+            Operator("能天使", "train", time_stamp=datetime.now() - timedelta(hours=3))
+        )
+        solver.tasks = []
+        solver._training_sm = MagicMock()
+        with (
+            patch.object(BaseSchedulerSolver, "enter_room"),
+            patch.object(BaseSchedulerSolver, "back"),
+            patch.object(mastery_reader, "read_room_state") as mock_read,
+            patch.object(mastery_reader, "reconcile_short"),
+        ):
+            result = solver.agent_get_mood()
+        self.assertIsNone(result)
+        mock_read.assert_not_called()  # 占用者新鲜 → 跳过，不进训练室
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_agent_get_mood_train_reads_when_occupant_stale(self):
+        # 对照：当前房内占用者心情陈旧 → 不跳过，照常进房读 + reconcile（死锁兜底保留）
+        solver = BaseSchedulerSolver()
+        solver.global_plan = MagicMock()
+        solver.initialize_operators()
+        solver.op_data.add(
+            Operator(
+                "艾雅法拉",
+                "train",
+                current_room="train",
+                time_stamp=datetime.now() - timedelta(hours=3),
+            )
+        )
+        solver.tasks = []
+        solver._training_sm = MagicMock()
+        room_state = MagicMock()
+        mood_data = [{"agent": "艾雅法拉", "mood": 20.0}]
+        with (
+            patch.object(BaseSchedulerSolver, "enter_room"),
+            patch.object(BaseSchedulerSolver, "back"),
+            patch.object(
+                mastery_reader,
+                "read_room_state",
+                return_value=(room_state, mood_data),
+            ) as mock_read,
+            patch.object(mastery_reader, "reconcile_short") as mock_reconcile,
+        ):
+            result = solver.agent_get_mood()
+        self.assertIsNone(result)
+        mock_read.assert_called_once_with(solver, enter=False, want_mood=True)
+        mock_reconcile.assert_called_once_with(solver, room_state, defer_collect=False)
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
     def test_no_keepalive_enqueue_for_idle_plan(self):
         # #74 第3段：keepalive 完全删除——DB 有 idle 计划也不再每轮补 now-task
         # SKILL_UPGRADE（开始训练只由扫描派发；重启恢复靠 gate 顺路重读 + 扫描派发兜底）。

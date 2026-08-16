@@ -744,27 +744,26 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
         for room in need_read:
             error_count = 0
-            # 训练室排除在通用跳过之外（room != "train"）：进训练室读心情时顺路
-            # reconcile（破「重启后待收取无人收」死锁，522b7fa1），不能因干员近期
-            # 已读就跳过；非训练室按「当前房内干员都近期读过」跳过。
+            # 训练室与其他房间一致：当前房内干员都近期读过则跳过（2026-08-16 审计——
+            # 原 room != "train" 免除使训练室在「计划在训练室但未进驻的陈旧干员」把
+            # 训练室推进待读集合时每轮循环都强制进房读心情，2h 内十多次）。训练室进房
+            # 时的顺路 reconcile（破重启待收取死锁）不受影响：重启后无 current_room=
+            # "train" 的干员 → current_working 空 → 不跳过；平时占用干员心情 2.5h
+            # 陈旧 → 不跳过 → 照常读+reconcile。
             current_working = [
                 value
                 for key, value in self.op_data.operators.items()
                 if value.current_room == room
             ]
 
-            if (
-                room != "train"
-                and current_working
-                and all(
-                    operator.time_stamp
-                    and operator.time_stamp
-                    > datetime.now()
-                    - timedelta(
-                        hours=0.5 if operator.name in ["歌蕾蒂娅", "见行者"] else 2.5
-                    )
-                    for operator in current_working
+            if current_working and all(
+                operator.time_stamp
+                and operator.time_stamp
+                > datetime.now()
+                - timedelta(
+                    hours=0.5 if operator.name in ["歌蕾蒂娅", "见行者"] else 2.5
                 )
+                for operator in current_working
             ):
                 for e in current_working:
                     logger.debug(e.time_stamp)
