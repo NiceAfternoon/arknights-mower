@@ -5,6 +5,7 @@
 （旧流不带 operator/skill，提交即死路）被**明确拒绝并指引计划 API**，不再静默接受。
 `mower_thread` 由 server.py 运行时注入（判定「mower 正在运行」），本模块保持可独立测试。
 """
+
 import json
 from datetime import datetime
 
@@ -37,9 +38,7 @@ def add_task():
             logger.debug(f"收到新增任务请求：{req}")
             if base_scheduler and mower_thread and mower_thread.is_alive():
                 if task:
-                    utc_time = datetime.strptime(
-                        task["time"], "%Y-%m-%dT%H:%M:%S.%f%z"
-                    )
+                    utc_time = datetime.strptime(task["time"], "%Y-%m-%dT%H:%M:%S.%f%z")
                     task_time = (
                         utc_time.replace(tzinfo=pytz.utc)
                         .astimezone(get_localzone())

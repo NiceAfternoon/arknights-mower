@@ -67,7 +67,8 @@ class TestAutoScheduleReadsDb(unittest.TestCase):
     def test_db_plan_scheduled_when_materials_sufficient(self):
         with (
             patch(
-                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[_plan(char_id="char_A", skill_index=1)]
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[_plan(char_id="char_A", skill_index=1)],
             ),
             patch.object(
                 rec,
@@ -83,7 +84,8 @@ class TestAutoScheduleReadsDb(unittest.TestCase):
         mats = [{"name": "技巧概要·卷3", "count": 99}]
         with (
             patch(
-                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[_plan(char_id="char_A", skill_index=1)]
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[_plan(char_id="char_A", skill_index=1)],
             ),
             patch.object(
                 rec,
@@ -99,7 +101,8 @@ class TestAutoScheduleReadsDb(unittest.TestCase):
         # 推荐有 (char_B, 2) 但 DB 无此计划 → 不安排（旧行为：文件 stale key 会漏/误排）
         with (
             patch(
-                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[_plan(char_id="char_A", skill_index=1)]
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[_plan(char_id="char_A", skill_index=1)],
             ),
             patch.object(
                 rec,
@@ -141,7 +144,8 @@ class TestComputeWorkshopConfigReadsDb(unittest.TestCase):
         mats = [{"name": "技巧概要·卷3", "count": 5}]
         with (
             patch(
-                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[_plan(char_id="char_A", skill_index=1)]
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[_plan(char_id="char_A", skill_index=1)],
             ),
             patch.object(
                 rec,
@@ -174,7 +178,8 @@ class TestComputeWorkshopConfigReadsDb(unittest.TestCase):
         mats = [{"name": "技巧概要·卷3", "count": 5}]
         with (
             patch(
-                "arknights_mower.utils.mastery_db.get_all_plans", return_value=[_plan(char_id="char_A", skill_index=1)]
+                "arknights_mower.utils.mastery_db.get_all_plans",
+                return_value=[_plan(char_id="char_A", skill_index=1)],
             ),
             patch.object(
                 rec,

@@ -528,7 +528,9 @@ class TestArrangingConvergence(unittest.TestCase):
         ]
         solver = self.make_solver(scenes=scenes, scene_fallback=Scene.TRAIN_MAIN)
         solver.read_time.side_effect = fake_read
-        solver.read_screen.return_value = "[错误干员]其他技能"  # 真 219 不读面板；确认页才读
+        solver.read_screen.return_value = (
+            "[错误干员]其他技能"  # 真 219 不读面板；确认页才读
+        )
         plan = make_plan()
         _, upd = self.run_arranging(solver, plan)
 
@@ -622,7 +624,9 @@ class TestSwapCollectGating(unittest.TestCase):
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
             patch("arknights_mower.utils.email.send_message"),
             patch.object(mastery, "_arrange_support"),
-            patch.object(mastery, "_schedule_swap_if_needed", return_value=swap_scheduled),
+            patch.object(
+                mastery, "_schedule_swap_if_needed", return_value=swap_scheduled
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
         ):
             result = mastery._confirm_training_started(
@@ -646,13 +650,22 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._solver()
         plan = make_plan(target_level=2)
         with (
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 100, "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 100,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "calc_swap_threshold", return_value=(True, 100.0)),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
         ):
-            scheduled = mastery._schedule_swap_if_needed(solver, plan, START + timedelta(hours=2))
+            scheduled = mastery._schedule_swap_if_needed(
+                solver, plan, START + timedelta(hours=2)
+            )
         self.assertTrue(scheduled, "立即换人应排 SWAP_SUPPORT")
         self.assertEqual(len(solver.tasks), 1)
         self.assertEqual(solver.tasks[0].type, TaskTypes.SWAP_SUPPORT)
@@ -661,14 +674,23 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._solver()
         plan = make_plan(target_level=2)
         with (
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "calc_swap_threshold", return_value=(False, 100.0)),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(mastery, "datetime", FixedDateTime),
         ):
-            scheduled = mastery._schedule_swap_if_needed(solver, plan, START + timedelta(hours=2))
+            scheduled = mastery._schedule_swap_if_needed(
+                solver, plan, START + timedelta(hours=2)
+            )
         self.assertTrue(scheduled)
         self.assertEqual(len(solver.tasks), 1)
         self.assertEqual(solver.tasks[0].type, TaskTypes.SWAP_SUPPORT)
@@ -683,7 +705,9 @@ class TestSwapCollectGating(unittest.TestCase):
         def fake_route(p, step_level=None):
             route_calls.append(step_level)
             return {
-                "swap_target": None, "central_bonus": 5, "efficiency": 95,
+                "swap_target": None,
+                "central_bonus": 5,
+                "efficiency": 95,
                 "job_match": True,
             }
 
@@ -704,11 +728,20 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.read_time.return_value = 15000  # 250 分钟，换后真实 ≈ 330 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -717,18 +750,29 @@ class TestSwapCollectGating(unittest.TestCase):
             mastery.run_swap_support(solver)
         solver.choose_train.assert_called_once_with(["逻各斯", "Current"])
         sc.assert_called_once()
-        self.assertIsNotNone(sc.call_args.args[1], "换人后应排收取任务（重读倒计时时刻）")
+        self.assertIsNotNone(
+            sc.call_args.args[1], "换人后应排收取任务（重读倒计时时刻）"
+        )
 
     def test_run_swap_support_unreadable_countdown_schedules_retry(self):
         solver = self._solver()
         solver.read_time.return_value = None  # 换人后倒计时读不到
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -737,7 +781,8 @@ class TestSwapCollectGating(unittest.TestCase):
             mastery.run_swap_support(solver)
         sc.assert_called_once()
         self.assertEqual(
-            sc.call_args.args[2], START + mastery.ARRANGING_RETRY_BUFFER,
+            sc.call_args.args[2],
+            START + mastery.ARRANGING_RETRY_BUFFER,
             "倒计时读不到时保守重排到 now+2min",
         )
 
@@ -751,13 +796,19 @@ class TestSwapCollectGating(unittest.TestCase):
 
     def _swap_route(self):
         return {
-            "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75, "job_match": True,
+            "swap_target": "逻各斯",
+            "central_bonus": 5,
+            "efficiency": 75,
+            "job_match": True,
         }
 
     def _correction_route(self):
         return {
-            "operator": "夜半", "swap_target": "逻各斯",
-            "central_bonus": 5, "efficiency": 75, "job_match": True,
+            "operator": "夜半",
+            "swap_target": "逻各斯",
+            "central_bonus": 5,
+            "efficiency": 75,
+            "job_match": True,
         }
 
     def _slots(self, support):
@@ -771,9 +822,13 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.get_agent_from_room.return_value = self._slots("陌生人")
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch.object(mastery, "_get_plan_route", return_value=self._correction_route()),
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -781,8 +836,11 @@ class TestSwapCollectGating(unittest.TestCase):
         ):
             mastery.run_swap_support(solver)
         calls = [c.args[0] for c in solver.choose_train.call_args_list]
-        self.assertEqual(calls, [["夜半", "Current"], ["逻各斯", "Current"]],
-                         "陌生人 → 先纠错成 operator，再换入 swap_target")
+        self.assertEqual(
+            calls,
+            [["夜半", "Current"], ["逻各斯", "Current"]],
+            "陌生人 → 先纠错成 operator，再换入 swap_target",
+        )
         upd.assert_called_once_with(1, "training", swap_frozen=1)
         sc.assert_called_once()
 
@@ -794,9 +852,13 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.get_agent_from_room.return_value = self._slots("陌生人")
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch.object(mastery, "_get_plan_route", return_value=self._correction_route()),
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -804,7 +866,9 @@ class TestSwapCollectGating(unittest.TestCase):
             patch.object(mastery_reader, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
-        solver.choose_train.assert_called_once_with(["夜半", "Current"])  # 只纠错，不换人
+        solver.choose_train.assert_called_once_with(
+            ["夜半", "Current"]
+        )  # 只纠错，不换人
         upd.assert_not_called()  # 不置 swap_frozen
         solver.back.assert_called_once()  # 排收取后退出
         sc.assert_called_once()
@@ -815,9 +879,13 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.get_agent_from_room.return_value = self._slots("逻各斯")
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value=self._correction_route()),
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -834,16 +902,22 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.choose_train.side_effect = Exception("选人流程超时")
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value=self._correction_route()),
+            patch.object(
+                mastery, "_get_plan_route", return_value=self._correction_route()
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(mastery, "_notify_swap_correction_failed") as notify,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
         ):
             mastery.run_swap_support(solver)
-        solver.choose_train.assert_called_once_with(["夜半", "Current"])  # 只纠错一次，不换人
+        solver.choose_train.assert_called_once_with(
+            ["夜半", "Current"]
+        )  # 只纠错一次，不换人
         notify.assert_called_once()
         solver.back.assert_called_once()
         sc.assert_called_once()  # 收集仍保证
@@ -854,7 +928,9 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._fail_solver(read_seconds=15000)  # 250 分钟，换后真实 ≈ 330 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
@@ -866,7 +942,8 @@ class TestSwapCollectGating(unittest.TestCase):
         ):
             mastery.run_swap_support(solver)
         self.assertEqual(
-            solver.choose_train.call_count, 1 + mastery.SWAP_RETRY_LIMIT,
+            solver.choose_train.call_count,
+            1 + mastery.SWAP_RETRY_LIMIT,
             "首次失败 + 5 次原地重试",
         )
         self.assertFalse(
@@ -883,7 +960,9 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._fail_solver(read_seconds=3600)  # 60 分钟，换后真实 ≈ 79 分钟
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
@@ -930,7 +1009,9 @@ class TestSwapCollectGating(unittest.TestCase):
         solver.choose_train.side_effect = flaky
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
@@ -952,12 +1033,15 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._fail_solver(read_seconds=15000)
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
-            patch("arknights_mower.utils.mastery_db.should_notify",
-                  return_value=True) as sn,
+            patch(
+                "arknights_mower.utils.mastery_db.should_notify", return_value=True
+            ) as sn,
             patch("arknights_mower.utils.email.send_message") as send,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -982,10 +1066,16 @@ class TestSwapCollectGating(unittest.TestCase):
         solver = self._solver()
         plan = make_plan(target_level=2)
         with (
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 100,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 100,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "calc_swap_threshold", return_value=(True, 100.0)),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
         ):
@@ -999,11 +1089,15 @@ class TestSwapCollectGating(unittest.TestCase):
     def test_schedule_collect_after_swap_closes_detail_before_read(self):
         # 读倒计时前若停在主页面带进驻详情浮窗（INFRA_DETAILS）→ 先关浮窗回主页面再读
         solver = self._solver()
-        solver.read_time.return_value = 15000  # 250 分钟，值得换（否则 worth 门跳过换人）
+        solver.read_time.return_value = (
+            15000  # 250 分钟，值得换（否则 worth 门跳过换人）
+        )
         solver.train_scene.side_effect = [Scene.INFRA_DETAILS, Scene.TRAIN_MAIN]
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
             patch.object(mastery, "_get_plan_route", return_value=self._swap_route()),
             patch.object(mastery, "_schedule_collect") as sc,
@@ -1049,12 +1143,15 @@ class TestRouteStepLevel(unittest.TestCase):
         plan = make_plan(target_level=3)
         calls = []
         with (
-            patch("arknights_mower.utils.mastery_recommendation.get_skill_data",
-                  return_value={
-                      "characters": {"char_test": {"profession": "WARRIOR"}},
-                  }),
+            patch(
+                "arknights_mower.utils.mastery_recommendation.get_skill_data",
+                return_value={
+                    "characters": {"char_test": {"profession": "WARRIOR"}},
+                },
+            ),
             patch.object(
-                mastery, "get_route_config",
+                mastery,
+                "get_route_config",
                 side_effect=lambda prof, level: calls.append((prof, level)) or {},
             ),
         ):
@@ -1078,7 +1175,9 @@ class TestRouteStepLevel(unittest.TestCase):
         def fake_route(p, step_level=None):
             route_calls.append(step_level)
             return {
-                "swap_target": "艾丽妮", "central_bonus": 5, "efficiency": 75,
+                "swap_target": "艾丽妮",
+                "central_bonus": 5,
+                "efficiency": 75,
                 "job_match": True,
             }
 
@@ -1100,10 +1199,16 @@ class TestRouteStepLevel(unittest.TestCase):
         solver = self._solver()
         plan = make_plan(target_level=3)
         with (
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": None, "central_bonus": 5, "efficiency": 95,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": None,
+                    "central_bonus": 5,
+                    "efficiency": 95,
+                    "job_match": True,
+                },
+            ),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
         ):
             scheduled = mastery._schedule_swap_if_needed(
@@ -1173,12 +1278,17 @@ class TestRouteStepLevel(unittest.TestCase):
         route_calls = []
         with (
             patch.object(
-                mastery, "_get_plan_route",
-                side_effect=lambda p, step_level=None: route_calls.append(step_level)
-                or {
-                    "operator": "赤冬", "efficiency": 75, "job_match": True,
-                    "swap_target": "艾丽妮",
-                },
+                mastery,
+                "_get_plan_route",
+                side_effect=lambda p, step_level=None: (
+                    route_calls.append(step_level)
+                    or {
+                        "operator": "赤冬",
+                        "efficiency": 75,
+                        "job_match": True,
+                        "swap_target": "艾丽妮",
+                    }
+                ),
             ),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
         ):
@@ -1195,15 +1305,22 @@ class TestRouteStepLevel(unittest.TestCase):
         plan = make_plan(status="training", swap_frozen=0, target_level=3)
         route_calls = []
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
             patch.object(
-                mastery, "_get_plan_route",
-                side_effect=lambda p, step_level=None: route_calls.append(step_level)
-                or {
-                    "swap_target": "艾丽妮", "central_bonus": 5, "efficiency": 75,
-                    "job_match": True,
-                },
+                mastery,
+                "_get_plan_route",
+                side_effect=lambda p, step_level=None: (
+                    route_calls.append(step_level)
+                    or {
+                        "swap_target": "艾丽妮",
+                        "central_bonus": 5,
+                        "efficiency": 75,
+                        "job_match": True,
+                    }
+                ),
             ),
             patch.object(mastery, "_schedule_collect"),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
@@ -1220,12 +1337,20 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.read_time.return_value = 7200  # 倒计时 active（非0非空）
         plan = make_plan(status="training", swap_frozen=0, target_level=3)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": None, "central_bonus": 5, "efficiency": 95,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": None,
+                    "central_bonus": 5,
+                    "efficiency": 95,
+                    "job_match": True,
+                },
+            ),
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
         ):
@@ -1240,12 +1365,20 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.read_time.return_value = 7200
         plan = make_plan(status="training", swap_frozen=0, target_level=3)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "艾丽妮", "central_bonus": 5, "efficiency": 75,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "艾丽妮",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -1262,12 +1395,20 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.read_time.return_value = 0  # zero
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -1284,12 +1425,20 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.read_time.return_value = None  # failed
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -1300,7 +1449,8 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.back.assert_called_once()
         sc.assert_called_once()  # 收取仍保证
         self.assertEqual(
-            sc.call_args.args[2], START + mastery.ARRANGING_RETRY_BUFFER,
+            sc.call_args.args[2],
+            START + mastery.ARRANGING_RETRY_BUFFER,
             "倒计时读不到时保守重排到 now+2min",
         )
 
@@ -1311,12 +1461,20 @@ class TestRouteStepLevel(unittest.TestCase):
         solver.train_scene.return_value = Scene.TRAIN_FINISH
         plan = make_plan(status="training", swap_frozen=0, target_level=2)
         with (
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=plan),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
+            ),
             patch("arknights_mower.utils.mastery_db.update_plan_status"),
-            patch.object(mastery, "_get_plan_route", return_value={
-                "swap_target": "逻各斯", "central_bonus": 5, "efficiency": 75,
-                "job_match": True,
-            }),
+            patch.object(
+                mastery,
+                "_get_plan_route",
+                return_value={
+                    "swap_target": "逻各斯",
+                    "central_bonus": 5,
+                    "efficiency": 75,
+                    "job_match": True,
+                },
+            ),
             patch.object(mastery, "_schedule_collect") as sc,
             patch.object(config_mod.conf, "assistant_follows_schedule", False),
             patch.object(config_mod.conf, "enable_mastery", True),
@@ -1361,7 +1519,9 @@ class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
         with (
             patch.object(mastery, "datetime", FixedDateTime),
             patch("arknights_mower.utils.mastery_db.update_plan_status") as upd,
-            patch("arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None
+            ),
             patch("arknights_mower.utils.email.send_message"),
             patch.object(mastery, "_notify_at_target") as nat,
         ):
@@ -1373,11 +1533,13 @@ class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
     def test_at_target_completes_no_cascade(self):
         # #74 第2段：已到target 完成 → 只 completed + 退出，不再级联开始下一个 idle 计划
         solver = MagicMock()
-        scenes = iter([
-            Scene.TRAIN_MAIN,  # 读占用(无) → 槽位 → back
-            Scene.TRAIN_MAIN,  # tap 技能选择（身份确认）
-            Scene.TRAIN_SKILL_SELECT,  # 读档位 → 3（已到target → 完成 → 退出）
-        ])
+        scenes = iter(
+            [
+                Scene.TRAIN_MAIN,  # 读占用(无) → 槽位 → back
+                Scene.TRAIN_MAIN,  # tap 技能选择（身份确认）
+                Scene.TRAIN_SKILL_SELECT,  # 读档位 → 3（已到target → 完成 → 退出）
+            ]
+        )
         solver.train_scene.side_effect = lambda: next(scenes, Scene.TRAIN_MAIN)
         reads = iter([None, None, None])  # 倒计时均为空（已到target，无占用）
         solver.read_time.side_effect = lambda *a, **k: next(reads, None)
@@ -1407,7 +1569,9 @@ class TestAtTargetNotifyAndMaterialGate(unittest.TestCase):
         ]
         self.assertIn("completed", statuses)
         self.assertEqual(
-            arranging_ids, [1], "已到target 完成不再级联开始下一个计划（仅本级 arranging）"
+            arranging_ids,
+            [1],
+            "已到target 完成不再级联开始下一个计划（仅本级 arranging）",
         )
         self.assertTrue(solver.back.called, "完成后应退出训练室")
 

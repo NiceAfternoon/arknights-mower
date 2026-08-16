@@ -8,10 +8,7 @@ import {
 } from './masteryRoute.js'
 
 test('buildMasteryRoutePayload preserves route flags and an empty support list', () => {
-  const payload = buildMasteryRoutePayload(
-    '近卫',
-    { supports: [], optimal: true, half_off: false }
-  )
+  const payload = buildMasteryRoutePayload('近卫', { supports: [], optimal: true, half_off: false })
 
   assert.deepEqual(payload, {
     profession: '近卫',

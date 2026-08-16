@@ -110,9 +110,7 @@ class TestMasteryPlanView(unittest.TestCase):
             r = self.client.post(
                 "/mastery-plan",
                 json={
-                    "items": [
-                        {"name": "阿米娅", "skill_index": 0, "target_level": bad}
-                    ]
+                    "items": [{"name": "阿米娅", "skill_index": 0, "target_level": bad}]
                 },
             )
             res = r.get_json()["results"][0]
@@ -127,9 +125,7 @@ class TestMasteryPlanView(unittest.TestCase):
         get_skill.return_value = self._char_table()
         r = self.client.post(
             "/mastery-plan",
-            json={
-                "items": [{"name": "阿米娅", "skill_index": 0, "target_level": "3"}]
-            },
+            json={"items": [{"name": "阿米娅", "skill_index": 0, "target_level": "3"}]},
         )
         res = r.get_json()["results"][0]
         self.assertEqual(res["status"], "error")
@@ -163,9 +159,7 @@ class TestMasteryPlanView(unittest.TestCase):
         insert.return_value = 8
         r = self.client.post(
             "/mastery-plan",
-            json={
-                "items": [{"name": "阿米娅", "skill_index": 1, "target_level": 2}]
-            },
+            json={"items": [{"name": "阿米娅", "skill_index": 1, "target_level": 2}]},
         )
         res = r.get_json()["results"][0]
         self.assertEqual(res["status"], "added")
@@ -174,15 +168,15 @@ class TestMasteryPlanView(unittest.TestCase):
     @patch("arknights_mower.utils.mastery_db.insert_plan")
     @patch("arknights_mower.views.mastery.get_skill_data")
     @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
-    def test_bulk_rejects_operator_already_at_target(self, get_level, get_skill, insert):
+    def test_bulk_rejects_operator_already_at_target(
+        self, get_level, get_skill, insert
+    ):
         # #65/B7：干员已到目标档位 → 拒绝并给清晰文案，不落库
         get_skill.return_value = self._char_table()
         get_level.return_value = 2
         r = self.client.post(
             "/mastery-plan",
-            json={
-                "items": [{"name": "阿米娅", "skill_index": 0, "target_level": 2}]
-            },
+            json={"items": [{"name": "阿米娅", "skill_index": 0, "target_level": 2}]},
         )
         res = r.get_json()["results"][0]
         self.assertEqual(res["status"], "error")
@@ -206,7 +200,9 @@ class TestMasteryPlanView(unittest.TestCase):
     @patch("arknights_mower.utils.mastery_db.insert_plan")
     @patch("arknights_mower.views.mastery.get_skill_data")
     @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
-    def test_flat_rejects_operator_already_at_target(self, get_level, get_skill, insert):
+    def test_flat_rejects_operator_already_at_target(
+        self, get_level, get_skill, insert
+    ):
         # #65/B7：干员已专三（≥ 默认目标）→ 扁平路径也拒绝
         get_skill.return_value = self._char_table()
         get_level.return_value = 3

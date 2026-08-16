@@ -7,6 +7,7 @@
 - 派发链路（AC2）：计划创建 API 落库的计划必须被扫描派发 `_dispatch_scan_start_tasks`
   找到并入队开始任务，否则前端建了计划也不会开始训练。
 """
+
 import os
 import sys
 import tempfile
@@ -50,9 +51,9 @@ class _FakeScheduler:
 
 
 def _task_payload(task_type, meta_data="", plan_key=None, upgrade_support=None):
-    time_str = (
-        datetime.now(pytz.utc) + timedelta(minutes=1)
-    ).strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+    time_str = (datetime.now(pytz.utc) + timedelta(minutes=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S.%f%z"
+    )
     body = {
         "task": {
             "time": time_str,
@@ -101,7 +102,8 @@ class TestTaskEndpointContract(unittest.TestCase):
     def test_skill_upgrade_rejected_even_with_plan_key(self):
         # 旧流的 plan_key（char_id_level 形态）也不再被接受——专精训练统一走计划 API。
         r = self.client.post(
-            "/task", json=_task_payload("技能专精", meta_data="1", plan_key="char_001_1")
+            "/task",
+            json=_task_payload("技能专精", meta_data="1", plan_key="char_001_1"),
         )
         self.assertEqual(r.status_code, 200)
         self.assertIn("mastery-plan", r.data.decode("utf-8"))

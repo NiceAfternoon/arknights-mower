@@ -8,14 +8,14 @@ from unittest.mock import MagicMock, patch
 # mastery_choose_train_tests.py 同款 stub，避免单测依赖外网。
 sys.modules.setdefault("arknights_mower.utils.skland", MagicMock())
 
-import arknights_mower.solvers.base_schedule as base_schedule
-from arknights_mower.solvers import mastery_reader
-from arknights_mower.solvers.base_schedule import BaseSchedulerSolver
-from arknights_mower.utils.logic_expression import LogicExpression
-from arknights_mower.utils.operators import Operator
-from arknights_mower.utils.plan import Plan, PlanConfig, Room
-from arknights_mower.utils.recognize import Scene
-from arknights_mower.utils.scheduler_task import TaskTypes, find_next_task
+import arknights_mower.solvers.base_schedule as base_schedule  # noqa: E402
+from arknights_mower.solvers import mastery_reader  # noqa: E402
+from arknights_mower.solvers.base_schedule import BaseSchedulerSolver  # noqa: E402
+from arknights_mower.utils.logic_expression import LogicExpression  # noqa: E402
+from arknights_mower.utils.operators import Operator  # noqa: E402
+from arknights_mower.utils.plan import Plan, PlanConfig, Room  # noqa: E402
+from arknights_mower.utils.recognize import Scene  # noqa: E402
+from arknights_mower.utils.scheduler_task import TaskTypes, find_next_task  # noqa: E402
 
 with patch.dict("sys.modules", {"RecruitSolver": MagicMock()}):
     pass
@@ -402,7 +402,9 @@ class TestBaseScheduler(unittest.TestCase):
         with (
             patch.object(base_schedule.config.conf, "enable_mastery", True),
             patch.object(BaseSchedulerSolver, "find", return_value=True),
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=None
+            ),
             patch(
                 "arknights_mower.utils.mastery_db.get_next_idle_plan",
                 return_value={"id": 1},
@@ -424,7 +426,9 @@ class TestBaseScheduler(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan",
                 return_value={"id": 2, "status": "training"},
             ),
-            patch("arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_next_idle_plan", return_value=None
+            ),
         ):
             solver.infra_main()
         self.assertEqual(len(solver.tasks), 0)
@@ -455,7 +459,9 @@ class TestBaseScheduler(unittest.TestCase):
 
         with (
             patch.object(base_schedule.config.conf, "enable_mastery", True),
-            patch("arknights_mower.utils.mastery_db.get_active_plan", return_value=None),
+            patch(
+                "arknights_mower.utils.mastery_db.get_active_plan", return_value=None
+            ),
             patch(
                 "arknights_mower.utils.mastery_db.get_next_idle_plan",
                 return_value={"id": 1},
@@ -604,9 +610,7 @@ class TestTrainGateReadThenJudge(unittest.TestCase):
         solver = self._make_solver(plan)
         with (
             patch.object(base_schedule.config.conf, "enable_mastery", True),
-            patch.object(
-                base_schedule.config.conf, "assistant_follows_schedule", True
-            ),
+            patch.object(base_schedule.config.conf, "assistant_follows_schedule", True),
             patch(
                 "arknights_mower.solvers.mastery_reader.read_room_state",
                 return_value=self._training_room(),
@@ -615,7 +619,9 @@ class TestTrainGateReadThenJudge(unittest.TestCase):
         ):
             result = solver.agent_arrange_room({}, "train", plan)
         solver.back.assert_called_once_with(0.5)  # 冻结不早退；仅排班收尾 back
-        solver.refresh_current_room.assert_called_once_with("train", [1])  # idx1=Current
+        solver.refresh_current_room.assert_called_once_with(
+            "train", [1]
+        )  # idx1=Current
         solver.turn_on_room_detail.assert_called_with("train")
         self.assertEqual(result, {})
 
@@ -761,9 +767,7 @@ class TestScanDispatchMastery(unittest.TestCase):
                 base_schedule.BaseSchedulerSolver._dispatch_scan_start_tasks(
                     solver, [{"char_id": "char_a", "skill_index": 1}]
                 )
-        upgrades = [
-            t for t in solver.tasks if t.type == TaskTypes.SKILL_UPGRADE
-        ]
+        upgrades = [t for t in solver.tasks if t.type == TaskTypes.SKILL_UPGRADE]
         self.assertEqual(len(upgrades), 1)
 
     @patch.object(base_schedule.BaseSchedulerSolver, "__init__", lambda x: None)
@@ -773,7 +777,9 @@ class TestScanDispatchMastery(unittest.TestCase):
         solver = self._solver()
         idle = self._idle_plan()
         with (
-            patch("arknights_mower.utils.mastery_db.retry_failed_plans", return_value=0),
+            patch(
+                "arknights_mower.utils.mastery_db.retry_failed_plans", return_value=0
+            ),
             patch(
                 "arknights_mower.utils.mastery_recommendation.auto_schedule_mastery_tasks",
                 return_value={
@@ -798,7 +804,9 @@ class TestScanDispatchMastery(unittest.TestCase):
         solver = self._solver()
         idle = self._idle_plan()
         with (
-            patch("arknights_mower.utils.mastery_db.retry_failed_plans", return_value=0),
+            patch(
+                "arknights_mower.utils.mastery_db.retry_failed_plans", return_value=0
+            ),
             patch(
                 "arknights_mower.utils.mastery_recommendation.auto_schedule_mastery_tasks",
                 return_value={

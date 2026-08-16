@@ -338,16 +338,13 @@ def compute_workshop_config(
     from collections import defaultdict
 
     from arknights_mower.data import workshop_formula
-    from arknights_mower.utils.mastery_db import get_all_plans
 
     # #83：计划直接读 DB（get_all_plans 非终态）。matery_plan.json 是全仓库无写入者
     # 的孤儿文件（@app/tmp 上的 stale key），UI/API/agent 新增计划不在里面；completed/
     # failed 计划不核算材料（不消耗；failed 已由扫描钩子 retry_failed_plans 先重置 idle）。
     from arknights_mower.utils.mastery_db import get_all_plans
 
-    planned_keys = [
-        f"{p['char_id']}_{p['skill_index']}" for p in get_all_plans()
-    ]
+    planned_keys = [f"{p['char_id']}_{p['skill_index']}" for p in get_all_plans()]
 
     if planned_keys:
         try:

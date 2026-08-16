@@ -597,7 +597,10 @@ def _schedule_scan_start(solver, plan):
     标记。计划开始训练后该任务按 plan_key 原位升级为收取任务（_schedule_collect 去重命中）。
     """
     _upsert_skill_upgrade_task(
-        solver, datetime.now(), meta_data=f"{_plan_label(plan)} 开始训练", plan_key=str(plan["id"])
+        solver,
+        datetime.now(),
+        meta_data=f"{_plan_label(plan)} 开始训练",
+        plan_key=str(plan["id"]),
     )
 
 
@@ -616,8 +619,7 @@ def _queue_has_mastery_task(solver):
     current = getattr(solver, "task", None)
     try:
         return any(
-            t.type == TaskTypes.SKILL_UPGRADE and t is not current
-            for t in solver.tasks
+            t.type == TaskTypes.SKILL_UPGRADE and t is not current for t in solver.tasks
         )
     except (AttributeError, TypeError):
         return False
@@ -1025,7 +1027,9 @@ def reconcile_and_act(solver, scan_plan=None):
     return plan, arrange_support
 
 
-def _reconcile(solver, room: RoomState, active, plans, scan_plan=None, defer_collect=False):
+def _reconcile(
+    solver, room: RoomState, active, plans, scan_plan=None, defer_collect=False
+):
     """#61/#73 状态矩阵。行=DB 状态，列=截图房间状态。
 
     返回 (start_plan, arrange_support)：start_plan 为需要开始训练的计划或 None；
@@ -1046,7 +1050,9 @@ def _reconcile(solver, room: RoomState, active, plans, scan_plan=None, defer_col
     # §16.2 OCR 失败 5 次仍不一致 → 保守训练中：不动 + 记日志。
     # 用户 08-15 定案：读不出不排重检——等排班系统下次自然进房重读。
     if room.read_failed:
-        _log_judgment(solver, room, "ocr_fail", "保守训练中，不排重检（等排班自然重读）")
+        _log_judgment(
+            solver, room, "ocr_fail", "保守训练中，不排重检（等排班自然重读）"
+        )
         return None, True
 
     if room.state == "empty":
@@ -1162,17 +1168,25 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
 
     if defer_collect and hit is not None and _queue_has_mastery_task(solver):
         _log_judgment(
-            solver, room, "waiting_collect",
+            solver,
+            room,
+            "waiting_collect",
             "队列已有专精任务，跳过本次收集（留给任务收）",
-            计划=hit["id"], 协助位=room.support_slot, 保护=protective,
+            计划=hit["id"],
+            协助位=room.support_slot,
+            保护=protective,
         )
         return None, True
 
     if tier == 3:
         # 专三：正常收取 → 邮件③（截图）→ 无论如何不保护 → 可排班
         _log_judgment(
-            solver, room, "waiting_collect", "专三完成，正常收取",
-            协助位=room.support_slot, 保护=protective,
+            solver,
+            room,
+            "waiting_collect",
+            "专三完成，正常收取",
+            协助位=room.support_slot,
+            保护=protective,
         )
         if hit is not None:
             return _collect_plan(solver, hit, room), False
@@ -1185,8 +1199,12 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         # 扫描链/重启，一律当场开；重启后也不保守等扫描）。减半守卫：跨「收取→下一次
         # 开始」边界不动协助位。
         _log_judgment(
-            solver, room, "waiting_collect", "都在计划，恢复流程（收取→排前→idle→当场开）",
-            协助位=room.support_slot, 保护=protective,
+            solver,
+            room,
+            "waiting_collect",
+            "都在计划，恢复流程（收取→排前→idle→当场开）",
+            协助位=room.support_slot,
+            保护=protective,
         )
         plan = _collect_plan(solver, hit, room)
         if plan is not None and plan["id"] == hit["id"]:
@@ -1197,8 +1215,12 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
 
     # 干员不在计划 / 干员在技能不在：收取 + 通知④帮收（非专三，无论保护与否）
     _log_judgment(
-        solver, room, "waiting_collect", "非专三不在计划，帮收（通知④）",
-        协助位=room.support_slot, 保护=protective,
+        solver,
+        room,
+        "waiting_collect",
+        "非专三不在计划，帮收（通知④）",
+        协助位=room.support_slot,
+        保护=protective,
     )
     _collect_silent(solver, room)
     return None, True

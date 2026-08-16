@@ -33,12 +33,7 @@ _DB_TABLE_STMTS = (
     "price INTEGER"
     ")",
     "CREATE TABLE IF NOT EXISTS inventory (item_name TEXT PRIMARY KEY, count INTEGER)",
-    "CREATE TABLE IF NOT EXISTS log ("
-    "time INTEGER,"
-    "task TEXT,"
-    "level TEXT,"
-    "message TEXT"
-    ")",
+    "CREATE TABLE IF NOT EXISTS log (time INTEGER,task TEXT,level TEXT,message TEXT)",
     "CREATE TABLE IF NOT EXISTS operation_history ("
     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
     "stage_id TEXT,"
@@ -443,7 +438,9 @@ def save_trading_info(func):
                             result.price,
                         ),
                     )
-                    logger.info(f"当前为 {result.buff} 订单, 订单价值为: {result.price}")
+                    logger.info(
+                        f"当前为 {result.buff} 订单, 订单价值为: {result.price}"
+                    )
                     logger.info(f"储存订单信息至数据库 {datetime.now()}")
                     connection.commit()
         except sqlite3.Error as e:
