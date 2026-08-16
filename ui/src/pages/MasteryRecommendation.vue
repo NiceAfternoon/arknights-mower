@@ -362,32 +362,34 @@
             <n-checkbox v-model:checked="routeSettings[prof].optimal">最优协助干员</n-checkbox>
             <n-checkbox v-model:checked="routeSettings[prof].half_off">有减半加成</n-checkbox>
           </div>
-          <n-divider />
-          <n-text depth="2">中枢干员加成</n-text>
-          <n-radio-group v-model:value="controlCenter" style="margin-top: 4px">
-            <n-space vertical>
-              <n-radio v-for="opt in controlCenterOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </n-radio>
-            </n-space>
-          </n-radio-group>
-          <n-text v-if="controlCenterBonus > 0" depth="2" style="font-size: 12px; margin-top: 4px">
-            中枢加成: +{{ controlCenterBonus }}%
-          </n-text>
-          <n-divider />
-          <n-text depth="2">减半换人缓冲时间（分钟）</n-text>
-          <n-input-number
-            v-model:value="configStore.mastery_swap_buffer"
-            :min="0"
-            :max="60"
-            size="small"
-            style="width: 120px; margin-top: 4px"
-          />
-          <n-text depth="3" style="font-size: 11px; margin-top: 2px">
-            减半对象需在位时间 = 5小时 + 缓冲时间，缓冲越大越保守
-          </n-text>
         </n-tab-pane>
       </n-tabs>
+      <n-divider />
+      <n-text depth="2">中枢干员加成</n-text>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px">
+        <n-switch
+          v-model:value="masterySettings.central_bonus"
+          :checked-value="5"
+          :unchecked-value="0"
+        >
+          <template #checked>+5%</template>
+          <template #unchecked>无</template>
+        </n-switch>
+        <n-text depth="3" style="font-size: 11px">
+          阿斯卡纶 / 烛煌 / 斩业星熊 入驻控制中枢时训练速度 +5%
+        </n-text>
+      </div>
+      <n-text depth="2" style="margin-top: 10px">减半换人缓冲时间（分钟）</n-text>
+      <n-input-number
+        v-model:value="masterySettings.mastery_swap_buffer"
+        :min="0"
+        :max="60"
+        size="small"
+        style="width: 120px; margin-top: 4px"
+      />
+      <n-text depth="3" style="font-size: 11px; margin-top: 2px">
+        减半对象需在位时间 = 5小时 + 缓冲时间，缓冲越大越保守
+      </n-text>
       <template #footer>
         <n-space justify="end">
           <n-button @click="resetRoute" :disabled="routeSaving">恢复默认</n-button>
@@ -533,8 +535,6 @@ import {
   NText,
   NThing,
   NDynamicInput,
-  NRadio,
-  NRadioGroup,
   useMessage
 } from 'naive-ui'
 import { Settings, List } from '@vicons/carbon'
@@ -593,8 +593,7 @@ const decomposeT3 = ref(false)
 const {
   fodder_operators: fodderOps,
   t5_operators: t5Ops,
-  book_operators: bookOps,
-  mastery_control_center: controlCenter
+  book_operators: bookOps
 } = storeToRefs(configStore)
 const workshopLoading = ref(false)
 const showWorkshopSettings = ref(false)
@@ -971,13 +970,8 @@ const level_list = [
   { value: 2, label: '专二' },
   { value: 3, label: '专三' }
 ]
-const controlCenterOptions = [
-  { label: '无加成', value: 'none' },
-  { label: '阿斯卡纶 (+5%)', value: 'ascalon' },
-  { label: '烛煌 (+5%)', value: 'zhuhuang' },
-  { label: '斩业星熊 (+5%)', value: 'star_bear' }
-]
-const controlCenterBonus = computed(() => (controlCenter.value === 'none' ? 0 : 5))
+// 全局路线设置（#91 修订）：中枢加成（0/5）+ 换人缓冲时间，存路线配置设置行，不走 conf。
+const masterySettings = reactive({ central_bonus: 0, mastery_swap_buffer: 10 })
 
 const defaultsCache = ref(null)
 
@@ -1077,7 +1071,6 @@ function applyRoute(d) {
       routeSettings[p].half_off = d[p].half_off !== undefined ? d[p].half_off : true
     }
   }
-  if (d.controlCenter) controlCenter.value = d.controlCenter
 }
 
 async function loadRoute() {
@@ -1085,14 +1078,14 @@ async function loadRoute() {
   const routes = r.data?.routes || []
   const backups = r.data?.backups || {}
   const routeDefaults = r.data?.defaults || {}
+  const settings = r.data?.settings || {}
+  masterySettings.central_bonus = settings.central_bonus ?? 0
+  masterySettings.mastery_swap_buffer = settings.mastery_swap_buffer ?? 10
   const merged = { _backups: backups }
   for (const rt of routes) {
     const parsed = parseMasteryRoute(rt)
     if (!parsed.profession) continue
     merged[parsed.profession] = parsed
-    if (parsed.legacyControlCenter && controlCenter.value === 'none') {
-      controlCenter.value = parsed.legacyControlCenter
-    }
   }
   merged._jsonDefaults = normalizeMasteryRouteDefaults(routeDefaults)
   // DB 未保存过此职业路线时，用默认配置兜底显示（不自动写库，编辑后由保存流程落库）
@@ -1134,7 +1127,10 @@ async function saveRouteAndClose() {
   try {
     await Promise.all([
       flushRouteSettings(),
-      axios.post(`${import.meta.env.VITE_HTTP_URL}/conf`, configStore.build_config())
+      axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-route/settings`, {
+        central_bonus: masterySettings.central_bonus,
+        mastery_swap_buffer: masterySettings.mastery_swap_buffer
+      })
     ])
     showSettings.value = false
     message.success('专精路线设置已保存')
@@ -1257,7 +1253,7 @@ function buildSupports(op) {
   const p = profMap[op.profession] || '近卫'
   const s = routeSettings[p]
   if (!s?.supports?.length) return []
-  const bonus = controlCenterBonus.value
+  const bonus = masterySettings.central_bonus || 0
   return s.supports.map((sup) => ({
     name: sup.name,
     swap_name: sup.swap ? sup.swap_name || sup.name : sup.name,
