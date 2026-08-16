@@ -122,7 +122,7 @@
 ### 读取与匹配的稳为先规则
 - 面板干员名/技能名 **OCR 不可读 → 一律视为匹配**，不判不一致、不 reset、不发 blocked。（C-36 / MX-06）
 - **B8 采纳门（#68，2026-08-15；用户 08-15 定案修订）**：`_update_expiry` 只在面板**干员名+技能名都可读且与计划匹配**时采纳倒计时（`_can_adopt_expiry`）；任一不可读 → 不采纳（不刷新、不改写状态）、**不排重检**，静默等排班系统下次自然进房重读——幻影/外人倒计时不得「祝福」计划，`waiting_collect` 不被无校验刷新降回 `training`。C-36 的「不可读=匹配」仍用于 reset/通知守卫（load-bearing），**不宽恕采纳**。
-- 匹配 = 干员名一致 且（技能名可读时）面板技能名 ⊂ 计划 skill_name（包含匹配，兼容长名截断）。（LBL-04）
+- 匹配 = 干员名一致 且（技能名可读时）面板技能名 ⊂ 计划 skill_name（包含匹配，兼容长名截断；面板技能名先经 `resolve_panel_skill` 对照已知技能表解析，见 §10 LBL-06）。（LBL-04）
 - `_settle_in_room` 对瞬态场景循环收敛（INFRA_MAIN→enter_room、INFRA_DETAILS→back、CONNECTING/UNKNOWN→sleep），至多 15 次，不在瞬态场景上动作。（C-38）
 - 进房先读倒计时定分支，**不盲点技能按钮**。（C-04）
 
@@ -236,6 +236,7 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 - **占位符**：`技能{N}`（匹配 `^技能[0-9]+$`）表示「真名未知」，必须懒填充，永不作最终存储值。（LBL-02）
 - **比较前先 `normalize_skill_text`**：去 `[]`、统一分隔符族 `·．.。 ` 与全角空格/Tab 为 `·`。（LBL-05）
 - **匹配 = 包含**，不是相等：面板技能名 ⊂ 计划 skill_name（面板可能显示截断前缀）；只对当前计划判，**无全局反查表**（技能名在干员内不重复，无歧义）。（LBL-04）
+- **面板技能名先经 `resolve_panel_skill` 解析（#95，2026-08-16）**：面板技能文本对照干员已知技能表（skill_data.json `characters[char_id].skills[].name`，每干员 ≤3 技能）做归一化互含匹配（面板 ⊂ 真名 或 真名 ⊂ 面板，容忍截断与 OCR 首尾噪声），命中**唯一**技能才返回序号；查无干员 / 无命名技能 / 多候选含混 → 返回 None 回退包含匹配（LBL-04）。调用点 `_plan_matches_room` / `_match_plan`（mastery_reader.py），归属校验（mastery.py #69/B2）与 B8 采纳门（`_can_adopt_expiry`）一并受益。干员名反查 char_id 用 `_resolve_operator_char_id`（撞名保守不采纳）；`get_skill_data` 函数内懒加载避免循环导入。（LBL-06）
 - **`insert_plan` 必须存规范 skill_name + 非 NULL char_name**；存量计划（NULL char_name / 占位 skill_name）读取时懒填充（`lazy_fill_plan_names`，写回仅在传入 connection 时发生，不改行为）。（LZ-01/LZ-03）
 
 ## 11. DB 契约

@@ -30,7 +30,11 @@ from arknights_mower.utils import config
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.scene import Scene
 from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
-from arknights_mower.utils.skill_label import format_skill_label, panel_skill_matches
+from arknights_mower.utils.skill_label import (
+    format_skill_label,
+    panel_skill_matches,
+    resolve_panel_skill,
+)
 
 # 主页面面板坐标（#61 已钉）
 PANEL_REGION = ((239, 878), (776, 977))  # `[干员名]技能名`
@@ -473,6 +477,9 @@ def _plan_matches_room(plan, room: RoomState) -> bool:
     sk = room.panel.skill_name
     if not sk:
         return True
+    resolved = resolve_panel_skill(room.panel.operator_name, sk)
+    if resolved is not None:
+        return resolved == plan.get("skill_index")
     return panel_skill_matches(sk, plan.get("skill_name"))
 
 
@@ -487,8 +494,13 @@ def _match_plan(plans, room: RoomState):
             continue
         if not _plan_operator_matches(p, op):
             continue
-        if sk and not panel_skill_matches(sk, p.get("skill_name")):
-            continue
+        if sk:
+            resolved = resolve_panel_skill(op, sk)
+            if resolved is not None:
+                if resolved != p.get("skill_index"):
+                    continue
+            elif not panel_skill_matches(sk, p.get("skill_name")):
+                continue
         return p
     return None
 
