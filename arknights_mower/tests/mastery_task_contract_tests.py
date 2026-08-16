@@ -169,14 +169,6 @@ class TestFrontendFlowContract(unittest.TestCase):
         self.assertNotIn("task.meta_data = skill_level.value + ''", src)
         self.assertNotIn("upgrade_support.value", src)
 
-    def test_retry_button_uses_retry_api(self):
-        # #97：failed 计划「重试」按钮走 POST /mastery-plan/retry（不再靠删了重加）；
-        # planEntries 需带 id（重试按 plan id 定向）
-        src = self._read("ui/src/pages/MasteryRecommendation.vue")
-        self.assertIn("mastery-plan/retry", src)
-        self.assertIn("id: e.id", src)
-        self.assertIn("id: info.id", src)
-
 
 class TestPlanApiDispatchLink(unittest.TestCase):
     """AC2 链路：计划创建 API（前端一键/手动对话框入口）落库的计划，扫描派发能找到并入队。

@@ -264,6 +264,7 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 ## 11. DB 契约
 
 - **计划字段**：id、char_id、char_name、skill_index、skill_name、target_level、status、priority、expires_at、failed_reason。
+- **计划 id（#102 定案）**：`mastery_plan.id` 由 `INTEGER PRIMARY KEY AUTOINCREMENT` 生成，**单调递增、删除后不复用**——日志中的高 id 是历史编号，不代表现存计划数（删 1、2、4 后现存计划从 3 开始属正常）。**切勿改成普通 `INTEGER PRIMARY KEY`（rowid 别名）**：删掉最大行后 id 会被复用，使残留的 `plan_key=旧id` 队列任务 / `dedup_key=旧id` 通知去重行指向新计划。
 - **状态唯一写法** `update_plan_status`；优先级 `update_plan_priority`。（DB-02）
 - **`is_operator_busy`**（`mastery_db.py:302-325`）：
   - busy 状态集 = 恒 {arranging, training, waiting_collect}（waiting_collect 的干员仍在房内，不得被排走）；增删状态必须同步改此集合。（BUSY-01）
@@ -302,7 +303,6 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 | `GET /mastery-plan` | `{plans:[...], history:[...]}`；plans 每项含 id/char_id/name/skill_index/skill_name/target_level/status/priority/expires_at/failed_reason；history 含 char_id/name/skill_index/skill_name/target_level/status/failed_reason/time。⚠️ **#69 展示约定**：plans = `get_all_plans()`（非终态）**追接** `get_failed_plans()`（failed，带 failed_reason）——failed 计划也返回给前端显示，不"凭空消失"；执行循环仍只读非终态（#4 SM-09） |
 | `POST /mastery-plan` | 两种 body：`{'items':[{name, skill_index, target_level}]}` 或扁平 `{name: skill_index}`；扁平路径 skill_index 必须 ∈ {0,1,2} 否则 `invalid skill_index`；未知干员 → `{status:'error', reason:'operator not found'}`；成功 → `{status:'added', id}`。⚠️ **#65/B7 target_level 统一校验**（两路径都走 `add_plan_checked`）：缺省/默认 专三（与推荐一致）；越界（非 1/2/3，含非整数、布尔 `true`）→ `reason='目标专精等级无效: ...'`；干员 cultivate.json 当前等级 ≥ target → 拒绝（`reason='...已专N...'`，不落库；cultivate 读不到则跳过等级校验，执行层已到target检测兜底）。⚠️ bulk `items` 路径**不校验** skill_index ∈ (0,1,2)（open_risks） |
 | `DELETE /mastery-plan` | body 需 id（缺 → 400）；`delete_plan` 失败 → 500。**#97 清理**：删除后顺带清该计划 `plan_key=计划ID`（#101 补位已并入同一键，无独立 fill-{id}）的队列任务（SKILL_UPGRADE/SWAP）+ `mastery_notify` 中 `dedup_key=str(id)` 的去重行——残留任务不再按 plan_key 派发到已删计划 |
-| `POST /mastery-plan/retry` | **#97**：failed 计划重试/恢复——body `{id: N}` 单计划或 `{ids: [N,...]}` 批量；按 id 定向 `failed → idle`（清 `failed_reason`，`retry_plan_by_id`），非 failed 计划不动；返回 `{status:'ok', retried:N}`。重试后走正常 idle→arranging→training（扫描派发），不再靠「删了重加」 |
 | `PATCH /mastery-plan/order` | body 是 `[{id, priority}]`；未知/缺失 id 容忍；返回 `{'status':'ok'}` |
 | `GET /mastery-route` | `{routes, defaults}`，defaults = `solvers.mastery.DEFAULT_ROUTES` |
 | `POST /mastery-route` | profession 非空（否则 400）；supports 接受 str 或 list；`is_default` 恒 0；optimal/half_off 透传，half_off 默认 True |

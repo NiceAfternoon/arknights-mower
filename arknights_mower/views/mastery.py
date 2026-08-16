@@ -12,7 +12,6 @@ from arknights_mower.utils.mastery_db import (
     get_all_routes,
     get_failed_plans,
     get_route_settings,
-    retry_plan_by_id,
     save_route,
     save_route_settings,
     update_plan_priority,
@@ -23,7 +22,6 @@ from arknights_mower.utils.mastery_recommendation import get_skill_data
 class Routes:
     PLAN = "/mastery-plan"
     PLAN_ORDER = "/mastery-plan/order"
-    PLAN_RETRY = "/mastery-plan/retry"
     ROUTE = "/mastery-route"
     ROUTE_SETTINGS = "/mastery-route/settings"
     HISTORY = "/mastery-history"
@@ -217,40 +215,6 @@ class MasteryPlanOrderView(MethodView):
         return {"status": "ok"}
 
 
-class MasteryPlanRetryView(MethodView):
-    """#97：failed 计划重试/恢复——定向把 failed → idle（清 failed_reason）。
-
-    body 支持 `{"id": N}` 单计划或 `{"ids": [N, ...]}` 批量；重试后的计划走正常
-    idle → arranging → training（扫描派发）。非 failed 计划不动。
-    """
-
-    decorators = [_require_token]
-
-    def post(self):
-        data = request.json or {}
-        ids = data.get("ids") if isinstance(data.get("ids"), list) else None
-        if ids is None and data.get("id") is not None:
-            ids = [data.get("id")]
-        if not ids:
-            return {"error": "id or ids is required"}, 400
-        plan_ids = []
-        for pid in ids:
-            # 校验为整数（bool 是 int 子类，True==1 不得静默接受）——畸形 id → 400，
-            # 且避免批量半提交（先改 5 再遇 "abc" 整体 500）
-            if isinstance(pid, bool) or not isinstance(pid, int):
-                return {"error": f"invalid id: {pid}"}, 400
-            plan_ids.append(pid)
-        retried = 0
-        try:
-            for pid in plan_ids:
-                if retry_plan_by_id(pid):
-                    retried += 1
-        except Exception:
-            # retry_plan_by_id DB 错误向上抛 → 500（不伪装成「未重试」/成功）
-            return {"error": "retry failed"}, 500
-        return {"status": "ok", "retried": retried}
-
-
 class MasteryRouteView(MethodView):
     decorators = [_require_token]
 
@@ -305,9 +269,6 @@ class MasteryHistoryView(MethodView):
 mastery_bp.add_url_rule(Routes.PLAN, view_func=MasteryPlanView.as_view("mastery_plan"))
 mastery_bp.add_url_rule(
     Routes.PLAN_ORDER, view_func=MasteryPlanOrderView.as_view("mastery_plan_order")
-)
-mastery_bp.add_url_rule(
-    Routes.PLAN_RETRY, view_func=MasteryPlanRetryView.as_view("mastery_plan_retry")
 )
 mastery_bp.add_url_rule(
     Routes.ROUTE, view_func=MasteryRouteView.as_view("mastery_route")

@@ -248,46 +248,7 @@ class TestMasteryPlanView(unittest.TestCase):
         self.assertIn("已专", res["reason"])
         insert.assert_not_called()
 
-    # --- #97 重试/恢复 + 删除清理 ---
-
-    @patch("arknights_mower.views.mastery.retry_plan_by_id")
-    def test_retry_single_plan(self, retry_mock):
-        # #97：POST /mastery-plan/retry {id} → 定向重置单个 failed 计划
-        retry_mock.return_value = True
-        r = self.client.post("/mastery-plan/retry", json={"id": 5})
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.get_json(), {"status": "ok", "retried": 1})
-        retry_mock.assert_called_once_with(5)
-
-    @patch("arknights_mower.views.mastery.retry_plan_by_id")
-    def test_retry_batch_plans(self, retry_mock):
-        # #97：{ids} 批量重试
-        retry_mock.return_value = True
-        r = self.client.post("/mastery-plan/retry", json={"ids": [5, 6]})
-        self.assertEqual(r.get_json(), {"status": "ok", "retried": 2})
-        self.assertEqual(retry_mock.call_count, 2)
-
-    @patch("arknights_mower.views.mastery.retry_plan_by_id")
-    def test_retry_requires_id(self, retry_mock):
-        # #97：无 id → 400
-        r = self.client.post("/mastery-plan/retry", json={})
-        self.assertEqual(r.status_code, 400)
-        retry_mock.assert_not_called()
-
-    @patch("arknights_mower.views.mastery.retry_plan_by_id")
-    def test_retry_invalid_id_400(self, retry_mock):
-        # #97 review 修复：畸形 id（非整数/布尔/字符串）→ 400，不 500、不批量半提交
-        for bad in (["abc"], [True], [None], "5"):
-            r = self.client.post("/mastery-plan/retry", json={"ids": [bad]})
-            self.assertEqual(r.status_code, 400, f"ids=[{bad!r}] 应 400")
-            retry_mock.assert_not_called()
-
-    @patch("arknights_mower.views.mastery.retry_plan_by_id")
-    def test_retry_db_error_500(self, retry_mock):
-        # #97 review 修复：DB 错误 → 500（不伪装成「未重试」/成功）
-        retry_mock.side_effect = Exception("database is locked")
-        r = self.client.post("/mastery-plan/retry", json={"id": 5})
-        self.assertEqual(r.status_code, 500)
+    # --- #97 删除清理 ---
 
     @patch("arknights_mower.views.mastery._purge_plan_tasks")
     @patch("arknights_mower.views.mastery.delete_plan")

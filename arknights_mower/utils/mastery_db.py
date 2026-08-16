@@ -443,24 +443,6 @@ def retry_failed_plans(path: Optional[str] = None) -> int:
         return 0
 
 
-def retry_plan_by_id(plan_id: int, path: Optional[str] = None) -> bool:
-    """#97：单个 failed 计划重试（failed → idle，清 failed_reason）。
-
-    按 id 定向（区别于 `retry_failed_plans` 无条件重置全部）；只对 failed 生效——
-    已 idle/active 的计划不动（无需重试）。返回 False = 非 failed/不存在；
-    **DB 错误向上抛**（调用方按 500 处理，不伪装成「未重试」）。前端 failed 计划
-    「重试」按钮走它，不再靠「删了重加」作为恢复手段。
-    """
-    with _conn(path) as conn:
-        cursor = conn.execute(
-            "UPDATE mastery_plan SET status='idle', failed_reason=NULL "
-            "WHERE id=? AND status='failed'",
-            (plan_id,),
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-
-
 # --- 通知去重（#61：仅三类各一次） ---
 
 
