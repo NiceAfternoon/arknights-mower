@@ -263,6 +263,22 @@ def read_main_panel(solver, img=None) -> RoomPanel:
     return panel
 
 
+def _close_room_detail(solver, max_retries=3):
+    """关进驻详情浮窗回训练室主界面：点浮窗关闭按钮（arrange_check_in_on）。
+
+    205 是基建放大视角，back() 会退到基建主界面而非训练室主界面（graph.py:
+    INFRA_DETAILS→INFRA_MAIN），专精流程一律用点关闭按钮的方式关浮窗。
+    浮窗开着时画面出现 arrange_check_in_on（浮窗上的关闭按钮），点它关浮窗。
+    """
+    for _ in range(max_retries):
+        pos = solver.find("arrange_check_in_on")
+        if pos:
+            solver.tap(pos, interval=0.5)
+            return True
+        solver.sleep(0.5)
+    return False
+
+
 def _settle_in_room(solver, max_iters=15) -> int:
     """把场景稳定到房内可判定状态（TRAIN_MAIN / TRAIN_FINISH / 其他房内场景）。
 
@@ -281,7 +297,7 @@ def _settle_in_room(solver, max_iters=15) -> int:
         if scene == Scene.INFRA_MAIN:
             solver.enter_room("train")
         elif scene == Scene.INFRA_DETAILS:
-            solver.back()
+            _close_room_detail(solver)
         else:
             solver.sleep()
     return solver.train_scene()
@@ -300,7 +316,7 @@ def _read_slots(solver):
         return "", ""
     try:
         if solver.train_scene() == Scene.INFRA_DETAILS:
-            solver.back()
+            _close_room_detail(solver)
     except Exception:
         pass
     if len(scan) < 2:
@@ -1157,7 +1173,9 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
     """
     hit = _match_plan(plans, room)  # 干员+技能都在计划
     tier = room.panel.mastery_tier
-    protective = room.support_slot in PROTECT_OPERATORS
+    # 日志用真实保护状态（_compute_protected 已按档位/状态算好）：专三待收取即使协助位
+    # 是逻各斯/艾丽妮也不保护（§16.3 第1格），只看协助位会误报保护=True。
+    protective = room.protected
 
     # 截图权威：DB active 与待收取房内干员不一致 → 假记录重置
     if active is not None and not _plan_matches_room(active, room):
@@ -1260,7 +1278,7 @@ def train_slot_locked(solver) -> bool:
     """
     scene = solver.train_scene()
     if scene == Scene.INFRA_DETAILS:
-        solver.back(interval=0.5)
+        _close_room_detail(solver)
         scene = solver.train_scene()
     if scene == Scene.TRAIN_FINISH:
         return True

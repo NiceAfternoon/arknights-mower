@@ -792,7 +792,7 @@ class TestStartTrainingMail(unittest.TestCase):
         self.assertNotIn("专2", msg)
 
     def test_re_read_closes_detail_window_and_reads(self):
-        # 协助位安排后停在进驻详情浮窗 → 先关浮窗回主页面再读倒计时（back 内部已重置缓存）
+        # 协助位安排后停在进驻详情浮窗 → 先关浮窗回主页面再读倒计时（点 arrange_check_in_on 关）
         solver = self._solver()
         solver.train_scene.side_effect = [Scene.INFRA_DETAILS, Scene.TRAIN_MAIN]
         with (
@@ -801,7 +801,10 @@ class TestStartTrainingMail(unittest.TestCase):
         ):
             result = mastery._re_read_train_countdown(solver)
         self.assertEqual(result, START + timedelta(hours=2))
-        solver.back.assert_called_once()  # 关掉进驻详情浮窗
+        # 205 放大视角关浮窗应点关闭按钮（arrange_check_in_on），不是 back（会退到基建）
+        solver.find.assert_any_call("arrange_check_in_on")
+        solver.tap.assert_called()
+        solver.back.assert_not_called()  # 关掉进驻详情浮窗
         solver.read_time.assert_called_once()  # 关浮窗后重读倒计时
 
     def test_re_read_not_main_returns_none(self):
@@ -1323,7 +1326,10 @@ class TestSwapCollectGating(unittest.TestCase):
             patch.object(mastery_reader, "datetime", FixedDateTime),
         ):
             mastery.run_swap_support(solver)
-        solver.back.assert_called_once()  # 关掉进驻详情浮窗
+        # 205 放大视角关浮窗应点关闭按钮（arrange_check_in_on），不是 back（会退到基建）
+        solver.find.assert_any_call("arrange_check_in_on")
+        solver.tap.assert_called()
+        solver.back.assert_not_called()  # 关掉进驻详情浮窗
         sc.assert_called_once()
 
 

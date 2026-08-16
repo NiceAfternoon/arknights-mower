@@ -5,6 +5,7 @@ from typing import Optional
 from arknights_mower.solvers.mastery_reader import (
     RoomPanel,
     RoomState,
+    _close_room_detail,
     _count_lit_mastery_icons,
     _notify_at_target,
     _plan_label,
@@ -593,8 +594,8 @@ def _start_new_training(solver, plan, arrange_support=True, room=None):
         elif scene == Scene.INFRA_MAIN:
             solver.enter_room("train")
         elif scene == Scene.INFRA_DETAILS:
-            # 房间详情浮层（get_agent_from_room 会打开它）→ 关掉回房间主界面
-            solver.back()
+            # 房间详情浮层（get_agent_from_room 会打开它）→ 点关闭按钮回房间主界面
+            _close_room_detail(solver)
         elif scene == Scene.TRAIN_FINISH:
             solver.tap((solver.recog.w * 0.05, solver.recog.h * 0.95), interval=0.5)
         elif scene == Scene.TRAIN_MAIN:
@@ -865,7 +866,7 @@ def _re_read_train_countdown(solver) -> Optional[datetime]:
     try:
         scene = solver.train_scene()
         if scene == Scene.INFRA_DETAILS:
-            solver.back()
+            _close_room_detail(solver)
             scene = solver.train_scene()
         if scene != Scene.TRAIN_MAIN:
             return None
@@ -977,7 +978,7 @@ def run_swap_support(solver):
     solver.enter_room("train")
     scene = solver.train_scene()
     if scene == Scene.INFRA_DETAILS:
-        solver.back()
+        _close_room_detail(solver)
         scene = solver.train_scene()
     panel = None
     if scene == Scene.TRAIN_MAIN:
@@ -1013,7 +1014,7 @@ def run_swap_support(solver):
         # 纠错消耗时间 → 重读倒计时（铁律 1 动作前先读房）
         scene = solver.train_scene()
         if scene == Scene.INFRA_DETAILS:
-            solver.back()
+            _close_room_detail(solver)
             scene = solver.train_scene()
         panel = None
         if scene == Scene.TRAIN_MAIN:
@@ -1166,7 +1167,7 @@ def _swap_still_worthwhile(solver, plan, route) -> bool:
     try:
         scene = solver.train_scene()
         if scene == Scene.INFRA_DETAILS:
-            solver.back()
+            _close_room_detail(solver)
             scene = solver.train_scene()
         if scene != Scene.TRAIN_MAIN:
             return True
@@ -1191,7 +1192,7 @@ def _schedule_collect_after_swap(solver, plan):
         try:
             scene = solver.train_scene()
             if scene == Scene.INFRA_DETAILS:
-                solver.back()
+                _close_room_detail(solver)
                 scene = solver.train_scene()
             if scene == Scene.TRAIN_MAIN:
                 countdown = _read_train_countdown(solver)
