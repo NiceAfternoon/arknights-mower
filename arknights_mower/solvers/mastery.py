@@ -1072,7 +1072,9 @@ def run_swap_support(solver):
         except Exception as e:
             logger.warning(f"协助位补位/纠错失败: {e}")
             logger.debug(f"[mastery] 协助位补位/纠错 id={plan['id']} 结果=失败 err={e}")
-            _notify_swap_correction_failed(solver, plan, support_slot, operator)
+            _notify_swap_correction_failed(
+                solver, plan, support_slot, operator, fallback_swap=not support_slot
+            )
             if support_slot:
                 # #79 坐错人纠错失败 → 维持语义：不换人、排收取退出
                 _schedule_collect_after_swap(solver, plan)
@@ -1156,11 +1158,15 @@ def _try_swap(solver, plan, swap_target) -> bool:
         return False
 
 
-def _notify_swap_correction_failed(solver, plan, support_slot, operator):
-    """#79 协助位纠错失败通知：换入 operator 失败，减半收益可能丢 + 协助位坐错人/空。
+def _notify_swap_correction_failed(
+    solver, plan, support_slot, operator, fallback_swap=False
+):
+    """#79 协助位纠错失败通知：换入 operator 失败 + 协助位坐错人/空。
 
-    #100：support_slot 空（协助位空着补位失败）时显示「空」；去重按 plan id
-    （同计划只通知一次）；异常时 fail open 照发（宁可多发不漏发）。
+    #100：support_slot 空（协助位空着补位失败）时显示「空」；空位补位失败会落到
+    did_swap 直接尝试换入 swap_target（**不跳过减半**）→ fallback_swap=True 时文案
+    如实改为「将尝试直接换入减半对象」（否则「跳过减半」与实际行为矛盾）。
+    去重按 plan id（同计划只通知一次）；异常时 fail open 照发（宁可多发不漏发）。
     """
     from arknights_mower.utils.email import send_message
     from arknights_mower.utils.mastery_db import should_notify
@@ -1168,10 +1174,16 @@ def _notify_swap_correction_failed(solver, plan, support_slot, operator):
     if not should_notify("swap_correction_failed", str(plan["id"])):
         return
     label = _plan_fail_label(plan)
-    msg = (
-        f"{label} 协助位 {support_slot or '空'} 补位/纠错失败（未能换入 {operator}），"
-        "本次跳过减半换人，减半收益可能丢失"
-    )
+    if fallback_swap:
+        msg = (
+            f"{label} 协助位 {support_slot or '空'} 补位失败（未能换入 {operator}），"
+            "将尝试直接换入减半对象"
+        )
+    else:
+        msg = (
+            f"{label} 协助位 {support_slot or '空'} 补位/纠错失败（未能换入 {operator}），"
+            "本次跳过减半换人，减半收益可能丢失"
+        )
     send_message(msg, level="WARNING")
 
 

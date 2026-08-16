@@ -1269,6 +1269,10 @@ class TestSwapCollectGating(unittest.TestCase):
             "补位失败后仍直接换入 swap_target（减半收益不丢）",
         )
         notify.assert_called_once()
+        self.assertTrue(
+            notify.call_args.kwargs.get("fallback_swap", False),
+            "空位补位失败文案应如实说「将尝试直接换入减半对象」而非「跳过减半」",
+        )
         upd.assert_called_once_with(1, "training", swap_frozen=1)
         sc.assert_called_once()
 
