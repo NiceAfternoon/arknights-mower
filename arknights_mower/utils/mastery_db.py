@@ -378,6 +378,11 @@ def delete_plan(plan_id: int, path: Optional[str] = None) -> bool:
     try:
         with _conn(path) as conn:
             conn.execute("DELETE FROM mastery_plan WHERE id=?", (plan_id,))
+            # #97：删计划顺带清通知去重（②③⑥⑦⑧ 用 str(plan_id) 作 dedup_key）——
+            # 避免孤儿 dedup 残留；重加同计划（新 id）本就会重新通知，这里是卫生清理。
+            conn.execute(
+                "DELETE FROM mastery_notify WHERE dedup_key=?", (str(plan_id),)
+            )
             conn.commit()
             return True
     except Exception as e:
@@ -436,6 +441,27 @@ def retry_failed_plans(path: Optional[str] = None) -> int:
     except Exception as e:
         logger.error(f"retry_failed_plans failed: {e}")
         return 0
+
+
+def retry_plan_by_id(plan_id: int, path: Optional[str] = None) -> bool:
+    """#97：单个 failed 计划重试（failed → idle，清 failed_reason）。
+
+    按 id 定向（区别于 `retry_failed_plans` 无条件重置全部）；只对 failed 生效——
+    已 idle/active 的计划不动（无需重试）。前端 failed 计划「重试」按钮走它，
+    不再靠「删了重加」作为恢复手段。
+    """
+    try:
+        with _conn(path) as conn:
+            cursor = conn.execute(
+                "UPDATE mastery_plan SET status='idle', failed_reason=NULL "
+                "WHERE id=? AND status='failed'",
+                (plan_id,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    except Exception as e:
+        logger.error(f"retry_plan_by_id failed: {e}")
+        return False
 
 
 # --- 通知去重（#61：仅三类各一次） ---

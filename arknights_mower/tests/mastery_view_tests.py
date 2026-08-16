@@ -1,4 +1,7 @@
+import sys
+import types
 import unittest
+from datetime import datetime
 from unittest.mock import patch
 
 from flask import Flask
@@ -244,6 +247,78 @@ class TestMasteryPlanView(unittest.TestCase):
         self.assertEqual(res["status"], "error")
         self.assertIn("已专", res["reason"])
         insert.assert_not_called()
+
+    # --- #97 重试/恢复 + 删除清理 ---
+
+    @patch("arknights_mower.views.mastery.retry_plan_by_id")
+    def test_retry_single_plan(self, retry_mock):
+        # #97：POST /mastery-plan/retry {id} → 定向重置单个 failed 计划
+        retry_mock.return_value = True
+        r = self.client.post("/mastery-plan/retry", json={"id": 5})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json(), {"status": "ok", "retried": 1})
+        retry_mock.assert_called_once_with(5)
+
+    @patch("arknights_mower.views.mastery.retry_plan_by_id")
+    def test_retry_batch_plans(self, retry_mock):
+        # #97：{ids} 批量重试
+        retry_mock.return_value = True
+        r = self.client.post("/mastery-plan/retry", json={"ids": [5, 6]})
+        self.assertEqual(r.get_json(), {"status": "ok", "retried": 2})
+        self.assertEqual(retry_mock.call_count, 2)
+
+    @patch("arknights_mower.views.mastery.retry_plan_by_id")
+    def test_retry_requires_id(self, retry_mock):
+        # #97：无 id → 400
+        r = self.client.post("/mastery-plan/retry", json={})
+        self.assertEqual(r.status_code, 400)
+        retry_mock.assert_not_called()
+
+    @patch("arknights_mower.views.mastery._purge_plan_tasks")
+    @patch("arknights_mower.views.mastery.delete_plan")
+    def test_delete_purges_queued_tasks(self, delete_mock, purge_mock):
+        # #97：删除计划后清残留队列任务（该 plan_key 的 SKILL_UPGRADE/SWAP/fill）
+        delete_mock.return_value = True
+        r = self.client.delete("/mastery-plan", json={"id": 3})
+        self.assertEqual(r.status_code, 200)
+        delete_mock.assert_called_once_with(3)
+        purge_mock.assert_called_once_with(3)
+
+    @patch("arknights_mower.views.mastery.delete_plan")
+    def test_delete_requires_id(self, delete_mock):
+        # 存量：无 id → 400
+        r = self.client.delete("/mastery-plan", json={})
+        self.assertEqual(r.status_code, 400)
+        delete_mock.assert_not_called()
+
+    def test_purge_plan_tasks_removes_plan_key_tasks(self):
+        # #97：_purge_plan_tasks 清掉该计划 plan_key 与 fill-{id} 的队列任务，保留其它
+        from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+        from arknights_mower.views.mastery import _purge_plan_tasks
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        sched = types.SimpleNamespace()
+        t1 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
+        t1.plan_key = "5"
+        t2 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SWAP_SUPPORT)
+        t2.plan_key = "fill-5"
+        t3 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
+        t3.plan_key = "9"
+        sched.tasks = [t1, t2, t3]
+        fake.base_scheduler = sched
+        with patch.dict(sys.modules, {"arknights_mower.__main__": fake}):
+            _purge_plan_tasks(5)
+        remaining = [getattr(t, "plan_key", None) for t in sched.tasks]
+        self.assertEqual(remaining, ["9"], "plan_key=5 与 fill-5 应清掉，plan_key=9 保留")
+
+    def test_purge_plan_tasks_guards_no_scheduler(self):
+        # #97：base_scheduler 未运行（None）→ 防御不崩
+        from arknights_mower.views.mastery import _purge_plan_tasks
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        fake.base_scheduler = None
+        with patch.dict(sys.modules, {"arknights_mower.__main__": fake}):
+            _purge_plan_tasks(5)  # 不应抛异常
 
 
 if __name__ == "__main__":

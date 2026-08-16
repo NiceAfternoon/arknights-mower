@@ -12,6 +12,7 @@ from arknights_mower.utils.mastery_db import (
     get_all_routes,
     get_failed_plans,
     get_route_settings,
+    retry_plan_by_id,
     save_route,
     save_route_settings,
     update_plan_priority,
@@ -22,6 +23,7 @@ from arknights_mower.utils.mastery_recommendation import get_skill_data
 class Routes:
     PLAN = "/mastery-plan"
     PLAN_ORDER = "/mastery-plan/order"
+    PLAN_RETRY = "/mastery-plan/retry"
     ROUTE = "/mastery-route"
     ROUTE_SETTINGS = "/mastery-route/settings"
     HISTORY = "/mastery-history"
@@ -39,6 +41,23 @@ def _require_token(f):
         return f(*args, **kwargs)
 
     return wrapper
+
+
+def _purge_plan_tasks(plan_id):
+    """#97：删除计划后清理队列残留任务（SKILL_UPGRADE/SWAP 按 plan_key 派发到已删计划）。
+
+    补位任务用 fill-{id} 键，一并清。base_scheduler 未运行（None）或 tasks 不可迭代
+    时防御按无任务处理（视图测试无真实 scheduler）。
+    """
+    try:
+        from arknights_mower.__main__ import base_scheduler
+    except ImportError:
+        return
+    tasks = getattr(base_scheduler, "tasks", None)
+    if not isinstance(tasks, list):
+        return
+    keys = {str(plan_id), f"fill-{plan_id}"}
+    base_scheduler.tasks = [t for t in tasks if getattr(t, "plan_key", None) not in keys]
 
 
 class MasteryPlanView(MethodView):
@@ -170,7 +189,11 @@ class MasteryPlanView(MethodView):
         plan_id = data.get("id")
         if not plan_id:
             return {"error": "id is required"}, 400
-        if delete_plan(int(plan_id)):
+        plan_id = int(plan_id)
+        if delete_plan(plan_id):
+            # #97：删计划清残留队列任务（该 plan_key 的 SKILL_UPGRADE/SWAP/fill），
+            # 否则残留任务仍会按 plan_key 派发到已删计划。
+            _purge_plan_tasks(plan_id)
             return {"status": "ok"}
         return {"error": "delete failed"}, 500
 
@@ -186,6 +209,29 @@ class MasteryPlanOrderView(MethodView):
             if plan_id is not None and priority is not None:
                 update_plan_priority(int(plan_id), int(priority))
         return {"status": "ok"}
+
+
+class MasteryPlanRetryView(MethodView):
+    """#97：failed 计划重试/恢复——定向把 failed → idle（清 failed_reason）。
+
+    body 支持 `{"id": N}` 单计划或 `{"ids": [N, ...]}` 批量；重试后的计划走正常
+    idle → arranging → training（扫描派发）。非 failed 计划不动。
+    """
+
+    decorators = [_require_token]
+
+    def post(self):
+        data = request.json or {}
+        ids = data.get("ids") if isinstance(data.get("ids"), list) else None
+        if ids is None and data.get("id") is not None:
+            ids = [data.get("id")]
+        if not ids:
+            return {"error": "id or ids is required"}, 400
+        retried = 0
+        for pid in ids:
+            if retry_plan_by_id(int(pid)):
+                retried += 1
+        return {"status": "ok", "retried": retried}
 
 
 class MasteryRouteView(MethodView):
@@ -242,6 +288,9 @@ class MasteryHistoryView(MethodView):
 mastery_bp.add_url_rule(Routes.PLAN, view_func=MasteryPlanView.as_view("mastery_plan"))
 mastery_bp.add_url_rule(
     Routes.PLAN_ORDER, view_func=MasteryPlanOrderView.as_view("mastery_plan_order")
+)
+mastery_bp.add_url_rule(
+    Routes.PLAN_RETRY, view_func=MasteryPlanRetryView.as_view("mastery_plan_retry")
 )
 mastery_bp.add_url_rule(
     Routes.ROUTE, view_func=MasteryRouteView.as_view("mastery_route")

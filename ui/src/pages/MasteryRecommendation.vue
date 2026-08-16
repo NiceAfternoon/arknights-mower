@@ -439,6 +439,16 @@
                 ({{ getStatusLabel(e.status) }}{{ e.failed_reason ? '：' + e.failed_reason : '' }})
               </template>
             </n-tag>
+            <n-button
+              v-if="e.status === 'failed' && e.id"
+              size="tiny"
+              quaternary
+              type="warning"
+              style="margin: 2px 0"
+              @click="retryPlanEntry(e)"
+            >
+              重试
+            </n-button>
           </template>
         </draggable>
         <n-text v-if="!planEntries.length" depth="3">未添加计划</n-text>
@@ -677,6 +687,19 @@ function getStatusType(status) {
   return map[status] || 'default'
 }
 
+async function retryPlanEntry(e) {
+  // #97：failed 计划「重试」→ 后端定向 failed→idle（清 failed_reason），走正常
+  // idle→arranging→training，不再靠删了重加
+  if (!e.id) return
+  try {
+    await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan/retry`, { id: e.id })
+    message.success(`已重试 ${e.name} ${e.skill_name}`)
+    await refreshPlanFromServer()
+  } catch (err) {
+    message.error(`重试失败: ${err.message}`)
+  }
+}
+
 async function toggleSkillPlan(op, rec, draft = false) {
   const k = planKey(op.char_id, rec.skill_index)
   if (plan.value[k]) {
@@ -849,6 +872,7 @@ const planEntries = computed(() => {
       if (rec)
         entries.push({
           key: k,
+          id: info.id,
           char_id: cid,
           skill_index: si,
           name: op.name,
