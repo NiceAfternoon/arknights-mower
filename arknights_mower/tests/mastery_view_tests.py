@@ -274,6 +274,21 @@ class TestMasteryPlanView(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
         retry_mock.assert_not_called()
 
+    @patch("arknights_mower.views.mastery.retry_plan_by_id")
+    def test_retry_invalid_id_400(self, retry_mock):
+        # #97 review 修复：畸形 id（非整数/布尔/字符串）→ 400，不 500、不批量半提交
+        for bad in (["abc"], [True], [None], "5"):
+            r = self.client.post("/mastery-plan/retry", json={"ids": [bad]})
+            self.assertEqual(r.status_code, 400, f"ids=[{bad!r}] 应 400")
+            retry_mock.assert_not_called()
+
+    @patch("arknights_mower.views.mastery.retry_plan_by_id")
+    def test_retry_db_error_500(self, retry_mock):
+        # #97 review 修复：DB 错误 → 500（不伪装成「未重试」/成功）
+        retry_mock.side_effect = Exception("database is locked")
+        r = self.client.post("/mastery-plan/retry", json={"id": 5})
+        self.assertEqual(r.status_code, 500)
+
     @patch("arknights_mower.views.mastery._purge_plan_tasks")
     @patch("arknights_mower.views.mastery.delete_plan")
     def test_delete_purges_queued_tasks(self, delete_mock, purge_mock):
@@ -310,6 +325,32 @@ class TestMasteryPlanView(unittest.TestCase):
             _purge_plan_tasks(5)
         remaining = [getattr(t, "plan_key", None) for t in sched.tasks]
         self.assertEqual(remaining, ["9"], "plan_key=5 与 fill-5 应清掉，plan_key=9 保留")
+
+    def test_purge_plan_tasks_keeps_current_dispatch(self):
+        # #97 review 修复：当前派发任务（base_scheduler.task）不删——主循环 dispatch 完
+        # 按 `del self.tasks[0]` 删除它，若移走会误删下一个排队任务
+        from arknights_mower.utils.scheduler_task import SchedulerTask, TaskTypes
+        from arknights_mower.views.mastery import _purge_plan_tasks
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        sched = types.SimpleNamespace()
+        t1 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
+        t1.plan_key = "5"
+        t2 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SWAP_SUPPORT)
+        t2.plan_key = "fill-5"
+        t3 = SchedulerTask(time=datetime.now(), task_type=TaskTypes.SKILL_UPGRADE)
+        t3.plan_key = "9"
+        sched.tasks = [t1, t2, t3]
+        sched.task = t1  # t1（计划5 的任务）正在派发
+        fake.base_scheduler = sched
+        with patch.dict(sys.modules, {"arknights_mower.__main__": fake}):
+            _purge_plan_tasks(5)
+        remaining = [getattr(t, "plan_key", None) for t in sched.tasks]
+        self.assertEqual(
+            remaining,
+            ["5", "9"],
+            "当前派发任务(plan_key=5)保留（del self.tasks[0] 会删它），fill-5 清掉",
+        )
 
     def test_purge_plan_tasks_guards_no_scheduler(self):
         # #97：base_scheduler 未运行（None）→ 防御不崩

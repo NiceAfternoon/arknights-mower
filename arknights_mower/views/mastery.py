@@ -46,8 +46,10 @@ def _require_token(f):
 def _purge_plan_tasks(plan_id):
     """#97：删除计划后清理队列残留任务（SKILL_UPGRADE/SWAP 按 plan_key 派发到已删计划）。
 
-    补位任务用 fill-{id} 键，一并清。base_scheduler 未运行（None）或 tasks 不可迭代
-    时防御按无任务处理（视图测试无真实 scheduler）。
+    补位任务用 fill-{id} 键，一并清。in-place 改列表（不重绑引用，避免与主循环
+    `self.tasks[0]`/`del self.tasks[0]` 竞争）；**跳过当前派发任务**——主循环 dispatch
+    完按 `del self.tasks[0]` 删除它，若把它移走，del 会误删下一个排队任务（review 修复）。
+    base_scheduler 未运行（None）或 tasks 不可迭代时防御按无任务处理。
     """
     try:
         from arknights_mower.__main__ import base_scheduler
@@ -56,8 +58,11 @@ def _purge_plan_tasks(plan_id):
     tasks = getattr(base_scheduler, "tasks", None)
     if not isinstance(tasks, list):
         return
+    current = getattr(base_scheduler, "task", None)
     keys = {str(plan_id), f"fill-{plan_id}"}
-    base_scheduler.tasks = [t for t in tasks if getattr(t, "plan_key", None) not in keys]
+    tasks[:] = [
+        t for t in tasks if t is current or getattr(t, "plan_key", None) not in keys
+    ]
 
 
 class MasteryPlanView(MethodView):
@@ -227,10 +232,21 @@ class MasteryPlanRetryView(MethodView):
             ids = [data.get("id")]
         if not ids:
             return {"error": "id or ids is required"}, 400
-        retried = 0
+        plan_ids = []
         for pid in ids:
-            if retry_plan_by_id(int(pid)):
-                retried += 1
+            # 校验为整数（bool 是 int 子类，True==1 不得静默接受）——畸形 id → 400，
+            # 且避免批量半提交（先改 5 再遇 "abc" 整体 500）
+            if isinstance(pid, bool) or not isinstance(pid, int):
+                return {"error": f"invalid id: {pid}"}, 400
+            plan_ids.append(pid)
+        retried = 0
+        try:
+            for pid in plan_ids:
+                if retry_plan_by_id(pid):
+                    retried += 1
+        except Exception:
+            # retry_plan_by_id DB 错误向上抛 → 500（不伪装成「未重试」/成功）
+            return {"error": "retry failed"}, 500
         return {"status": "ok", "retried": retried}
 
 

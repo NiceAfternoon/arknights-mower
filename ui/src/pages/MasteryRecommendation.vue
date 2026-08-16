@@ -692,8 +692,16 @@ async function retryPlanEntry(e) {
   // idle→arranging→training，不再靠删了重加
   if (!e.id) return
   try {
-    await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan/retry`, { id: e.id })
-    message.success(`已重试 ${e.name} ${e.skill_name}`)
+    const r = await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan/retry`, {
+      id: e.id
+    })
+    const retried = r.data?.retried ?? 0
+    if (retried > 0) {
+      message.success(`已重试 ${e.name} ${e.skill_name}`)
+    } else {
+      // 计划已不是 failed（如扫描已自动重置 idle）或已删除 → 不误导为「已重试」
+      message.warning(`${e.name} ${e.skill_name} 无需重试（可能已恢复）`)
+    }
     await refreshPlanFromServer()
   } catch (err) {
     message.error(`重试失败: ${err.message}`)
