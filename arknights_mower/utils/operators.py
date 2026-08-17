@@ -15,6 +15,11 @@ from ..utils.log import logger
 TRADE_ORDER_AGENTS = ["但书", "龙舌兰", "佩佩", "可露希尔"]
 
 
+def _bounded_log_identifier(value, maximum: int) -> str:
+    text = "".join("_" if char.isspace() else char for char in str(value))
+    return text[:maximum] or "unknown"
+
+
 def build_global_plan():
     """构建完整的 global_plan，包括 Plan 对象，用于运行时"""
     from ..utils import config
@@ -293,7 +298,7 @@ class Operators:
                         self.dorm.append(Dormitory((dorm, _idx)))
                         added.append(dorm + str(_idx))
             if config.conf.dorm_order == "":
-                logger.debug(self.dorm)
+                logger.debug("config_section=%s issue_count=%s", "dorm_order", 0)
                 config.conf.dorm_order = ",".join(
                     [
                         dorm.position[0] + "_" + str(dorm.position[1])
@@ -612,9 +617,21 @@ class Operators:
         operator.rest_in_full = self.config.is_rest_in_full(operator.name)
         operator.workaholic = self.config.is_workaholic(operator.name)
         operator.refresh_order_room = self.config.is_refresh_trading(operator.name)
-        logger.debug(
-            f"设置 {operator.name} 刷新交易房间: {operator.refresh_order_room}"
+        refresh_rooms = (
+            operator.refresh_order_room[1]
+            if isinstance(operator.refresh_order_room, (list, tuple))
+            and len(operator.refresh_order_room) > 1
+            and isinstance(operator.refresh_order_room[1], list)
+            else []
         )
+        if refresh_rooms:
+            logger.debug(
+                "operator=%s refresh_rooms=%s",
+                _bounded_log_identifier(operator.name, 64),
+                ",".join(
+                    _bounded_log_identifier(room, 32) for room in refresh_rooms[:8]
+                ),
+            )
         operator.refresh_drained = self.config.is_refresh_drained(operator.name)
         if operator.name in agent_arrange_order:
             operator.arrange_order = agent_arrange_order[operator.name]
@@ -792,12 +809,13 @@ class Operators:
                 return True, ""
             tested_conditions.add(key)
             tested_sequence.append(key)
-            logger.debug(f"验证副表条件：{condition}")
             validation_msg = self.swap_plan(condition, True)
+            logger.debug(
+                "condition=%s matched=%s",
+                "backup_plan",
+                str(validation_msg is None).lower(),
+            )
             if validation_msg is not None:
-                logger.info(
-                    f"替换排班验证错误：{validation_msg}, 附表条件为 {condition}"
-                )
                 return False, validation_msg
             return True, ""
 
@@ -864,7 +882,6 @@ class Operator:
     ):
         if refresh_order_room is not None:
             self.refresh_order_room = refresh_order_room
-            logger.debug(f"设置{self.name}刷新交易所房间为{self.refresh_order_room}")
         else:
             self.refresh_order_room = [False, []]
         self.refresh_drained = refresh_drained
@@ -901,8 +918,19 @@ class Operator:
                 self.refresh_order_room[0] or self.refresh_drained
             ):
                 Operators.current_room_changed_callback(self)
+                refresh_room_count = (
+                    len(self.refresh_order_room[1])
+                    if isinstance(self.refresh_order_room, (list, tuple))
+                    and len(self.refresh_order_room) > 1
+                    and isinstance(self.refresh_order_room[1], list)
+                    else 0
+                )
                 logger.debug(
-                    f"触发当前房间变更回调: {self.name} 现在在 {self._current_room}, 刷新交易所房间: {self.refresh_order_room}, 刷新疲劳: {self.refresh_drained}"
+                    "operator=%s room=%s refresh_room_count=%s refresh_mood=%s",
+                    _bounded_log_identifier(self.name, 64),
+                    _bounded_log_identifier(self._current_room, 32),
+                    min(refresh_room_count, 8),
+                    self.refresh_drained,
                 )
 
     def is_high(self):

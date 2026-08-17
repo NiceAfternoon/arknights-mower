@@ -1,10 +1,13 @@
 import os
 from datetime import datetime
 
-from arknights_mower.solvers.base_schedule import BaseSchedulerSolver
+from arknights_mower.solvers.base_schedule import (
+    BaseSchedulerSolver,
+    emit_annotated_retry_outcome,
+)
 from arknights_mower.solvers.reclamation_algorithm import ReclamationAlgorithm
 from arknights_mower.solvers.secret_front import SecretFront
-from arknights_mower.utils import config, path, rapidocr
+from arknights_mower.utils import config, rapidocr
 from arknights_mower.utils.csleep import MowerExit
 from arknights_mower.utils.csv_utils import EmptyDataError, read_csv_rows
 from arknights_mower.utils.datetime import get_server_time
@@ -32,7 +35,7 @@ def _read_depot_scan_timestamp(path):
 
 # 执行自动排班
 def main(saved_state, restart_after_mood_read=False):
-    logger.info("开始运行Mower")
+    logger.info("task=%s state=%s", "mower", "started")
     rapidocr.initialize_ocr()
     data = None
     if saved_state != {}:
@@ -88,7 +91,7 @@ def simulate(saved, restart_after_mood_read=False):
     """
     具体调用方法可见各个函数的参数说明
     """
-    logger.info(f"正在使用全局配置空间: {path.global_space}")
+    logger.info("task=%s state=%s", "simulation", "started")
     tasks = saved["tasks"] if saved else []
     reconnect_max_tries = 10
     reconnect_tries = 0
@@ -258,10 +261,13 @@ def simulate(saved, restart_after_mood_read=False):
                     if config.conf.maa_enable != 1:
                         base_scheduler.mower_plan_solver()
                     elif config.conf.maa_enable == 1:
-                        subject = f"下次任务在{base_scheduler.tasks[0].time.strftime('%H:%M:%S')}"
-                        context = f"下一次任务:{base_scheduler.tasks[0].plan}"
-                        logger.info(context)
-                        logger.info(subject)
+                        next_task = base_scheduler.tasks[0]
+                        logger.info(
+                            "task_type=%s scheduled_at=%s room_count=%s",
+                            next_task.type.name,
+                            next_task.time.isoformat(timespec="seconds"),
+                            min(len(next_task.plan), 64),
+                        )
                         base_scheduler.maa_plan_solver()
 
                 elif remaining_time > 0:
@@ -345,7 +351,8 @@ def simulate(saved, restart_after_mood_read=False):
             else:
                 raise e
         except RuntimeError as e:
-            logger.exception(f"程序出错-尝试重启模拟器->{e}")
+            if not emit_annotated_retry_outcome(e):
+                logger.exception(f"程序出错-尝试重启模拟器->{e}")
             restart_simulator()
             base_scheduler.device.client.check_server_alive()
             Session().connect(config.conf.adb)
@@ -356,5 +363,6 @@ def simulate(saved, restart_after_mood_read=False):
                     base_scheduler.device.client
                 )
         except Exception as e:
-            logger.exception(f"程序出错--->{e}")
+            if not emit_annotated_retry_outcome(e):
+                logger.exception(f"程序出错--->{e}")
             base_scheduler.recog.update()

@@ -37,12 +37,10 @@ class NewsChecker:
             if cls.last_check_ts and (now_server - cls.last_check_ts) < timedelta(
                 hours=3
             ):
-                logger.debug("使用缓存的维护时间")
                 return cls.cached_st, cls.cached_et
 
         # 2. 如果没到 5:00，不请求
         if now_server.hour < 5 or now_server.hour > 18:
-            logger.debug("今天还没到 5:00，不请求维护时间")
             return cls.cached_st, cls.cached_et
 
         # 3. 请求网页

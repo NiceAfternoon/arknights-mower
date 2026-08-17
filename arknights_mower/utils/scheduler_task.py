@@ -170,14 +170,12 @@ def scheduling(tasks, run_order_delay=5, execution_time=0.75, time_now=None):
                         ):
                             break
                         logger.info("检测到任务可能影响到下次跑单修改任务至跑单之后")
-                        logger.debug("||".join([str(t) for t in tasks]))
                         next_priority_0_time = tasks[next_priority_0_index].time
                         for j in range(i, next_priority_0_index):
                             if tasks[j].adjusted:
                                 continue
                             tasks[j].time = next_priority_0_time + timedelta(seconds=1)
                             next_priority_0_time = tasks[j].time
-                        logger.debug("||".join([str(t) for t in tasks]))
                         break
         tasks.sort(key=lambda x: x.time)
 
@@ -193,7 +191,6 @@ def adjust_run_order_for_maintenance(tasks, run_order_delay=5):
     time_gap = max(run_order_delay * 2, 10)  # 确保最小间隔为10分钟操作时间
     st, ed = NewsChecker.get_update_time()
     if not st or not ed:
-        logger.debug("无法获取维护时间，跳过调整 RUN_ORDER 任务")
         return
     window_start = st - timedelta(minutes=time_gap)
     window_end = ed + timedelta(minutes=time_gap)
@@ -221,7 +218,6 @@ def generate_plan_by_drom(tasks, op_data):
     planned = set()
     current_time = datetime.now()
     for time, (dorms, rest_in_full) in ordered:
-        logger.debug(f"{time},{dorms},{rest_in_full}")
         plan = {}
         exhaust_exist = False
         for room in dorms:
@@ -301,7 +297,13 @@ def generate_plan_by_drom(tasks, op_data):
                 )
     interval = config.conf.merge_interval
     merge_release_dorm(result, interval)
-    logger.debug("生成任务: " + ("||".join([str(t) for t in result])))
+    for task in result:
+        logger.debug(
+            "task_type=%s scheduled_at=%s room_count=%s",
+            task.type.name,
+            task.time.isoformat(timespec="seconds"),
+            min(len(task.plan), 64),
+        )
     return result
 
 
@@ -332,7 +334,6 @@ def plan_metadata(op_data, tasks):
         )
         min_resting_time = min(min_resting_time, predicted_rest_time)
 
-    logger.debug(f"预测最低休息时间为: {min_resting_time}")
     grouped_dorms = defaultdict(list)
     free_rooms = []
     # 分组 dorm 对象
@@ -344,8 +345,12 @@ def plan_metadata(op_data, tasks):
                 free_rooms.append(dorm)
     new_task = {}
     for group_name, dorms in grouped_dorms.items():
-        logger.debug(f"开始计算:{group_name}")
-        logger.debug(f"开始计算:{dorms}")
+        logger.debug(
+            "phase=%s room_count=%s operator_count=%s",
+            "group",
+            len({dorm.position[0] for dorm in dorms}),
+            min(len(dorms), 64),
+        )
         max_rest_in_full_time = None
         task_time = datetime.max
         # 高优先宿舍
@@ -389,8 +394,12 @@ def plan_metadata(op_data, tasks):
                 key=lambda d: d.time,
                 default=None,
             )
-            logger.debug(f"最前上班时间为{nearest_dorm}")
-            logger.debug({max_rest_in_full_time})
+            logger.debug(
+                "phase=%s room_count=%s operator_count=%s",
+                "timing",
+                len({dorm.position[0] for dorm in high_dorms}),
+                min(len(high_dorms), 64),
+            )
             if max_rest_in_full_time:
                 # 处理回满逻辑
                 task_time = max_rest_in_full_time - (
@@ -453,10 +462,8 @@ def try_reorder(op_data, new_plan):
             d.time = None
     # 复制副本，防止原本的dorm错误触发纠错
     dorm = copy.deepcopy(op_data.dorm)
-    logger.debug(op_data.dorm)
     priority_list = op_data.config.ope_resting_priority
     vip = sum(1 for key in op_data.plan.keys() if key.startswith("dorm"))
-    logger.debug(f"当前vip个数{vip}")
     if vip == 0:
         return
 
@@ -498,7 +505,6 @@ def try_reorder(op_data, new_plan):
         dorm[idx].name = dorm_info[idx]["name"]
         dorm[idx].time = dorm_info[idx]["time"]
     plan = {}
-    logger.debug(f"更新房间信息{dorm}")
     for room in dorm:
         if room.name:
             op = op_data.operators[room.name]
@@ -507,6 +513,12 @@ def try_reorder(op_data, new_plan):
                 if room_name not in plan:
                     plan[room_name] = ["Current"] * 5
                 plan[room_name][idx] = room.name
+    for room_name, operators in plan.items():
+        logger.debug(
+            "room=%s moved_operator_count=%s",
+            room_name,
+            sum(name != "Current" for name in operators),
+        )
     # 生成移动任务
     return plan
 
@@ -519,14 +531,13 @@ def try_workshop_tasks(op_data, tasks):
     if config.conf.workshop_settings and inventory_data:
         for item in config.conf.workshop_settings:
             if not item.enabled:
-                logger.info(f"{item.operator}加工站任务被禁用，跳过")
                 continue
             valid = False
             if item.operator in op_data.operators.keys():
                 agent = op_data.operators[item.operator]
                 valid = agent.mood > 22
             else:
-                logger.info(f"自动添加{item.operator}至干员数据列表")
+                logger.info("task=%s state=%s", "workshop", "operator_added")
                 valid = True
                 op_data.add(Operator(item.operator, ""))
             match = False
@@ -558,10 +569,6 @@ def try_workshop_tasks(op_data, tasks):
                             ):
                                 non_base_material_match = True
                 match = base_material_match and non_base_material_match
-                if not match:
-                    logger.info(
-                        f"{item.operator}材料设置不符合要求：请检查合成数量，并确认至少要有一个小于4心情垫刀材料和一个4心情精英材料"
-                    )
             else:
                 for material in item.items:
                     for name in material.item_names:
@@ -580,18 +587,14 @@ def try_workshop_tasks(op_data, tasks):
                         ):
                             match = True
                             break
-                if not match:
-                    logger.info(f"{item.operator}材料设置不符合要求: 请检查合成数量")
             if match and valid:
-                logger.info(f"{item.operator}满足使用条件:, 生成加工站任务")
                 task = SchedulerTask(
                     task_type=TaskTypes.WORKSHOP, meta_data=item.operator
                 )
                 tasks.append(task)
+                logger.info("task=%s state=%s", "workshop", "scheduled")
             else:
-                logger.debug("数据不满足条件，跳过加工站任务生成")
-    else:
-        logger.debug("没有加工站配置或仓库数据，跳过加工站任务生成")
+                continue
 
 
 def try_add_release_dorm(plan, time, op_data, tasks):
@@ -608,7 +611,6 @@ def try_add_release_dorm(plan, time, op_data, tasks):
     if not plan:
         try:
             # 查看是否有未满心情的人
-            logger.info("启动不养闲人安排空余宿舍位")
             waiting_list = []
             for k, v in op_data.operators.items():
                 if (
@@ -626,17 +628,14 @@ def try_add_release_dorm(plan, time, op_data, tasks):
                             k,
                         ),
                     )
-                    logger.debug(f"{k}:心情：{v.current_mood()}")
             if not waiting_list:
                 return
-            logger.debug(f"有{len(waiting_list)}个干员心情未满")
             plan = {}
             for idx, value in enumerate(op_data.dorm):
                 if value.name in op_data.operators:
                     if not waiting_list:
                         break
                     agent = op_data.operators[value.name]
-                    logger.debug(str(value))
                     if not v.is_high() and (
                         agent.current_mood() >= agent.upper_limit
                         or (value.time is not None and value.time < datetime.now())
@@ -646,12 +645,14 @@ def try_add_release_dorm(plan, time, op_data, tasks):
                             plan[value.position[0]] = ["Current"] * 5
                         plan[value.position[0]][value.position[1]] = rest[2]
             if plan:
-                logger.debug(f"不养闲人任务：{plan}")
-                logger.info("添加不养闲人任务完成")
+                logger.info("task=%s state=%s", "release_dorm", "scheduled")
                 task = SchedulerTask(task_plan=plan)
                 tasks.append(task)
         except Exception as ex:
-            logger.exception(ex)
+            logger.exception(
+                "operation=release_dorm_plan outcome=failed error_type=%s",
+                type(ex).__name__,
+            )
 
 
 def add_release_dorm(tasks, op_data, name):
@@ -672,8 +673,7 @@ def add_release_dorm(tasks, op_data, name):
                 meta_data=name,
             )
             tasks.append(task)
-            logger.info(name + " 新增释放宿舍任务")
-            logger.debug(str(task))
+            logger.info("task=%s state=%s", "release_dorm", "scheduled")
 
 
 def check_dorm_ordering(tasks, op_data):
@@ -730,14 +730,13 @@ def check_dorm_ordering(tasks, op_data):
                 extra_plan[k] = v
             for k, v in extra_plan.items():
                 extra_plan[k] = [item for item in v if item != ""]
-            logger.info("新增排序任务任务")
+            logger.info("task=%s state=%s", "dorm_reorder", "scheduled")
             task = SchedulerTask(
                 task_plan=extra_plan,
                 time=tasks[0].time - timedelta(seconds=1),
                 task_type=TaskTypes.RE_ORDER,
             )
             tasks.insert(0, task)
-            logger.debug(str(task))
 
 
 def set_type_enum(value):

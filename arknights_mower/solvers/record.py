@@ -1,9 +1,9 @@
 # 用于记录Mower操作行为
 import collections
 import json
+import logging
 import pickle
 import sqlite3
-import traceback
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 
@@ -117,14 +117,11 @@ def save_action_to_sqlite_decorator(func):
                 )
                 connection.commit()
 
-            # Log the action
-            logger.debug(
-                f"Saved action to SQLite: Name: {name}, Agent's Room: {agent_current_room}, Agent's group: {agent.group}, "
-                f"Current Room: {current_room}, Is High: {agent_is_high}, Current Time: {current_time}"
-            )
-
         except sqlite3.Error as e:
-            logger.error(f"SQLite error: {e}")
+            logger.exception(
+                "operation=agent_action_write outcome=failed error_type=%s",
+                type(e).__name__,
+            )
 
         return result
 
@@ -151,7 +148,6 @@ def current_state():
 
 def save_state_to_db(saved_state):
     if saved_state is None:
-        logger.debug("没有可保存的Mower状态")
         return False
 
     current_time = datetime.now()
@@ -169,11 +165,13 @@ def save_state_to_db(saved_state):
             )
             connection.commit()
 
-        logger.info(f"储存缓存数据至数据库 {current_time}")
         return True
 
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.exception(
+            "operation=state_cache_write outcome=failed error_type=%s",
+            type(e).__name__,
+        )
         return False
 
 
@@ -204,11 +202,11 @@ def load_state():
 
         if row is not None:
             loaded_state = pickle.loads(row[0])  # Deserialize the state
-        else:
-            logger.debug("No saved state found in the database")
-
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.exception(
+            "operation=state_cache_read outcome=failed error_type=%s",
+            type(e).__name__,
+        )
 
     return loaded_state
 
@@ -229,10 +227,13 @@ def clear_data(date_time):
                 "DELETE FROM agent_action WHERE `current_time` < ?", (date_time_str,)
             )
             connection.commit()
-        logger.info(f"已删除 早于 {date_time_str} 的干员心情记录")
+        logger.info("task=%s state=%s", "agent_action_cleanup", "completed")
 
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.exception(
+            "operation=agent_action_cleanup outcome=failed error_type=%s",
+            type(e).__name__,
+        )
 
 
 def get_work_rest_ratios():
@@ -437,7 +438,10 @@ def save_trading_info(func):
                     )
                     connection.commit()
         except sqlite3.Error as e:
-            logger.error(f"SQLite error: {e}")
+            logger.exception(
+                "operation=trading_history_write outcome=failed error_type=%s",
+                type(e).__name__,
+            )
         return result
 
     return wrapper
@@ -488,7 +492,10 @@ def get_trading_history(start_date: str, end_date: str):
                 result_dict[trade_date].append({key: count})
 
     except sqlite3.Error as e:
-        logger.exception(e)
+        logger.exception(
+            "operation=trading_report outcome=failed error_type=%s",
+            type(e).__name__,
+        )
     result_list = [
         {"日期": date, **{k: v for stat in stats for k, v in stat.items()}}
         for date, stats in result_dict.items()
@@ -520,26 +527,131 @@ def get_inventory_counts(item_names: list[str] | None = None):
         return dict(cursor.fetchall())
 
 
-def save_log(message: str, task: str = "{}", level: str = "INFO"):
+def _bounded_identifier(value, *, maximum: int, fallback: str = "unknown") -> str:
+    value = value if isinstance(value, str) else ""
+    if value and len(value) <= maximum and not any(ch.isspace() for ch in value):
+        return value
+    return fallback
+
+
+def _scheduler_task_fact(task) -> dict:
+    task_type = getattr(getattr(task, "type", None), "name", None)
+    scheduled_at = getattr(task, "time", None)
+    room = getattr(task, "meta_data", None)
+    return {
+        "task_type": _bounded_identifier(task_type, maximum=32),
+        "scheduled_at": (
+            scheduled_at.isoformat(timespec="seconds")
+            if isinstance(scheduled_at, datetime)
+            else "unknown"
+        ),
+        "room": _bounded_identifier(room, maximum=64, fallback="none"),
+        "adjusted": bool(getattr(task, "adjusted", False)),
+    }
+
+
+def _project_log_fact(
+    message: str,
+    *,
+    level: str,
+    task_fact: dict | None = None,
+    exc_info: bool = False,
+):
+    """Write one owned fact to both projections without duplicating ownership."""
+    level = level.upper()
+    level_number = getattr(logging, level, logging.INFO)
+    logger.log(level_number, message, exc_info=exc_info)
+    task_json = json.dumps(
+        task_fact or {}, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    )
     try:
         with _conn() as conn:
-            cursor = conn.cursor()
-            if not task:
-                task = "{}"
-            if not isinstance(task, str):
-                task = json.dumps(task, ensure_ascii=False)
-            cursor.execute(
+            conn.execute(
                 "INSERT INTO log VALUES (?, ?, ?, ?)",
-                (int(datetime.now().timestamp()), task, level, message),
+                (int(datetime.now().timestamp()), task_json, level, message),
             )
             conn.commit()
-    except Exception as e:
-        logger.error(f"Log DB error: {e}")
+    except Exception as exc:
+        logger.exception(
+            "event=sqlite_projection state=failed error_type=%s",
+            type(exc).__name__,
+        )
 
 
-def save_exception(e: Exception):
-    tb = traceback.format_exc()
-    save_log(f"Exception: {str(e)}\n{tb}", task="{}", level="ERROR")
+def emit_log_event(
+    event: str,
+    state: str,
+    *,
+    level: str = "INFO",
+    task=None,
+    miss_kind: str | None = None,
+    exc_info: bool = False,
+):
+    """形成一次有限业务事实，并原子投影到文本日志和 SQLite。"""
+    allowed_levels = {
+        ("task_dispatch", "started"): "INFO",
+        ("missed_order", "detected"): "ERROR",
+    }
+    expected_level = allowed_levels.get((event, state))
+    if expected_level is None:
+        raise ValueError("event is not part of the SQLite logging whitelist")
+    if level.upper() != expected_level:
+        raise ValueError("event level does not match the logging contract")
+    event = _bounded_identifier(event, maximum=64)
+    state = _bounded_identifier(state, maximum=32)
+    task_fact = _scheduler_task_fact(task) if task is not None else None
+    fields = [f"event={event}", f"state={state}"]
+    if miss_kind is not None:
+        miss_kind = miss_kind if miss_kind in {"current", "previous"} else "unknown"
+        fields.append(f"miss_kind={miss_kind}")
+    if task_fact is not None:
+        room_count = min(len(getattr(task, "plan", {}) or {}), 64)
+        fields.extend(
+            [
+                f"task_type={task_fact['task_type']}",
+                f"scheduled_at={task_fact['scheduled_at']}",
+                f"room={task_fact['room']}",
+                f"room_count={room_count}",
+                f"adjusted={str(task_fact['adjusted']).lower()}",
+            ]
+        )
+    message = " ".join(fields)
+    _project_log_fact(
+        message,
+        level=level,
+        task_fact=task_fact,
+        exc_info=exc_info,
+    )
+
+
+def emit_retry_outcome(
+    operation: str,
+    outcome: str,
+    *,
+    attempt: int,
+    task=None,
+    error: Exception | None = None,
+):
+    """Project the sole terminal retry fact: recovered WARNING or exhausted ERROR."""
+    if outcome not in {"recovered", "exhausted"}:
+        raise ValueError("retry outcome is not part of the SQLite logging whitelist")
+    operation = _bounded_identifier(operation, maximum=64)
+    attempt = max(1, min(int(attempt), 32))
+    fields = [
+        f"operation={operation}",
+        f"outcome={outcome}",
+        f"attempt={attempt}",
+    ]
+    if error is not None:
+        fields.append(
+            "error_type=" + _bounded_identifier(type(error).__name__, maximum=64)
+        )
+    _project_log_fact(
+        " ".join(fields),
+        level="WARNING" if outcome == "recovered" else "ERROR",
+        task_fact=_scheduler_task_fact(task) if task is not None else None,
+        exc_info=error is not None,
+    )
 
 
 def record_operation_batch(

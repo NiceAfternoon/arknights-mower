@@ -8,7 +8,7 @@ from arknights_mower.utils.recognize import Scene
 
 class CreditSolver(SceneGraphSolver):
     def run(self) -> None:
-        logger.info("Start: 访问好友")
+        logger.info("task=%s state=%s", "visit_friend", "started")
         self.wait_times = 5
         return super().run()
 
@@ -25,7 +25,6 @@ class CreditSolver(SceneGraphSolver):
                 (min_loc[0] + left, min_loc[1] + top),
                 (min_loc[0] + left + w, min_loc[1] + top + h),
             )
-            logger.debug(f"{min_val=}, {pos=}")
             if min_val < 0.5:
                 self.tap(pos)
             else:

@@ -7,7 +7,7 @@ import numpy as np
 from arknights_mower.utils.image import loadres
 from arknights_mower.utils.path import get_path
 
-from ..solvers.record import save_log, save_trading_info
+from ..solvers.record import emit_log_event, save_trading_info
 from .email import send_message
 from .log import logger
 
@@ -46,7 +46,6 @@ class TradingOrder:
                     "源石": [mask[755:764, 653:660], 20],
                 }
                 scores = {buff: np.mean(info[0]) for buff, info in areas.items()}
-                logger.debug(f"亮度均值: {scores}")
                 match = max(scores, key=scores.get)
                 if scores[match] > 40:
                     self.buff = match
@@ -60,19 +59,27 @@ class TradingOrder:
                         min_val, _, _, _ = cv2.minMaxLoc(result)
                         match_results[name] = min_val
                     best_match = min(match_results, key=match_results.get)
-                    logger.debug(f"Best match score:{match_results}")
                     self.price = best_match
                 if self.buff == "漏单" and not time:
-                    save_log("检测到上一个订单漏单！", level="ERROR")
+                    emit_log_event(
+                        "missed_order",
+                        "detected",
+                        level="ERROR",
+                        miss_kind="previous",
+                    )
                     send_message("检测到上一个订单漏单！", level="WARNING")
                 return self
         except Exception as e:
-            logger.exception(e)
+            logger.exception(
+                "operation=trading_order_recognition outcome=failed error_type=%s",
+                type(e).__name__,
+            )
 
     def restore_history(self):
         try:
             folder = Path(get_path("@app/screenshot/run_order"))
             count = 0
+            failed_count = 0
             for file_path in folder.iterdir():
                 if file_path.is_file():
                     try:
@@ -82,12 +89,19 @@ class TradingOrder:
                             )
                         else:
                             dt = datetime.strptime(file_path.name[:-4], "%Y%m%d%H%M%S")
-                        logger.debug(f"截图时间为{dt}")
                         self.save(cv2.imread(str(file_path)), dt)
                         count += 1
-                    except Exception as e:
-                        logger.exception(f"Error processing file {file_path}: {e}")
+                    except Exception:
+                        failed_count += 1
+            if failed_count:
+                logger.warning(
+                    "operation=trading_history_restore outcome=partial failed_count=%s",
+                    failed_count,
+                )
             return f"分析{count}个订单历史记录完成"
         except Exception as e:
-            logger.exception(e)
+            logger.exception(
+                "operation=trading_history_restore outcome=failed error_type=%s",
+                type(e).__name__,
+            )
             return "分析订单历史记录失败，请反馈问题"

@@ -1,6 +1,7 @@
 import sys
 import unittest
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # base_schedule 导入链（cultivate_depot→skland）会在 skland 模块加载时调用
@@ -15,13 +16,201 @@ from arknights_mower.utils.logic_expression import LogicExpression  # noqa: E402
 from arknights_mower.utils.operators import Operator  # noqa: E402
 from arknights_mower.utils.plan import Plan, PlanConfig, Room  # noqa: E402
 from arknights_mower.utils.recognize import Scene  # noqa: E402
-from arknights_mower.utils.scheduler_task import TaskTypes, find_next_task  # noqa: E402
+from arknights_mower.utils.scheduler_task import (  # noqa: E402
+    SchedulerTask,
+    TaskTypes,
+    find_next_task,
+)
 
 with patch.dict("sys.modules", {"RecruitSolver": MagicMock()}):
     pass
 
 
 class TestBaseScheduler(unittest.TestCase):
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_scene_retry_logs_only_one_recovery_warning(self):
+        solver = BaseSchedulerSolver()
+        solver.error = False
+        solver.back = MagicMock()
+        solver.find_next_task = MagicMock(return_value=object())
+        solver.scene = MagicMock(
+            side_effect=[Scene.UNKNOWN, Scene.UNKNOWN, Scene.INDEX]
+        )
+
+        with patch.object(base_schedule, "emit_retry_outcome") as emit:
+            solver.handle_error()
+
+        self.assertEqual(solver.back.call_count, 2)
+        emit.assert_called_once_with("scene_recovery", "recovered", attempt=2)
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_scene_retry_logs_only_one_exhaustion_error(self):
+        solver = BaseSchedulerSolver()
+        solver.error = False
+        solver.back = MagicMock()
+        solver.device = MagicMock()
+        solver.check_current_focus = MagicMock()
+        solver.find_next_task = MagicMock(return_value=object())
+        solver.scene = MagicMock(return_value=Scene.UNKNOWN)
+
+        with patch.object(base_schedule, "emit_retry_outcome") as emit:
+            solver.handle_error()
+
+        self.assertEqual(solver.back.call_count, 5)
+        emit.assert_called_once_with("scene_recovery", "exhausted", attempt=5)
+        solver.device.exit.assert_called_once_with()
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_arrange_room_retry_logs_once_after_recovery(self):
+        solver = BaseSchedulerSolver()
+        solver.enter_room = MagicMock(side_effect=[ValueError("transient"), None])
+        solver.turn_on_room_detail = MagicMock()
+        solver.op_data = MagicMock()
+        solver.op_data.run_order_rooms = {}
+        solver.op_data.get_current_room.return_value = ["甲"]
+        solver.recog = MagicMock()
+        solver.scene = MagicMock(return_value=Scene.INFRA_MAIN)
+        solver.waiting_scene = []
+        solver.back = MagicMock()
+        plan = {"room_1_1": ["甲"]}
+
+        with (
+            patch.object(base_schedule, "emit_retry_outcome") as emit,
+            patch.object(base_schedule.logger, "exception") as log_exception,
+        ):
+            result = solver.agent_arrange_room({"room_1_1": ["甲"]}, "room_1_1", plan)
+
+        self.assertEqual(result, {"room_1_1": ["甲"]})
+        emit.assert_called_once_with("arrange_room", "recovered", attempt=2)
+        log_exception.assert_not_called()
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_arrange_room_exhaustion_is_unlogged_until_its_owner_handles_it(self):
+        solver = BaseSchedulerSolver()
+        solver.enter_room = MagicMock(side_effect=ValueError("persistent"))
+        solver.recog = MagicMock()
+        solver.scene = MagicMock(return_value=Scene.INFRA_MAIN)
+        plan = {"room_1_1": ["甲"]}
+
+        with (
+            patch.object(base_schedule, "emit_retry_outcome") as emit,
+            patch.object(base_schedule.logger, "exception") as log_exception,
+        ):
+            with self.assertRaises(ValueError) as raised:
+                solver.agent_arrange_room({"room_1_1": ["甲"]}, "room_1_1", plan)
+
+        self.assertEqual(raised.exception._mower_retry_operation, "arrange_room")
+        self.assertEqual(raised.exception._mower_retry_attempt, 4)
+        emit.assert_not_called()
+        log_exception.assert_not_called()
+
+    def test_maa_callback_logs_only_a_bounded_terminal_result(self):
+        details = b'{"taskchain":"Fight","details":{"arbitrary":[1,2,3]}}'
+        with (
+            patch.object(
+                base_schedule,
+                "Message",
+                side_effect=[
+                    SimpleNamespace(name="SubTaskStart"),
+                    SimpleNamespace(name="SubTaskCompleted"),
+                    SimpleNamespace(name="SubTaskError"),
+                    SimpleNamespace(name="TaskChainCompleted"),
+                ],
+                create=True,
+            ),
+            patch.object(base_schedule.logger, "debug") as debug,
+            patch.object(base_schedule.logger, "info") as info,
+            patch.object(base_schedule.logger, "error") as error,
+        ):
+            BaseSchedulerSolver.log_maa(1, details, None)
+            BaseSchedulerSolver.log_maa(2, details, None)
+            BaseSchedulerSolver.log_maa(3, details, None)
+            BaseSchedulerSolver.log_maa(4, details, None)
+
+        debug.assert_not_called()
+        error.assert_not_called()
+        info.assert_called_once_with(
+            "maa_event=TaskChainCompleted task_chain=Fight outcome=completed"
+        )
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_reload_retry_exhaustion_is_consumed_only_at_final_boundary(self):
+        solver = BaseSchedulerSolver()
+        solver.reload_room = ["room_1_1"]
+        solver.enter_room = MagicMock(side_effect=ValueError("persistent"))
+        solver.recog = MagicMock()
+        solver.scene = MagicMock(return_value=Scene.UNKNOWN)
+        solver.back = MagicMock()
+
+        with patch.object(base_schedule, "emit_retry_outcome") as emit:
+            with self.assertRaises(ValueError) as raised:
+                solver.reload()
+
+            emit.assert_not_called()
+            self.assertTrue(
+                base_schedule.emit_annotated_retry_outcome(raised.exception)
+            )
+
+        self.assertEqual(raised.exception._mower_retry_operation, "reload_room")
+        self.assertEqual(raised.exception._mower_retry_attempt, 4)
+        emit.assert_called_once_with(
+            "reload_room", "exhausted", attempt=4, task=None, error=raised.exception
+        )
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_available_operator_count_uses_frozen_ledger_limit(self):
+        solver = BaseSchedulerSolver()
+        solver.op_data = MagicMock()
+        solver.op_data.operators = {}
+        solver.op_data.config.free_blacklist = []
+        solver.op_data.get_train_support.return_value = None
+        solver.task = SimpleNamespace(plan={})
+
+        with (
+            patch.object(
+                base_schedule, "agent_list", [f"operator_{i}" for i in range(300)]
+            ),
+            patch.object(base_schedule.logger, "debug") as debug,
+        ):
+            result = solver.get_free_list([])
+
+        self.assertEqual(len(result), 300)
+        debug.assert_called_once_with("available_operator_count=%s", 256)
+
+    @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
+    def test_run_projects_only_the_selected_task_fact(self):
+        solver = BaseSchedulerSolver()
+        selected = SchedulerTask(
+            time=datetime.now(),
+            task_plan={"room_1_1": ["甲", "乙"]},
+            task_type=TaskTypes.RUN_ORDER,
+            meta_data="room_1_1",
+        )
+        solver.tasks = [selected]
+        solver.op_data = MagicMock()
+        solver.party_time = None
+        solver.free_clue = None
+        solver.credit_fight = None
+
+        with (
+            patch.object(BaseSchedulerSolver, "handle_error"),
+            patch.object(BaseSchedulerSolver, "backup_plan_solver"),
+            patch.object(base_schedule, "scheduling"),
+            patch.object(base_schedule, "check_dorm_ordering"),
+            patch.object(base_schedule, "emit_log_event") as emit,
+            patch.object(
+                base_schedule.SceneGraphSolver, "run", return_value="transition"
+            ),
+            patch.object(base_schedule.logger, "debug") as debug,
+        ):
+            result = solver.run()
+
+        self.assertEqual(result, "transition")
+        emit.assert_called_once_with(
+            "task_dispatch", "started", level="INFO", task=selected
+        )
+        debug.assert_not_called()
+
     @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
     def test_run_order_solver_uses_current_time_for_expired_exhaust_task(self):
         solver = BaseSchedulerSolver()

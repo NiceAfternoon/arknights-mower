@@ -3,8 +3,10 @@ import logging
 import re
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
+from arknights_mower.utils.log import get_log_by_time
 from arknights_mower.utils.path import get_path
 
 LIST_ORDERS_MODE = "list_orders"
@@ -16,8 +18,8 @@ ANALYZE_MISSED_ORDER_MODES = (
     ANALYZE_BY_TIME_MODE,
 )
 
-CURRENT_ORDER_MISS_KEYWORD = "检测到漏单"
-PREVIOUS_ORDER_MISS_KEYWORD = "检测到上一个订单漏单"
+CURRENT_ORDER_MISS_KEYWORD = "event=missed_order state=detected miss_kind=current"
+PREVIOUS_ORDER_MISS_KEYWORD = "event=missed_order state=detected miss_kind=previous"
 WAIT_HINT_KEYWORDS = ("等待", "超时", "Scene 9998", "卡住", "stuck", "timeout")
 CLEAR_HINT_KEYWORDS = ("移除超过", "刷新时间")
 RUN_ORDER_WAIT_HINT_KEYWORDS = "等待跑单"
@@ -28,16 +30,10 @@ SESSION_INTERRUPT_HINT_KEYWORDS = (
     "退出游戏",
 )
 RUN_ORDER_WAIT_SECONDS_RE = re.compile(r"等待跑单\s*\d+(?:\.\d+)?\s*秒")
-SCHEDULER_TASK_RE = re.compile(
-    r"SchedulerTask\(time='(?P<time>[^']+)',task_plan=.*?,task_type=TaskTypes\."
-    r"(?P<task_type>\w+),meta_data='(?P<meta_data>[^']*)'(?:,adjusted="
-    r"(?P<adjusted>True|False))?\)",
-    re.DOTALL,
-)
 RUNTIME_LOG_TIME_RE = re.compile(
     r"^(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)?\s"
 )
-RUNTIME_LOG_LEVEL_RE = re.compile(r"\b(?P<level>INFO)\b")
+RUNTIME_LOG_LEVEL_RE = re.compile(r"\b(?P<level>INFO|WARNING|ERROR)\b")
 
 
 def _get_logger():
@@ -98,7 +94,11 @@ def _parse_local_time(time_str: str) -> datetime:
 
 
 def _parse_scheduler_time(time_str: str) -> Optional[datetime]:
-    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+    ):
         try:
             return datetime.strptime(time_str, fmt)
         except ValueError:
@@ -108,9 +108,11 @@ def _parse_scheduler_time(time_str: str) -> Optional[datetime]:
 
 def _classify_signal_type(level: str, message: str) -> str:
     text = message or ""
-    if PREVIOUS_ORDER_MISS_KEYWORD in text and (level or "").upper() == "ERROR":
+    if "event=missed_order" not in text:
+        return "generic_miss"
+    if "miss_kind=previous" in text and (level or "").upper() == "ERROR":
         return "previous_order_miss"
-    if CURRENT_ORDER_MISS_KEYWORD in text:
+    if "miss_kind=current" in text:
         return "current_task_miss"
     return "generic_miss"
 
@@ -186,7 +188,7 @@ def fetch_missed_event_rows(limit: int = 10, database_path=None) -> list[dict]:
                 task,
                 message
             FROM log
-            WHERE message LIKE '%漏单%'
+            WHERE message LIKE 'event=missed_order state=detected%'
             ORDER BY time DESC
             LIMIT ?
             """,
@@ -213,22 +215,33 @@ def extract_scheduler_tasks(
 ) -> list[dict]:
     if not text:
         return []
-    tasks = []
-    for match in SCHEDULER_TASK_RE.finditer(text):
-        planned_at = _parse_scheduler_time(match.group("time"))
-        if planned_at is None:
-            continue
-        tasks.append(
-            {
-                "task_time": planned_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "planned_at": planned_at,
-                "task_type": match.group("task_type"),
-                "room": match.group("meta_data"),
-                "adjusted": match.group("adjusted") == "True",
-                "log_local_time": log_local_time,
-            }
-        )
-    return tasks
+    try:
+        task = json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(task, dict):
+        return []
+    task_type = task.get("task_type")
+    room = task.get("room")
+    planned_at = _parse_scheduler_time(task.get("scheduled_at") or "")
+    if (
+        not isinstance(task_type, str)
+        or len(task_type) > 32
+        or not isinstance(room, str)
+        or len(room) > 64
+        or planned_at is None
+    ):
+        return []
+    return [
+        {
+            "task_time": planned_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "planned_at": planned_at,
+            "task_type": task_type,
+            "room": room,
+            "adjusted": task.get("adjusted") is True,
+            "log_local_time": log_local_time,
+        }
+    ]
 
 
 def extract_run_order_tasks(log_rows: list[dict]) -> list[dict]:
@@ -286,21 +299,9 @@ def find_previous_same_room_task(
 
 def scan_runtime_info_logs(start_time: datetime, end_time: datetime) -> dict:
     try:
-        folder = get_path("@app/log")
-        wanted_suffixes = set()
-        cursor_time = (start_time - timedelta(hours=1)).replace(
-            minute=0, second=0, microsecond=0
-        )
-        end_hour = end_time.replace(minute=0, second=0, microsecond=0)
-        while cursor_time <= end_hour:
-            wanted_suffixes.add(cursor_time.strftime("%Y-%m-%d_%H"))
-            cursor_time += timedelta(hours=1)
-        files = []
-        for file_path in sorted(folder.iterdir()):
-            if file_path.is_file() and any(
-                suffix in file_path.name for suffix in wanted_suffixes
-            ):
-                files.append(file_path)
+        midpoint = start_time + (end_time - start_time) / 2
+        span_hours = max(1, int((end_time - start_time).total_seconds() // 3600) + 1)
+        files = [Path(path) for path in get_log_by_time(midpoint, span_hours)]
         entries = []
         file_names = []
         for file_path in files:

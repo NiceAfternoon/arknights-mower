@@ -21,7 +21,7 @@ for i in range(2):
 
 class CreditShop(SceneGraphSolver):
     def run(self):
-        logger.info("Start: 信用商店购物")
+        logger.info("task=%s state=%s", "credit_shop", "started")
         super().run()
 
     def number(
@@ -74,7 +74,6 @@ class CreditShop(SceneGraphSolver):
 
     def credit_remain(self):
         credits = self.number(((1700, 39), (1800, 75)), "riic_base", thres=180)
-        logger.debug(f"{credits=}")
         return credits
 
     def product_info(self):

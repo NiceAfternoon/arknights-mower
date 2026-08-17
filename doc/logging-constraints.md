@@ -156,3 +156,16 @@ WebUI 的 Scene 快照是事件驱动合同：
 - WebUI 冲突：`Log.vue` 同时保留 `alpha` 的数据库管理初始化和 #49 的一次性最新 Scene 快照读取；打开、重连、重新启用预览、Scene 变化、同 Scene 静默及写完再读合同不变。
 - 测试：新增 10 个增量合同测试，覆盖 OCR 首次成功静默、恢复/耗尽、同状态静默、换人恢复/耗尽、交易成功/重复静默、任务请求不 dump 和数据库删除有限摘要；按 TDD 先观察失败，调整后相关三组测试 30/30、专精/视觉专项 413/413、全量 Python unittest 493/493、前端 Vitest 9/9 通过，Ruff lint/format、Prettier 和 Vite build 通过。
 - 剩余限制：本次没有与 `ec64f26f` 严格配对的两小时实机 replay；#49 已有的确定性 Scene fixture 和历史 before 窗口继续按 §9 的原口径报告，不据此声称新 `alpha` 的实机降幅。
+
+### 2026-08-17：#50 调度、重试与 SQLite 消费者
+
+- 基线：实施起点为 `e09c0021`，其共同上游仍是 `fork/alpha` `ec64f26f`；同步前后 feature 相对 `fork/alpha` 均为 0 behind，本节没有改写 `alpha`。
+- 冻结范围：同时实施 `object_dump`、`scheduler_state_sqlite`、`retry_error_duplication` 三类共 242 行，其中 123 行 `scope_required`、119 行 `scope_consistency`；77 行改为静默，165 行改为有限业务事实。冻结 ledger、声明、原始报告和原始日志未修改。
+- 生产者合同：调度任务只保留 `task_type/scheduled_at/room/room_count/adjusted`，dorm、心情计划、房间选人、MAA 终态和任务状态只保留各自有限字段；MAA 进度、候选遍历、SQLite 例行写入成功、维护缓存命中/跳过和内部轮询静默。
+- 重试合同：内部尝试静默；场景、心情读取和排班恢复只记一条 `WARNING`，耗尽由最终处理边界记一条 `ERROR`。异常类型、重试次数、设备动作和传播路径保持不变；删除 `save_exception + logger.exception` 双写和完整 traceback 的 SQLite 副本。
+- SQLite 合同：`emit_log_event` 是文本与 `log` 表的单一生产者，仅白名单允许 `task_dispatch/started` 与 `missed_order/detected`；终态重试使用同一投影边界。`task` 列改为只含 `task_type/scheduled_at/room/adjusted` 的有限 JSON，不再写 `SchedulerTask.__repr__`。例行事件会被拒绝，不能把文本噪声转移到 SQLite。
+- 消费者合同：漏单分析只读有限 JSON，不保留旧 `SchedulerTask` 双读 fallback；运行期文本通过 `get_log_by_time` 公共时间查询取得并识别 `INFO/WARNING/ERROR`。通用数据库工具强制只读 `SELECT`、`PRAGMA query_only`、HTML 转义和最多 100 行。
+- 历史 before 证据：三次原始两小时窗口的全量文本分别为 69,548 / 10,572,140 bytes、540,302 / 74,842,448 bytes、55,376 / 8,787,188 bytes；SQLite 分别为 44 / 26,022 logical text bytes、19 / 20,074、29 / 32,127。#50 三类调用点在文本中的历史贡献分别为 3,163 / 1,099,777 bytes、2,737 / 750,905 bytes、6,823 / 1,808,910 bytes。前两窗沿用 #48 waiver，第三窗通过严格校验；这些数字只作历史规模和热点证据。
+- 确定性合同 fixture：固定覆盖一次任务分派、一次 dorm 任务生成、MAA 进度与终态、重试恢复与耗尽、一次漏单和一次 SQLite 例行成功；按固定运行期前缀、UTF-8、CRLF 物化。文本由 18 条 / 1,966 actual file bytes 降为 6 条 / 847 bytes；SQLite `log` 由 9 行 / 811 logical text bytes 降为 4 行 / 615 bytes。该 fixture 只比较日志合同，不模拟业务时长或负载。
+- 测试：#50 专项覆盖单一文本/SQLite 投影、白名单、有限任务 JSON、漏单新消费者、公共时间查询、数据库只读 100 行上限、dorm/Operator 摘要、MAA 终态、场景与排班重试恢复/耗尽，以及例行 SQLite 成功静默；每个新合同先观察失败再实现。最终专项 80/80、全量 Python unittest 519/519、前端 Vitest 9/9 通过，Ruff lint/format、Prettier 和 Vite build 通过。
+- 剩余限制：没有采集与当前 feature 严格配对的两小时 after 实机窗口，因此不得把历史 before 与上述 fixture 拼成两小时降幅，也不声称 CPU/RSS 或实机吞吐改善。

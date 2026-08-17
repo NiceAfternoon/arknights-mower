@@ -153,7 +153,7 @@ def log(account):
     ).json()
     if r.get("status") != 0:
         raise Exception(f"获得token失败：{r['msg']}")
-    logger.info("森空岛登陆成功")
+    logger.info("task=%s state=%s", "skland_login", "completed")
     return r["data"]["token"]
 
 

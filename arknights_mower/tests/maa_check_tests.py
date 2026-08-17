@@ -210,14 +210,18 @@ class TestMaaCheck(unittest.TestCase):
         scheduler.device = MagicMock()
         scheduler.device.client.device_id = "connected-device"
 
-        with patch.object(
-            base_schedule,
-            "run_maa_connectivity_check",
-            return_value={"status": "success", "message": "ok"},
-        ) as mock_check:
+        with (
+            patch.object(
+                base_schedule,
+                "run_maa_connectivity_check",
+                return_value={"status": "success", "message": "ok"},
+            ) as mock_check,
+            patch.object(base_schedule.logger, "info") as info,
+        ):
             scheduler.check_maa_connectivity("启动预检")
 
         mock_check.assert_called_once_with(adb="connected-device")
+        info.assert_not_called()
 
     def test_scheduler_blocks_every_non_success_result(self):
         scheduler = object.__new__(base_schedule.BaseSchedulerSolver)

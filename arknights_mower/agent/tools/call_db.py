@@ -1,6 +1,6 @@
 import sqlite3
+from html import escape
 
-from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
 
 
@@ -8,37 +8,43 @@ def call_db(query: str):
     """
     执行 SQL 查询并返回结果。
     """
+    if not isinstance(query, str) or not query.lstrip().lower().startswith("select"):
+        return "SQL 执行失败: 仅支持 SELECT 查询"
+    conn = None
+    cursor = None
     try:
-        database_path = get_path("@app/tmp/data.db")
-        print(query)
-        conn = sqlite3.connect(database_path)
+        conn = sqlite3.connect(get_path("@app/tmp/data.db"))
+        conn.execute("PRAGMA query_only = ON")
         cursor = conn.cursor()
         cursor.execute(query)
-        logger.debug(f"执行 SQL 查询: {query}")
         # 只返回前 100 行，防止数据量过大
         rows = cursor.fetchmany(100)
         columns = [desc[0] for desc in cursor.description]
         result = [dict(zip(columns, row)) for row in rows]
-        cursor.close()
-        conn.close()
         if not result:
             return "<p>无查询结果</p>"
         html = (
             "<table border='1'><tr>"
-            + "".join(f"<th>{col}</th>" for col in columns)
+            + "".join(f"<th>{escape(str(col))}</th>" for col in columns)
             + "</tr>"
         )
         for row in result:
             html += (
                 "<tr>"
-                + "".join(f"<td>{row.get(col, '')}</td>" for col in columns)
+                + "".join(
+                    f"<td>{escape(str(row.get(col, '')))}</td>" for col in columns
+                )
                 + "</tr>"
             )
         html += "</table>"
-        print(html)
         return html
     except Exception as e:
-        return f"SQL 执行失败: {e}"
+        return f"SQL 执行失败: {escape(str(e))}"
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if conn is not None:
+            conn.close()
 
 
 call_db_tool_def = {
@@ -65,10 +71,13 @@ call_db_tool_def = {
             "   示例查询: SELECT strftime('%Y-%m-%d %H:%M:%S', time, 'unixepoch', 'localtime') AS 交易时间, type AS 类型 FROM trading_history WHERE type = '漏单'"
             "3. log表 - 系统任务记录/报错记录/日志:"
             "   字段: time INTEGER, task TEXT, level TEXT, message TEXT"
+            "   task 是有限 JSON 对象，仅包含 task_type、scheduled_at、room、adjusted；不得按旧 SchedulerTask 文本解析"
+            "   message 使用 event/state 或 operation/outcome 等有限键值事实"
             "   专用: 当用户查询'任务'、'报错'、'错误'、'日志'时必须使用此表"
             "   示例查询: SELECT strftime('%Y-%m-%d %H:%M:%S', time, 'unixepoch', 'localtime') AS 时间, task AS 任务, message AS 错误信息 FROM log WHERE level = 'ERROR'"
             # 强制规则
             "强制规则:"
+            "- 数据库只读，每次查询最多返回100行"
             "- 任务，日志相关查询必须使用log表，不得使用trading_history表"
             "- 列名必须与用户查询语言一致"
             "- 用户查询‘漏单’时候你需要向用户确认是想查询任务记录还是查询账单/龙门币记录"

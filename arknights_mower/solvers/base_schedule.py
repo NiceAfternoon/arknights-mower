@@ -37,9 +37,9 @@ from arknights_mower.solvers.operation import OperationSolver
 from arknights_mower.solvers.player_info import PlayerInfoClient
 from arknights_mower.solvers.reclamation_algorithm import ReclamationAlgorithm
 from arknights_mower.solvers.record import (
+    emit_log_event,
+    emit_retry_outcome,
     get_inventory_counts,
-    save_exception,
-    save_log,
 )
 from arknights_mower.solvers.recruit import RecruitSolver
 from arknights_mower.solvers.report import ReportSolver
@@ -84,6 +84,34 @@ from arknights_mower.utils.scheduler_task import (
 )
 from arknights_mower.utils.simulator import restart_simulator
 from arknights_mower.utils.trading_order import TradingOrder
+
+
+class MissedOrderError(Exception):
+    """当前跑单在调度边界确认漏单。"""
+
+
+def _mark_retry_exhausted(error: Exception, operation: str, attempt: int) -> None:
+    """Annotate without changing the exception type or propagation behavior."""
+    try:
+        error._mower_retry_operation = operation
+        error._mower_retry_attempt = attempt
+    except Exception:
+        pass
+
+
+def emit_annotated_retry_outcome(error: Exception, task=None) -> bool:
+    """Consume an annotated retry failure at its final handling boundary."""
+    retry_operation = getattr(error, "_mower_retry_operation", None)
+    if retry_operation is None:
+        return False
+    emit_retry_outcome(
+        retry_operation,
+        "exhausted",
+        attempt=getattr(error, "_mower_retry_attempt", 1),
+        task=task,
+        error=error,
+    )
+    return True
 
 
 def _is_mastery_busy(operator_name: str) -> bool:
@@ -207,9 +235,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.initialize_operators()
         self.op_data.correct_dorm()
         self.backup_plan_solver(PlanTriggerTiming.BEGINNING)
-        logMsg = "||".join([str(t) for t in self.tasks])
-        logger.debug("当前任务: " + logMsg)
-        save_log(logMsg, "{}" if not self.task else str(self.task), level="INFO")
+        if self.task is not None:
+            emit_log_event("task_dispatch", "started", level="INFO", task=self.task)
         return super().run()
 
     def transition(self) -> None:
@@ -224,7 +251,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         else:
             self.scene_graph_navigation(Scene.INFRA_MAIN)
             self.last_room = ""
-            logger.debug("重设上次房间为空")
 
     def overtake_room(self):
         candidates = self.task.meta_data.split(",")
@@ -234,7 +260,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             candidates = self.op_data.groups[
                 self.op_data.operators[candidates[0]].group
             ]
-        logger.debug(f"更新下班小组信息为{candidates}")
         # 在candidate 中，计算出需要的high free 和 Low free 数量
         current_resting = (
             len(self.op_data.dorm)
@@ -251,7 +276,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             )
             re_order_dorm_plan = try_reorder(self.op_data, plan)
             if re_order_dorm_plan:
-                logger.debug(f"新增宿舍任务{re_order_dorm_plan}")
+                logger.info("task=%s state=%s", "dorm_reorder", "scheduled")
                 task = SchedulerTask(
                     task_plan=re_order_dorm_plan, task_type=TaskTypes.SHIFT_OFF
                 )
@@ -283,7 +308,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if not dorm.name or dorm.name not in self.op_data.operators:
                     continue
                 if dorm.time is not None and dorm.time < datetime.now():
-                    logger.debug(f"跳过{str(dorm)}，休息完毕")
                     continue
                 operator = self.op_data.operators[dorm.name]
                 if (operator.rest_in_full and operator.exhaust_require) or (
@@ -291,7 +315,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     and operator.group in self.op_data.exhaust_group
                 ):
                     # 如果回满，则跳过
-                    logger.debug(f"跳过{str(dorm)}，用尽回满")
                     continue
                 if not operator.is_high():
                     # 跳过非高优
@@ -317,7 +340,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 msg = f"无法完成 {self.task.meta_data} 的排班，宿舍可用空位不足，请减少使用回满词条"
                 send_message(msg, level="ERROR")
                 return
-            logger.debug(f"需要提前移出宿舍的干员: {remove_name}")
+            logger.debug("dorm_release_count=%s", min(len(remove_name), 64))
             planned = set()
             for name in remove_name:
                 if name in planned:
@@ -330,8 +353,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         plan[o.room] = ["Current"] * len(self.op_data.plan[o.room])
                     plan[o.room][o.index] = agent
                     planned.add(o.name)
-            logger.debug(f"生成顶替上班任务{plan}")
             if plan:
+                logger.info("task=%s state=%s", "shift_on", "scheduled")
                 self.tasks.append(SchedulerTask(task_plan=plan))
                 # 执行完提前换班任务再次执行本任务
                 self.tasks.append(
@@ -350,12 +373,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
     def handle_error(self, force=False):
         if self.scene() == Scene.UNKNOWN:
             for retry in range(5):
-                logger.warning(f"当前场景无法识别，尝试返回纠正，第{retry + 1}次")
                 self.back()
                 if self.scene() != Scene.UNKNOWN:
+                    emit_retry_outcome("scene_recovery", "recovered", attempt=retry + 1)
                     break
             else:
-                logger.warning("连续返回 5 次后仍无法识别场景，退出游戏重进")
+                emit_retry_outcome("scene_recovery", "exhausted", attempt=5)
                 self.device.exit()
                 self.check_current_focus()
         if self.error or force:
@@ -395,12 +418,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             data = self.op_data.operators[operator]
             operator_morale = data.current_mood()
             operator_limit = data.lower_limit
-            logger.debug(f"{operator}的心情为{operator_morale}")
             if operator_morale > fia_threshold * 24:
-                logger.debug(f"{operator}的心情高于阈值，跳过充能")
                 continue
             if data.rest_in_full and data.exhaust_require and not data.is_resting():
-                logger.debug(f"{operator}为暖机干员但不在宿舍，跳过充能")
                 continue
             if data.group:
                 lowest = True
@@ -415,10 +435,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         continue
                     member_morale = self.op_data.operators[member].current_mood()
                     member_limit = self.op_data.operators[member].lower_limit
-                    logger.debug(f"{data.group}组内{member}的心情为{member_morale}")
                     if member_morale - member_limit < operator_morale - operator_limit:
                         lowest = False
-                        logger.debug(f"{operator}的心情高于{member}，跳过充能")
                         break
                 if not lowest:
                     continue
@@ -432,7 +450,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 data = self.op_data.operators[op]
                 op_mood_t = data.current_mood()
                 if data.rest_in_full and data.exhaust_require and not data.is_resting():
-                    logger.debug(f"{operator}为暖机干员但不在宿舍，跳过充能")
                     continue
                 if op_mood_t < op_mood:
                     target = op
@@ -482,8 +499,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if task.meta_data in self.op_data.operators
                 else -1
             )
-            logger.debug(f"当前工厂干员: {current_agent}")
-            logger.debug(f"当前加工干员位置: {agent_room}")
+            logger.debug(
+                "formula=%s material_count=%s", task.meta_data, len(current_agent)
+            )
             self.agent_arrange({"factory": [task.meta_data]})
             self.generate_product(task.meta_data)
             if len(current_agent) > 0 and current_agent[0] != task.meta_data:
@@ -495,9 +513,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     new_plan[agent_room][agent_index] = task.meta_data
                 self.agent_arrange(new_plan)
         except Exception as e:
-            save_exception(e)
-            logger.error(f"工厂任务失败: {e}")
-            logger.exception(e)
+            emit_retry_outcome(
+                "craft_material", "exhausted", attempt=1, task=task, error=e
+            )
 
     def plan_metadata(self):
         self.tasks = plan_metadata(self.op_data, self.tasks)
@@ -626,17 +644,22 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             except MowerExit:
                 raise
             except Exception as e:
-                save_exception(e)
-                logger.exception(e)
                 if (
                     type(e) is ConnectionAbortedError
                     or type(e) is AttributeError
                     or type(e) is ConnectionError
                 ):
                     raise e
-                else:
-                    self.skip()
-                    self.error = True
+                if not emit_annotated_retry_outcome(e, task=self.task):
+                    emit_retry_outcome(
+                        "infra_main",
+                        "exhausted",
+                        attempt=1,
+                        task=self.task,
+                        error=e,
+                    )
+                self.skip()
+                self.error = True
             self.task = None
         elif not self.planned:
             try:
@@ -657,16 +680,20 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             except MowerExit:
                 raise
             except Exception as e:
-                save_exception(e)
-                logger.exception(e)
                 if (
                     type(e) is ConnectionAbortedError
                     or type(e) is AttributeError
                     or type(e) is ConnectionError
                 ):
                     raise e
-                else:
-                    self.error = True
+                if not emit_annotated_retry_outcome(e):
+                    emit_retry_outcome(
+                        "infra_planning",
+                        "exhausted",
+                        attempt=1,
+                        error=e,
+                    )
+                self.error = True
             self.planned = True
         elif not self.todo_task:
             if (
@@ -690,7 +717,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 and self.no_pending_task(2)
             ):
                 self.drone(self.drone_room)
-                logger.info(f"记录本次无人机使用时间为:{datetime.now()}")
+                logger.info("task=%s state=%s", "drone", "recorded")
                 self.drone_time = datetime.now()
             if (
                 self.reload_room is not None
@@ -702,7 +729,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 )
             ):
                 self.reload()
-                logger.info(f"记录本次补货时间为:{datetime.now()}")
+                logger.info("task=%s state=%s", "reload", "recorded")
             self.todo_task = True
         elif not self.collect_notification:
             if self.no_pending_task(1):
@@ -765,9 +792,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 )
                 for operator in current_working
             ):
-                for e in current_working:
-                    logger.debug(e.time_stamp)
-                logger.debug(f"{room} 所有干员不满足扫描条件，跳过")
                 continue
             while True:
                 try:
@@ -787,14 +811,16 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 room_state, mood_data = read_room_state(
                                     self, enter=False, want_mood=True
                                 )
-                                mood_info = [
-                                    f"干员: '{item['agent']}', 心情: {round(item['mood'], 3)}"
+                                operator_names = [
+                                    item["agent"]
                                     for item in mood_data
                                     if item.get("agent")
-                                ]
-                                if mood_info:
+                                ][:6]
+                                if operator_names:
                                     logger.info(
-                                        f"房间 {self.translate_room(room)}  {mood_info}"
+                                        "room=%s operators=%s",
+                                        room,
+                                        ",".join(operator_names),
                                     )
                                 # 重启后训练室可能停在待收取（专精练完但没人收）：进训练室读
                                 # 心情时顺便 reconcile——发现待收取就收（defer_collect=False
@@ -814,14 +840,16 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             # enable_mastery 关闭：不跑 mastery 读取器（铁律 10），保留
                             # 通用心情读取。
                             _mood_data = self.get_agent_from_room(room, None)
-                            mood_info = [
-                                f"干员: '{item['agent']}', 心情: {round(item['mood'], 3)}"
+                            operator_names = [
+                                item["agent"]
                                 for item in _mood_data
                                 if item.get("agent")
-                            ]
-                            if mood_info:
+                            ][:6]
+                            if operator_names:
                                 logger.info(
-                                    f"房间 {self.translate_room(room)}  {mood_info}"
+                                    "room=%s operators=%s",
+                                    room,
+                                    ",".join(operator_names),
                                 )
                     else:
                         num = len(self.op_data.plan[room])
@@ -831,20 +859,29 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             if room in self.op_data.true_exhaust_room
                             else None,
                         )
-                        mood_info = [
-                            f"干员: '{item['agent']}', 心情: {round(item['mood'], 3)}"
-                            for item in _mood_data
-                        ]
-                        logger.info(f"房间 {self.translate_room(room)}  {mood_info}")
+                        operator_names = [
+                            item["agent"] for item in _mood_data if item.get("agent")
+                        ][:6]
+                        if operator_names:
+                            logger.info(
+                                "room=%s operators=%s",
+                                room,
+                                ",".join(operator_names),
+                            )
+                    if error_count:
+                        emit_retry_outcome(
+                            "mood_room_read",
+                            "recovered",
+                            attempt=error_count + 1,
+                        )
                     break
                 except MowerExit:
                     raise
                 except Exception as e:
-                    save_exception(e)
-                    logger.exception(e)
-                    if error_count > 3:
-                        raise e
                     error_count += 1
+                    if error_count >= 5:
+                        _mark_retry_exhausted(e, "mood_room_read", error_count)
+                        raise
                     self.back()
                     continue
             self.back()
@@ -884,7 +921,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         miss_list = {k: v for (k, v) in self.op_data.operators.items() if v.not_valid()}
         if len(miss_list.keys()) > 0:
             # 替换到他应该的位置
-            logger.debug(f"高效组心情没有记录{str(miss_list)}")
+            logger.debug("mood_plan_state=missing operator_count=%s", len(miss_list))
             for key in miss_list:
                 _agent = miss_list[key]
                 if (
@@ -906,7 +943,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         or _agent.mood == _agent.upper_limit
                     )
                 ):
-                    logger.debug(f"跳过检查{_agent}")
                     continue
                 elif _agent.group != "":
                     # 把所有小组成员都移到工作站
@@ -939,7 +975,14 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         if len(fix_plan.keys()) > 0:
             # 不能在房间里安排同一个人 如果有重复则换成Free
             remove_keys = []
-            logger.debug(f"Fix_plan {str(fix_plan)}")
+            logger.debug(
+                "mood_plan_state=prepared operator_count=%s",
+                sum(
+                    name not in {"Current", "Free", ""}
+                    for names in fix_plan.values()
+                    for name in names
+                ),
+            )
             for key in fix_plan:
                 if "dormitory" in key:
                     # 如果宿舍差Free干员  则跳过
@@ -1017,7 +1060,14 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             task_plan=fix_plan, task_type=TaskTypes.SELF_CORRECTION
                         )
                     )
-                    logger.info(f"纠错任务为-->{fix_plan}")
+                    logger.info(
+                        "mood_plan_state=scheduled operator_count=%s",
+                        sum(
+                            name not in {"Current", "Free", ""}
+                            for names in fix_plan.values()
+                            for name in names
+                        ),
+                    )
                     return "self_correction"
 
     def generate_product(self, agent: str):
@@ -1162,10 +1212,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 logger.info("检测到当前材料用完，切换其他材料")
                                 continue
                             tasks = []
-                            logger.info("检测到干员心情见底或材料不足，任务结束")
+                            logger.info("task=%s state=%s", "workshop", "stopped")
                             self.op_data.operators[agent].mood = 0
                             self.op_data.operators[agent].time_stamp = datetime.now()
-                            logger.debug("设置加工站干员心情为0，别问我，我懒得算了")
                             continue
                         self.tap(produce_btn, interval=2)
                         max_wait = 10
@@ -1194,7 +1243,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             # 重新切换材料则重头开始
                             self.tap(tab_pos["芯片"], interval=0.2)
                             self.tap(tab_pos[inf_material], interval=0.2)
-                            logger.debug("切换到基建材料页")
                         if not tab_queue:
                             logger.info("没有任何材料满足条件，任务结束")
                             send_message(
@@ -1208,17 +1256,16 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         self.tap(tab_pos[tab], interval=0.2)
                         logger.info(f"开始检索{tab}的材料")
                         logger.debug(
-                            f"[workshop-scan] tab={tab} initial_candidates={sorted(item_list)}"
+                            "product=%s facility=%s operator_count=%s",
+                            tab,
+                            "workshop",
+                            1,
                         )
                         last_scaned = []
                         scan_round = 0
                         while True and item_list:
                             scanned_items = self.item_list()
                             current_scan = [item for item, pos, valid in scanned_items]
-                            logger.debug(
-                                f"[workshop-scan] tab={tab} round={scan_round} "
-                                f"current_scan={current_scan} remaining_candidates={sorted(item_list)}"
-                            )
                             if current_scan == last_scaned:
                                 logger.debug(
                                     f"[workshop-scan] tab={tab} reached_bottom "
@@ -1277,8 +1324,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.back()
             self.back_to_infrastructure()
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("generate_product", "exhausted", attempt=1, error=e)
 
     def plan_run_order(self, room):
         plan = self.op_data.plan
@@ -1336,8 +1382,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     max_execution = min(
                         dp[n] * 1.25, 15
                     )  # 通过跑单房间计算得到循环次数 同时限制最大次数
-                    logger.debug(f"max_execution = {max_execution}")
-                    logger.info(run_order_rooms)
                     logger.info(
                         f"当前跑单房间数量为：{n}，计算最大循环次数为: {max_execution + 1}"
                     )
@@ -1380,10 +1424,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         self.enter_room(fia_room)
                         result = self.get_agent_from_room(fia_room, [fia_idx])
                         self.back()
-                logger.info(
-                    "下一次进行菲亚梅塔充能："
-                    + result[fia_idx]["time"].strftime("%H:%M:%S")
-                )
+                logger.info("task=%s state=%s", "fiammetta", "scheduled")
                 self.tasks.append(
                     SchedulerTask(
                         time=result[fia_idx]["time"], task_type=TaskTypes.FIAMMETTA
@@ -1489,8 +1530,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             adjust_0_room = drone_room
         else:
             logger.info("开始比较跑单任务")
-            run_order_rooms = self.op_data.run_order_rooms
-            logger.debug(f"run_order_rooms：{run_order_rooms}")
             logger.debug(f"adjust_0_room：{adjust_0_room}")
             logger.debug(f"adjust_room：{adjust_room}")
 
@@ -1516,7 +1555,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def plan_solver(self):
         # 准备数据
-        logger.debug(self.op_data.print())
+        logger.debug(
+            "plan_kind=base room_count=%s operator_count=%s",
+            len(self.op_data.plan),
+            len(self.op_data.operators),
+        )
         # 根据剩余心情排序
         self.total_agent = list(
             v
@@ -1525,7 +1568,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         )
         self.total_agent.sort(key=lambda x: x.current_mood(), reverse=False)
         # 目前有换班的计划后面改
-        logger.debug(f"当前基地数据--> {self.total_agent}")
         new_plan = {}
         try:
             # 重新排序
@@ -1537,12 +1579,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         except MowerExit:
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("plan_solver", "exhausted", attempt=1, error=e)
         # 更新宿舍任务
         re_order_dorm_plan = try_reorder(self.op_data, new_plan)
         if re_order_dorm_plan:
-            logger.debug(f"新增宿舍任务{re_order_dorm_plan}")
+            logger.info("task=%s state=%s", "dorm_reorder", "scheduled")
             task = SchedulerTask(
                 task_plan=re_order_dorm_plan,
                 task_type=TaskTypes.SHIFT_OFF if new_plan else TaskTypes.NOT_SPECIFIC,
@@ -1553,7 +1594,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         if not self.find_next_task(datetime.now() + timedelta(minutes=5)):
             try_add_release_dorm({}, None, self.op_data, self.tasks)
         if self.find_next_task(datetime.now() + timedelta(seconds=15)):
-            logger.info("有其他任务,跳过宿舍纠错")
+            logger.info("task=%s state=%s", "dorm_correction", "skipped")
             return
         if self.agent_get_mood() is None:
             self.backup_plan_solver()
@@ -1575,7 +1616,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             > self.op_data.config.resting_threshold * config.conf.rescue_threshold
             else len(self.op_data.dorm)
         )
-        logger.debug(f"当前理想休息人数是{self.ideal_resting_count}")
         # #59：训练室干员跳过休息规划改为「DB 有没有 active 计划」，
         # 不再依赖队列里的 SKILL_UPGRADE（重启后队列可能没补回来 → 失真）。
         # #109：再挂 enable_mastery 门——OFF 时恒 False（残留 active DB 计划
@@ -1633,7 +1673,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.tasks.append(
                 SchedulerTask(task_plan=_plan, task_type=TaskTypes.SHIFT_OFF)
             )
-            logger.info(f"生成{_plan}的下班任务")
+            logger.info("task=%s state=%s", "shift_off", "scheduled")
         return _plan
 
     def backup_plan_solver(self, timing=None, append_empty_task=True):
@@ -1646,7 +1686,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 current_con = self.op_data.plan_condition
                 for idx, bp in enumerate(self.op_data.backup_plans):
                     func = str(bp.trigger)
-                    logger.debug(func)
                     con[idx] = self.op_data.evaluate_expression(func)
                     if (
                         current_con[idx] != con[idx]
@@ -1663,10 +1702,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         con[idx] = current_con[idx]
                 # 不满足条件且为其他排班表，则切换回来
                 if con != current_con:
-                    logger.info(
-                        f"检测到副班条件变更，启动超级变换形态, 当前条件:{current_con}"
-                    )
-                    logger.info(f"新条件列表:{con}")
                     self.op_data.swap_plan(con, refresh=True)
                     if append_empty_task and not new_task:
                         self.tasks.append(SchedulerTask(task_plan={}))
@@ -1674,8 +1709,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         except MowerExit:
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("backup_plan", "exhausted", attempt=1, error=e)
         return False
 
     def rearrange_resting_priority(self, group):
@@ -1718,10 +1752,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             if op.workaholic:
                 continue
             required += 1
-        logger.debug(f"需求:{current_resting} 当前休息")
-        logger.debug(f"需求:{required}宿舍空位")
-        logger.debug(f"需求:{exist_replacement} 当前安排")
-        logger.debug(f"当前计划{plan}")
+        logger.debug("rest_need=%s assigned=%s", required, len(exist_replacement))
         if current_resting + required + len(exist_replacement) > len(self.op_data.dorm):
             return
         success = True
@@ -1735,7 +1766,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 - self.op_data.operators[y].lower_limit,
             )
         )
-        logger.debug(f"计算排班:{agents}")
         for agent in agents:
             if not success:
                 break
@@ -1775,21 +1805,18 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 success = False
         if success:
             # 记录替换组
-            logger.debug(f"当前替换{__replacement}")
             exist_replacement.extend(__replacement)
             for idx, x in enumerate(agents):
                 # 0心情不需要宿舍位
                 if self.op_data.operators[x].workaholic:
                     continue
                 _dorm = self.op_data.assign_dorm(x, True)
-            logger.debug(_dorm)
             for k, v in __plan.items():
                 if k not in plan.keys():
                     plan[k] = __plan[k]
                 for idx, name in enumerate(__plan[k]):
                     if plan[k][idx] == "Current" and name != "Current":
                         plan[k][idx] = name
-            logger.debug(f"当前plan{plan}")
 
     def initialize_operators(self):
         self.op_data = Operators(self.global_plan)
@@ -1828,7 +1855,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             error_count += 1
 
     def get_run_order_time(self, room):
-        logger.info("基建：读取插拔时间")
+        logger.info("task=%s state=%s", "run_order_time", "reading")
         # 点击进入该房间
         self.enter_room(room)
         # 进入房间详情
@@ -1840,7 +1867,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         execute_time = execute_time - timedelta(
             seconds=(60 * config.conf.run_order_delay)
         )
-        logger.info("下一次进行插拔的时间为：" + execute_time.strftime("%H:%M:%S"))
+        logger.info("task=%s state=%s", "run_order_time", "scheduled")
         self.scene_graph_navigation(Scene.INFRA_MAIN)
         return execute_time
 
@@ -1869,7 +1896,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def clue_new(self):
         try:
-            logger.info("基建：线索")
+            logger.info("task=%s state=%s", "clue", "started")
             self.scene_graph_navigation(Scene.INFRA_MAIN)
             self.enter_room("meeting")
 
@@ -1971,7 +1998,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 scene = self.scene()
 
                 if scene == Scene.INFRA_DETAILS:
-                    logger.info("INFRA_DETAILS")
+                    logger.info("task=%s state=%s", "clue", "room_details")
                     if ctm.task == "message_board":
                         if self.find("clue/title_party"):
                             self.tap_element("clue/title_party")
@@ -2040,7 +2067,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         self.tap((330, 1000))
 
                 elif scene == Scene.INFRA_CONFIDENTIAL:
-                    logger.info("INFRA_CONFIDENTIAL")
+                    logger.info("task=%s state=%s", "clue", "board_opened")
                     if ctm.task == "daily":
                         # 检查是否领过线索
                         daily_scope = ((1815, 200), (1895, 250))
@@ -2056,7 +2083,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             ctm.complete("receive")
                     elif ctm.task == "place":
                         if fast_place := self.find("clue/fast_place"):
-                            logger.info("快速摆放线索")
+                            logger.info("task=%s state=%s", "clue", "fast_placed")
                             self.tap(fast_place, interval=2)
                             if unlock_pos := detect_unlock():
                                 self.tap(unlock_pos)
@@ -2175,7 +2202,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             break
                     if clue_list:
                         list_name = "接收库" if receive else "自有库"
-                        logger.info(f"{cl}号线索{list_name}：{clue_list}")
+                        logger.info(
+                            "clue=%s pool=%s candidate_count=%s",
+                            cl,
+                            list_name,
+                            min(len(clue_list), 3),
+                        )
                         selected = None
                         for c in clue_list:
                             if c["time"]:
@@ -2230,15 +2262,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             shop_solver.run()
             self.scene_graph_navigation(Scene.INFRA_MAIN)
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("clue", "exhausted", attempt=1, error=e)
             return
 
     def adjust_order_time(self, accelerate, room):
         action_required_task = scheduling(self.tasks)
-        # logger.error(f"action_required_task:{action_required_task}")
-        logger.debug(f"room:{room}")
-        logger.debug(any(task.meta_data == room for task in action_required_task))
         # while  action_required_task is not None and any(task.meta_data == room for task in action_required_task):
 
         # 设置为每次循环都验证一次当前房间 是否适合加速
@@ -2296,7 +2324,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         adjust_time=False,
         skip_enter=False,
     ):
-        logger.info("基建：无人机加速" if not adjust_time else "开始调整订单时间")
+        logger.info(
+            "task=%s state=%s",
+            "drone",
+            "adjusting_order" if adjust_time else "started",
+        )
         all_in = 0
         if not not_customize:
             all_in = len(self.op_data.run_order_rooms)
@@ -2312,7 +2344,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         accelerate = self.find("factory_accelerate")
         if accelerate:
             drone_count = self.digit_reader.get_drone(self.recog.gray)
-            logger.info(f"当前无人机数量为：{drone_count}")
+            logger.info("task=%s state=%s", "drone", "available")
             if drone_count < config.conf.drone_count_limit:
                 logger.info(f"无人机数量小于{config.conf.drone_count_limit}->停止")
                 return
@@ -2563,11 +2595,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             elif scene == Scene.INFRA_DETAILS and self.find("room_detail"):
                 if tasks[0] == "scan":
                     scan_result = self.get_agent_from_room("train")
-                    logger.debug(f"需要选择的干员：{scan_result}")
                     if len(scan_result) < len(agents):
                         scan_result.extend([""] * (len(agents) - len(scan_result)))
                     desired = list(agents)
-                    logger.debug(f"需要选择的desired干员：{desired}")
                     for idx, name in enumerate(desired):
                         if name == "Current":
                             # #53：替换为实际干员名（scan_result[idx] 是 dict，不能直接当名字）
@@ -2605,7 +2635,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             # 不再静默 return（否则换人"看似成功"、流程继续点错干员开始）。
                             raise Exception("训练位被锁定，无法换入指定干员")
                     tasks[0] = "select"
-                    logger.debug(f"需要选择的干员：{select_targets}")
                 else:
                     if not select_targets:
                         tasks = []
@@ -2620,14 +2649,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 self._open_check_in_detail()
                 continue
             elif scene == Scene.INFRA_ARRANGE_ORDER:
-                logger.info(tasks)
                 if tasks[0] == "scan":
                     self.back()
                 else:
                     if not select_targets:
                         tasks = []
                         return
-                    logger.info(f"需要选择的干员：{select_targets}")
                     idx = select_targets[0][0]
                     if idx == 0:
                         if agents[idx] == "Free":
@@ -2713,12 +2740,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             remove_set.update(value_list)  # 加入所有列表中的元素
         remove_set.discard("Current")
         remove_set.discard("Free")
-        logger.debug(f"去除被安排的人员{remove_set}")
         free_list = list(
             set(free_list) - set(self.op_data.config.free_blacklist) - remove_set
         )
         if train_support in free_list:
             free_list.remove(train_support)
+        logger.debug("available_operator_count=%s", min(len(free_list), 256))
         return free_list
 
     def choose_agent(
@@ -2753,7 +2780,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 ):
                     agents[idx] = "Free"
                     __agent.depletion_rate = 0
-                    logger.info("检测满心情释放休息位")
+                    logger.info("task=%s state=%s", "dorm_slot", "released")
                 elif agents[idx] == "Free" and self.task.type != TaskTypes.RE_ORDER:
                     if self.op_data.config.free_room:
                         current_free = self.op_data.get_current_operator(room, idx)
@@ -2786,7 +2813,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         interval=0,
                     )
             agent = [x for x in agents if x not in exists]
-        logger.info(f"安排干员 ：{agent}")
         # 若不是空房间，则清空工作中的干员
         is_dorm = room.startswith("dorm")
         not_production = not room.startswith("room")
@@ -2800,7 +2826,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         right_swipe = 0
         retry_count = 0
         selected = []
-        logger.debug(f"上次进入房间为：{self.last_room},本次房间为：{room}")
         self.profession_filter()
         if self.detect_arrange_order(room)[0] == "信赖值":
             self.switch_arrange_order("工作状态", room)
@@ -2967,7 +2992,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             right_swipe = self.swipe_left(right_swipe, last_special_filter)
             self.switch_arrange_order("技能", room)
             exists.extend(selected)
-            logger.info(exists)
             click_order = []
             for a in agents:
                 if a in exists:
@@ -2981,7 +3005,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     x = self.recog.w * position[p_idx][0]
                     y = self.recog.h * position[p_idx][1]
                     self.tap((x, y), interval=0)
-        logger.debug("验证干员选择..")
         self.swipe_left(right_swipe, last_special_filter)
         self.switch_arrange_order("技能", room)
         finish_time = datetime.now()
@@ -2992,9 +3015,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     logger.debug(f"检测到{agent}选择时间过长，自动使用职介筛选")
                     self.op_data.profession_filter.add(agent)
         if not self.verify_agent(agents, room):
-            logger.debug(agents)
-            logger.debug(room)
             raise Exception("检测到干员选择错误，重新选择")
+        logger.info("room=%s operators=%s", room, ",".join(agents[:6]))
         self.last_room = room
 
     def reset_room_time(self, room):
@@ -3124,12 +3146,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 if _mood == 24 or room in ["meeting", "factory"] and not update_time:
                     data["time"] = datetime.now()
                 else:
-                    logger.debug(f"开始记录时间:{room},{i}")
                     data["time"] = self.double_read_time(
                         time_p[i], use_digit_reader=True
                     )
                 self.op_data.refresh_dorm_time(room, i, data)
-                logger.debug(f"停止记录时间:{str(data)}")
+                logger.debug("operator=%s stop_recording=true", _name)
             result.append(data)
         for _operator in self.op_data.operators.keys():
             if self.op_data.operators[
@@ -3149,7 +3170,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     )
                     if release_task and self.task != release_task:
                         self.tasks.remove(release_task)
-                logger.info(f"重设 {_operator} 至空闲")
+                logger.info("task=%s state=idle", _operator)
         return result
 
     def refresh_current_room(self, room, current_index=None):
@@ -3170,7 +3191,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def current_room_changed(self, instance):
         if not self.op_data.first_init:
-            logger.info(f"{instance.name} 房间变动")
+            logger.info("task=%s state=room_changed", instance.name)
             ref_rooms = (
                 instance.refresh_order_room[1]
                 if instance.refresh_order_room[1]
@@ -3185,12 +3206,10 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 self.refresh_drained_time()
 
     def refresh_drained_time(self):
-        logger.debug("刷新用尽倒计时")
         solved = []
         for agent in self.op_data.exhaust_agent:
             if agent in solved:
                 continue
-            logger.debug(f"开始检查{agent}")
             shift_off = self.find_next_task(
                 datetime.now() + timedelta(minutes=1),
                 task_type=TaskTypes.EXHAUST_OFF,
@@ -3198,7 +3217,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 compare_type=">",
             )
             if shift_off:
-                logger.info(f"移除 {shift_off.meta_data} 用尽下班任务以刷新时间")
+                logger.info("task=%s state=refreshing", shift_off.meta_data)
                 exhausts = shift_off.meta_data.split(",")
                 solved.extend(exhausts)
                 self.tasks.remove(shift_off)
@@ -3219,7 +3238,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             )
 
     def refresh_run_order_time(self, room):
-        logger.debug("检测到插拔房间人员变动！")
         limit = 15
         if run_order_task := self.find_next_task(
             datetime.now() + timedelta(minutes=limit),
@@ -3227,7 +3245,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             meta_data=room,
             compare_type=">",
         ):
-            logger.info(f"移除超过{limit}分钟的跑单任务以刷新时间")
+            logger.info("task=run_order state=refreshing")
             self.tasks.remove(run_order_task)
         run_order_task = self.find_next_task(
             datetime.now() + timedelta(minutes=limit),
@@ -3239,9 +3257,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             task_time = datetime.now()
             if len(self.tasks) > 0 and self.tasks[0].type != TaskTypes.FIAMMETTA:
                 task_time = self.tasks[0].time - timedelta(seconds=1)
-            logger.info(f"移除{limit}分钟以内的跑单任务以强X刷新时间")
             self.tasks.remove(run_order_task)
-            logger.info("新增强X刷新跑单时间任务")
+            logger.info("task=run_order state=refresh_scheduled")
             self.tasks.append(
                 (
                     SchedulerTask(
@@ -3391,10 +3408,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             self.back()
                             self.turn_on_room_detail(room)
                         else:
-                            logger.info("检测到漏单")
                             send_message("检测到漏单！", level="WARNING")
                             self.reset_room_time(room)
-                            raise Exception("检测到漏单！")
+                            raise MissedOrderError
                     if room == "train":
                         # #59：idx1 冻结已在 gate L1 按锁定状态处理好（Current），
                         # 不再依赖 find_next_task(SKILL_UPGRADE) 的脆弱信号。
@@ -3426,6 +3442,10 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 else:
                     logger.info(f"任务与当前房间相同，跳过安排{room}人员")
                 finished = True
+                if choose_error:
+                    emit_retry_outcome(
+                        "arrange_room", "recovered", attempt=choose_error + 1
+                    )
                 skip_enter = False
                 # 如果完成则移除该任务
                 del plan[room]
@@ -3436,14 +3456,20 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             except MowerExit:
                 raise
             except Exception as e:
-                save_exception(e)
-                logger.exception(e)
+                if isinstance(e, MissedOrderError):
+                    emit_log_event(
+                        "missed_order",
+                        "detected",
+                        level="ERROR",
+                        task=self.task,
+                        miss_kind="current",
+                    )
+                    return {}
                 choose_error += 1
                 self.recog.update()
-                if "检测到漏单！" in str(e):
-                    return {}
                 if choose_error > 3:
-                    raise e
+                    _mark_retry_exhausted(e, "arrange_room", choose_error)
+                    raise
                 if "检测到安排干员未成功" in str(e):
                     skip_enter = True
                     continue
@@ -3479,7 +3505,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             self.tap((self.recog.w * 0.25, self.recog.h * 0.25), interval=0.5)
 
     def agent_arrange(self, plan: tp.BasePlan, get_time=False):
-        logger.info("基建：排班")
+        logger.info("task=%s state=%s", "arrange", "started")
         rooms = list(plan.keys())
         new_plan = {}
         # 优先替换工作站再替换宿舍
@@ -3515,8 +3541,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                         if not self.waiting_solver():
                             return
                 else:
-                    logger.info("检测到漏单")
-                    save_exception(Exception("检测到漏单"))
+                    emit_log_event(
+                        "missed_order",
+                        "detected",
+                        level="ERROR",
+                        task=self.task,
+                        miss_kind="current",
+                    )
                     send_message("检测到漏单！", level="WARNING")
                 self.accept_order()
                 if self.drone_room is None or (
@@ -3564,7 +3595,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             )
             # 急速换班
             self.skip()
-        logger.info("返回基建主界面")
+        logger.info("task=%s state=%s", "arrange", "completed")
 
     def skip(self, task_names="All"):
         if task_names == "All":
@@ -3598,8 +3629,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             except MowerExit:
                 raise
             except Exception as e:
-                save_exception(e)
-                logger.exception(e)
                 error = True
                 self.recog.update()
                 back_count = 0
@@ -3607,7 +3636,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     self.back()
                     back_count += 1
                     if back_count > 3:
-                        raise e
+                        _mark_retry_exhausted(e, "reload_room", 4)
+                        raise
+                emit_retry_outcome("reload_room", "exhausted", attempt=1, error=e)
         if not error:
             self.reload_time = datetime.now()
 
@@ -3615,9 +3646,26 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
     def log_maa(msg, details, arg):
         m = Message(msg)
         d = json.loads(details.decode("utf-8"))
-        logger.debug(d)
-        logger.debug(m)
-        logger.debug(arg)
+        maa_event = getattr(m, "name", "unknown")
+        if not isinstance(maa_event, str) or len(maa_event) > 64:
+            maa_event = "unknown"
+        task_chain = d.get("taskchain", "unknown")
+        if not isinstance(task_chain, str) or len(task_chain) > 64:
+            task_chain = "unknown"
+        if maa_event in {"TaskChainCompleted", "AllTasksCompleted"}:
+            outcome = "completed"
+            log = logger.info
+        elif maa_event in {"TaskChainError", "AllTasksError"}:
+            outcome = "failed"
+            log = logger.error
+        elif maa_event in {"TaskChainStopped", "AllTasksStopped", "Destroyed"}:
+            outcome = "cancelled"
+            log = logger.warning
+        else:
+            outcome = "progress"
+            log = None
+        if log is not None:
+            log(f"maa_event={maa_event} task_chain={task_chain} outcome={outcome}")
         if "what" in d and d["what"] == "StageDrops":
             global stage_drop
             stage_drop["details"].append(d["details"]["drops"])
@@ -3645,11 +3693,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
     def check_maa_connectivity(self, context: str) -> None:
         device_id = self.device.client.device_id
-        logger.info(f"{context}测试Maa连接：{device_id}")
         result = run_maa_connectivity_check(adb=device_id)
         if result["status"] != "success":
             raise RuntimeError(f"{context}Maa连接测试失败：{result['message']}")
-        logger.info(f"{context}Maa连接测试通过：{result['message']}")
 
     def initialize_maa(self):
         config.stop_maa.clear()
@@ -3673,9 +3719,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
             logger.info("Maa Python模块导入成功")
         except Exception as e:
-            save_exception(e)
-            logger.exception(f"Maa Python模块导入失败：{str(e)}")
-            raise Exception("Maa Python模块导入失败")
+            raise Exception("Maa Python模块导入失败") from e
 
         try:
             logger.debug("开始更新Maa活动关卡导航……")
@@ -3694,8 +3738,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 f.write(res)
             logger.info("Maa活动关卡导航更新成功")
         except Exception as e:
-            logger.error(f"Maa活动关卡导航更新失败：{str(e)}")
-            save_exception(e)
+            emit_retry_outcome("maa_resource_update", "exhausted", attempt=1, error=e)
 
         Asst.load(path=path, incremental_path=path / "cache")
 
@@ -3788,7 +3831,6 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
     def maa_stop(self, stop=True):
         if stop:
             self.MAA.stop()
-        logger.debug(stage_drop)
         # 有掉落东西再发
         if stage_drop["details"] and not self.drop_send:
             send_message(
@@ -3832,10 +3874,9 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     global stage_drop
                     stage_drop = {"details": [], "summary": {}}
 
-                logger.info("MAA 启动")
+                logger.info("task=%s state=%s", "maa", "running")
                 hard_stop = False
                 while self.MAA.running():
-                    logger.info("MAA 运行中...")
                     self.recog.update()
                     self.recog.save_screencap(None)
                     # 单次任务默认5分钟
@@ -3863,9 +3904,8 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     if self.device.check_current_focus():
                         self.recog.update()
                 elif not one_time:
-                    logger.info("记录MAA 本次执行时间")
                     self.last_execution["maa"] = datetime.now()
-                    logger.info(self.last_execution["maa"])
+                    logger.info("task=%s state=%s", "maa", "recorded")
                     if "Mall" in tasks and self.credit_fight is None:
                         self.credit_fight = get_server_weekday()
                         logger.info("记录首次信用作战")
@@ -3942,12 +3982,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                 "num_craft_batches": conf.rcl.num_craft_batches,
                             },
                         )
-                    logger.info("启动")
+                    logger.info("task=%s state=%s", "maa_extended", "running")
                     self.MAA.start()
                     maa_crash = True
                     while self.MAA.running():
                         csleep(5)
-                        logger.info("MAA 运行中...")
                         self.recog.update()
                         self.recog.save_screencap(None)
                         if (
@@ -3980,8 +4019,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 logger.info("停止maa")
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("maa_plan", "exhausted", attempt=1, error=e)
             self.MAA = None
             self.device.exit()
             send_message(str(e), "Maa调用出错！", level="ERROR")
@@ -3999,8 +4037,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         except MowerExit:
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(f"森空岛签到失败:{e}")
+            emit_retry_outcome("skland_sign_in", "exhausted", attempt=1, error=e)
             send_message(f"森空岛签到失败: {e}", level="ERROR")
         # 仅尝试一次 不再尝试
         return (datetime.now() - timedelta(hours=4)).date()
@@ -4014,7 +4051,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             RecruitSolver(self.device, self.recog).run()
 
             self.last_execution["recruit"] = datetime.now()
-            logger.info(f"下一次公开招募执行时间在{config.conf.recruit_gap}小时之后")
+            logger.info("task=%s state=%s", "recruit", "scheduled")
 
     def mower_stage_plan(self) -> list[str]:
         plan = config.conf.maa_weekly_plan[get_server_weekday()]
@@ -4259,7 +4296,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 )
             else:
                 stages = self.mower_stage_plan()
-                logger.info(f"local operation plan: {stages}")
+                logger.info(
+                    "task=%s state=%s stage_count=%s",
+                    "local_operation",
+                    "planned",
+                    min(len(stages), 64),
+                )
                 next_task_time = (
                     datetime.now() + timedelta(days=1)
                     if one_time
@@ -4467,8 +4509,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         except MowerExit:
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("mower_local_operation", "exhausted", attempt=1, error=e)
             self.device.exit()
             send_message(str(e), "mower local operation error", level="ERROR")
             remaining_time = (self.tasks[0].time - datetime.now()).total_seconds()
@@ -4504,8 +4545,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         except MowerExit:
             raise
         except Exception as e:
-            save_exception(e)
-            logger.exception(e)
+            emit_retry_outcome("sign_in", "exhausted", attempt=1, error=e)
             return True
 
     def 仓库扫描(self):
@@ -4514,8 +4554,7 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
             DepotSolver(self.device, self.recog).run()
             self._auto_schedule_mastery_after_scan()
         except Exception as e:
-            save_exception(e)
-            logger.exception(f"先不运行 出bug了 : {e}")
+            emit_retry_outcome("inventory_scan", "exhausted", attempt=1, error=e)
             return False
         return True
 
@@ -4571,7 +4610,10 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                 config.save_conf()
                 logger.info("自动更新合成配置完成")
         except Exception as e:
-            logger.exception(f"自动安排专精/合成配置失败: {e}")
+            logger.exception(
+                "operation=mastery_auto_schedule outcome=failed error_type=%s",
+                type(e).__name__,
+            )
 
     def _dispatch_scan_start_tasks(self, scheduled):
         """#74 第3段：扫描确认材料后，为材料足够的 idle 计划入队「开始训练」任务。
@@ -4632,13 +4674,13 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         remaining_time = (first.time - datetime.now()).total_seconds()
         self.handle_idle_action(remaining_time)
         timezone_offset = config.conf.timezone_offset
-        subject = (
-            f"休息 {format_time(remaining_time)}，到"
-            f"{first.time.strftime('%H:%M:%S')}开始工作"
+        logger.info(
+            "task_type=%s scheduled_at=%s room_count=%s",
+            first.type.name,
+            first.time.isoformat(timespec="seconds"),
+            min(len(first.plan), 64),
         )
-        context = f"下一次任务:{first.plan if len(first.plan) != 0 else '空任务' if first.type == '' else first.type}"
-        logger.info(context)
-        logger.info(subject)
+        logger.info("task=%s state=%s", "scheduler", "sleeping")
         self.task_count += 1
         logger.info(f"第{self.task_count}次任务结束")
         body = task_template.render(

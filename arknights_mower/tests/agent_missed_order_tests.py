@@ -38,6 +38,17 @@ class TestMissedOrderTool(unittest.TestCase):
             "message": message,
         }
 
+    @staticmethod
+    def _task_json(scheduled_at: str, room: str = "room_3_1") -> str:
+        return json.dumps(
+            {
+                "task_type": "RUN_ORDER",
+                "scheduled_at": scheduled_at.replace(" ", "T"),
+                "room": room,
+                "adjusted": False,
+            }
+        )
+
     def test_analyze_by_order_current_task_miss(self):
         event_row = self._log_row(
             "2026-02-18 22:11:06",
@@ -48,11 +59,7 @@ class TestMissedOrderTool(unittest.TestCase):
             self._log_row(
                 "2026-02-18 21:57:06",
                 "INFO",
-                task=(
-                    "SchedulerTask(time='2026-02-18 22:06:22',task_plan={'room_3_1': "
-                    "['Current']},task_type=TaskTypes.RUN_ORDER,meta_data='room_3_1',"
-                    "adjusted=False)"
-                ),
+                task=self._task_json("2026-02-18 22:06:22"),
                 message="current room_3_1 run order",
             ),
             self._log_row(
@@ -111,21 +118,13 @@ class TestMissedOrderTool(unittest.TestCase):
             self._log_row(
                 "2026-02-18 23:16:20",
                 "INFO",
-                task=(
-                    "SchedulerTask(time='2026-02-18 20:00:00',task_plan={'room_3_1': "
-                    "['Current']},task_type=TaskTypes.RUN_ORDER,meta_data='room_3_1',"
-                    "adjusted=False)"
-                ),
+                task=self._task_json("2026-02-18 20:00:00"),
                 message="previous room_3_1 run order",
             ),
             self._log_row(
                 "2026-02-18 23:22:11",
                 "INFO",
-                task=(
-                    "SchedulerTask(time='2026-02-18 22:06:22',task_plan={'room_3_1': "
-                    "['Current']},task_type=TaskTypes.RUN_ORDER,meta_data='room_3_1',"
-                    "adjusted=False)"
-                ),
+                task=self._task_json("2026-02-18 22:06:22"),
                 message="current room_3_1 run order",
             ),
             self._log_row(
@@ -167,11 +166,7 @@ class TestMissedOrderTool(unittest.TestCase):
             self._log_row(
                 "2026-02-18 21:57:06",
                 "INFO",
-                task=(
-                    "SchedulerTask(time='2026-02-18 22:06:22',task_plan={'room_3_1': "
-                    "['Current']},task_type=TaskTypes.RUN_ORDER,meta_data='room_3_1',"
-                    "adjusted=False)"
-                ),
+                task=self._task_json("2026-02-18 22:06:22"),
             ),
             self._log_row(
                 "2026-02-18 22:11:06",
