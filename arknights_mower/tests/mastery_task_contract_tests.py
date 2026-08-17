@@ -129,6 +129,13 @@ class TestTaskEndpointContract(unittest.TestCase):
         self.assertEqual(r.data.decode("utf-8"), "添加任务成功！")
         self.assertEqual(len(self.fake_scheduler.tasks), 1)
 
+    def test_success_does_not_dump_request_or_task(self):
+        with patch.object(task_module.logger, "debug") as debug:
+            r = self.client.post("/task", json=_task_payload("空任务"))
+
+        self.assertEqual(r.status_code, 200)
+        debug.assert_not_called()
+
     def test_duplicate_time_rejected(self):
         self.fake_scheduler.find_next_task = lambda *a, **kw: object()
         r = self.client.post("/task", json=_task_payload("空任务"))

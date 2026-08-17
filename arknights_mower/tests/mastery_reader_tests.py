@@ -2332,6 +2332,9 @@ class TestGetTrainSceneFloatingWindow(unittest.TestCase):
         rec.find = MagicMock(
             side_effect=lambda res, *a, **k: object() if res in find_hits else None
         )
+        # 本组只验证训练室场景分类优先级；Scene 快照发布/写完再通知由
+        # visual_logging_tests.py 独立覆盖。最小 Recognizer 没有设备截图，隔离发布副作用。
+        rec._publish_scene_result = MagicMock()
         return rec
 
     def test_room_detail_open_returns_205(self):

@@ -421,7 +421,6 @@ def save_trading_info(func):
                     )
                     exists = cursor.fetchone()[0] > 0
                     if exists:
-                        logger.debug("当前订单信息已经存在数据库，跳过.")
                         return
                 result = func(*args, **kwargs)
 
@@ -436,10 +435,6 @@ def save_trading_info(func):
                             result.price,
                         ),
                     )
-                    logger.info(
-                        f"当前为 {result.buff} 订单, 订单价值为: {result.price}"
-                    )
-                    logger.info(f"储存订单信息至数据库 {datetime.now()}")
                     connection.commit()
         except sqlite3.Error as e:
             logger.error(f"SQLite error: {e}")

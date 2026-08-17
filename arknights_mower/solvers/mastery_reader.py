@@ -189,8 +189,7 @@ def _read_train_countdown3(solver):
     """
     try:
         seconds = solver.read_time(COUNTDOWN_REGION, None)
-    except Exception as e:
-        logger.debug(f"倒计时读取异常: {e}")
+    except Exception:
         return "failed", None
     if seconds is None:
         return "failed", None
@@ -242,13 +241,11 @@ def _read_panel_text(solver, img=None) -> RoomPanel:
         try:
             solver.recog.update()
             img = solver.recog.img
-        except Exception as e:
-            logger.debug(f"面板截图失败: {e}")
+        except Exception:
             return RoomPanel()
     try:
         text = solver.read_screen(img, type="text", cord=PANEL_REGION)
-    except Exception as e:
-        logger.debug(f"面板 OCR 失败: {e}")
+    except Exception:
         return RoomPanel()
     operator_name, skill_name = _parse_panel_text(text)
     return RoomPanel(operator_name=operator_name, skill_name=skill_name)
@@ -316,11 +313,9 @@ def _read_slots_raw(solver):
     """
     try:
         scan = solver.get_agent_from_room("train")
-    except Exception as e:
-        logger.debug(f"进驻详情读取失败: {e}")
+    except Exception:
         return [], False
     if not isinstance(scan, list):
-        logger.debug(f"进驻详情返回非列表: {type(scan)}")
         return [], False
     return scan, True
 
@@ -443,10 +438,10 @@ def _fill_slots_and_protection(solver, room, want_mood=False):
 def _retry_ocr(solver) -> RoomState:
     """§16.2：OCR/亮点计算失败 → 原地重试 5 次（重读截图，不点动画）。
 
-    仍不一致 → 保守训练中（不动、重排到 now+2min、记日志）。
+    仍不一致 → 保守训练中（不动、不重排），并在读取边界汇总一次。
     """
     first = None
-    for i in range(5):
+    for retry in range(1, 6):
         panel = _safe_read_panel(solver)
         if first is None:
             first = panel
@@ -455,9 +450,14 @@ def _retry_ocr(solver) -> RoomState:
             room = RoomState(state, panel)
             if state in ("waiting_collect", "empty"):
                 _fill_slots_and_protection(solver, room)
+            if retry > 1:
+                logger.warning(
+                    f"operation=mastery_room_read result=recovered retries={retry}"
+                )
             return room
-        logger.warning(f"[mastery] 训练室状态不一致（第{i + 1}次），重读截图")
-    logger.warning("[mastery] 训练室状态 5 次读取仍不一致，保守按训练中处理")
+    logger.warning(
+        "operation=mastery_room_read result=exhausted retries=5 fallback=training"
+    )
     return RoomState("training", first or RoomPanel(), read_failed=True)
 
 
@@ -501,8 +501,7 @@ def read_room_state(solver, enter=True, want_mood=False):
 def _safe_read_panel(solver) -> RoomPanel:
     try:
         return read_main_panel(solver)
-    except Exception as e:
-        logger.debug(f"面板读取失败: {e}")
+    except Exception:
         return RoomPanel()
 
 
@@ -736,29 +735,17 @@ def _queue_has_mastery_task(solver):
         return False
 
 
-def _log_judgment(solver, room, state, action, **extra):
-    """逐轮结构化判定日志：读到什么 → 判定什么 → 动作什么（§16「日志」）。
-
-    读 = 三态倒计时 / 干员 / 技能 / 档位 / 协助位 / 训练位；判 = 状态矩阵结果；
-    动作 = 本轮的执行动作。便于定位错误来源（读到异常 → 判错 → 做错）。
-    """
-    c = room.panel.countdown
-    countdown_str = c.strftime("%H:%M:%S") if c else room.panel.countdown_state
-    read = (
-        f"倒计时={countdown_str} 干员={room.panel.operator_name or '空'} "
-        f"技能={room.panel.skill_name or '空'} 档位={room.panel.mastery_tier} "
-        f"协助位={room.support_slot or '空'} 训练位={room.train_slot or '空'}"
-    )
-    tail = " ".join(f"{k}={v}" for k, v in extra.items())
-    logger.info(f"[mastery] 判定 读[{read}] → 判[{state}] → 动作[{action}] {tail}")
-
-
 def _reset_to_idle(solver, plan):
     """重置计划为 idle。退出训练室由调用方统一处理（dispatch 或排班 gate）。"""
     from arknights_mower.utils.mastery_db import update_plan_status
 
-    logger.warning(f"Plan {plan['id']} 异常状态，重置为 idle")
-    update_plan_status(plan["id"], "idle")
+    previous = plan["status"]
+    if update_plan_status(plan["id"], "idle"):
+        logger.info(
+            "operation=mastery_plan_transition "
+            f"plan_id={plan['id']} from_state={previous} to_state=idle "
+            "trigger=stale_arranging result=updated"
+        )
 
 
 def _reset_fake(solver, plan, room):
@@ -808,7 +795,7 @@ def _recover_to_training(solver, plan, room):
     expires_at = (
         countdown.strftime("%Y-%m-%d %H:%M:%S") if countdown is not None else None
     )
-    update_plan_status(
+    updated = update_plan_status(
         plan["id"],
         "training",
         expires_at=expires_at,
@@ -820,10 +807,12 @@ def _recover_to_training(solver, plan, room):
     plan["failed_reason"] = None
     if expires_at is not None:
         plan["expires_at"] = expires_at
-    logger.info(
-        f"[mastery] #98 截图为准：{_plan_label(plan)} 由 {prev} 恢复为 training"
-        f"（面板匹配 + 倒计时 {expires_at}）"
-    )
+    if updated:
+        logger.info(
+            "operation=mastery_plan_transition "
+            f"plan_id={plan['id']} from_state={prev} to_state=training "
+            "trigger=authoritative_screenshot result=updated"
+        )
 
 
 def _refresh_training_plan(solver, plan, room):
@@ -908,10 +897,6 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
                 remaining = (countdown - datetime.now()).total_seconds() / 60
                 buffer_min = route.get("mastery_swap_buffer", 10)
                 if remaining < 300 + buffer_min:
-                    logger.info(
-                        f"[mastery] #107 协助位保护：{support_slot} 剩余不足 "
-                        f"{300 + buffer_min} 分钟，不纠错换人，仅刷新时间"
-                    )
                     return False
             _schedule_correction_swap(solver, plan, operator)
             scheduled = True
@@ -925,7 +910,6 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
     if _find_swap_task(solver, str(plan["id"])) is not None:
         return True
     if _schedule_swap_if_needed(solver, plan, countdown, step_level) is not None:
-        logger.info(f"[mastery] #77 重启恢复：补排换人任务 id={plan['id']}")
         scheduled = True
     return scheduled
 
@@ -946,9 +930,6 @@ def _schedule_correction_swap(solver, plan, operator):
     )
     task.plan_key = str(plan["id"])
     solver.tasks.append(task)
-    logger.info(
-        f"[mastery] #80 陌生人协助位纠错：排换人任务 id={plan['id']} 期望={operator}"
-    )
 
 
 def _upsert_swap_task_now(solver, plan, operator):
@@ -973,9 +954,6 @@ def _upsert_swap_task_now(solver, plan, operator):
     else:
         task.time = datetime.now()
         task.meta_data = meta_data
-    logger.info(
-        f"[mastery] #101 协助位补位：SWAP 任务改到 now id={plan['id']} 期望={operator}"
-    )
 
 
 def _wait_for_training(solver, room):
@@ -983,9 +961,6 @@ def _wait_for_training(solver, room):
     countdown = room.panel.countdown
     if countdown is None:
         return
-    logger.info(
-        f"训练室使用中，计划保持待执行，任务重排到 {countdown + ARRANGING_RETRY_BUFFER}"
-    )
     _upsert_skill_upgrade_task(solver, countdown + ARRANGING_RETRY_BUFFER)
 
 
@@ -1064,15 +1039,16 @@ def _promote_plan(solver, plan):
         return
     min_p = min(p["priority"] for p in idle)
     if plan["priority"] <= min_p:
-        logger.info(f"[mastery] {_plan_label(plan)} 已在 idle 队列最前，无需排前")
         return
-    update_plan_priority(plan["id"], min_p)
+    updated = update_plan_priority(plan["id"], min_p)
     for p in idle:
         if p["id"] != plan["id"] and p["priority"] == min_p:
             update_plan_priority(p["id"], p["priority"] + 1)
-    logger.info(
-        f"[mastery] {_plan_label(plan)} 恢复流程：插队到 idle 队列最前（优先级 {min_p}）"
-    )
+    if updated:
+        logger.info(
+            "operation=mastery_plan_priority "
+            f"plan_id={plan['id']} result=updated priority={min_p}"
+        )
 
 
 # --- 收取流程（#61 定死） ---
@@ -1151,21 +1127,26 @@ def _reconcile_after_collect(solver, plan, panel: RoomPanel):
         return None
     tier = panel.mastery_tier
     if tier == plan["target_level"]:
-        logger.info(
-            f"{_plan_label(plan)} 专{plan['target_level']} 完成（收集档位 专{tier}）"
-        )
-        update_plan_status(plan["id"], "completed")
+        if update_plan_status(plan["id"], "completed"):
+            logger.info(
+                "operation=mastery_plan_transition "
+                f"plan_id={plan['id']} from_state={plan['status']} "
+                f"to_state=completed trigger=collect tier={tier} result=updated"
+            )
         return None
     if tier > plan["target_level"]:
         logger.warning(
-            f"{_plan_label(plan)} 收集档位 专{tier} 高于目标专{plan['target_level']}，"
-            "不将本次收取记为该计划完成"
+            "operation=mastery_collect "
+            f"plan_id={plan['id']} result=degraded tier={tier} "
+            f"target_tier={plan['target_level']} action=keep_idle"
         )
-    else:
+    updated = update_plan_status(plan["id"], "idle")
+    if tier < plan["target_level"] and updated:
         logger.info(
-            f"{_plan_label(plan)} 收集档位 专{tier} < 目标专{plan['target_level']}，继续下一级"
+            "operation=mastery_plan_transition "
+            f"plan_id={plan['id']} from_state={plan['status']} "
+            f"to_state=idle trigger=collect tier={tier} result=updated"
         )
-    update_plan_status(plan["id"], "idle")
     return plan
 
 
@@ -1259,21 +1240,20 @@ def _reconcile(
         _reset_to_idle(solver, active)
         active = None
 
-    # §16.2 OCR 失败 5 次仍不一致 → 保守训练中：不动 + 记日志。
+    # §16.2 OCR 失败 5 次仍不一致 → 保守训练中；读取边界已汇总一次。
     # 用户 08-15 定案：读不出不排重检——等排班系统下次自然进房重读。
     if room.read_failed:
-        _log_judgment(
-            solver, room, "ocr_fail", "保守训练中，不排重检（等排班自然重读）"
-        )
         return None, True
 
     if room.state == "empty":
         # ⚪ 空闲：DB active 与截图冲突 → 截图权威重置 idle；受保护 → mower 不能开始。
         if active is not None:
-            logger.info(
-                f"训练室为空但计划 {active['id']} 显示 {active['status']}，重置 idle 重开"
-            )
-            update_plan_status(active["id"], "idle")
+            if update_plan_status(active["id"], "idle"):
+                logger.info(
+                    "operation=mastery_plan_transition "
+                    f"plan_id={active['id']} from_state={active['status']} "
+                    "to_state=idle trigger=authoritative_empty_room result=updated"
+                )
         if room.protected:
             idle = _next_idle_to_start(solver)
             if idle is not None:
@@ -1311,7 +1291,6 @@ def _reconcile_training(solver, room, active, plans):
     hit = _match_plan(plans, room)
     if active is not None:
         if _can_adopt_expiry(active, room):
-            _log_judgment(solver, room, "training", "训练中×一致，静默更新到期时间")
             _refresh_training_plan(solver, active, room)
             return None, True
         if not _plan_matches_room(active, room):
@@ -1319,7 +1298,6 @@ def _reconcile_training(solver, room, active, plans):
             _reset_fake(solver, active, room)
         else:
             # B8：面板名/技能名不可读 → 不采纳、不重置、不重检——让排班下次自然进房重读
-            logger.debug("训练室占用但面板不可读，不采纳倒计时，静默等待")
             return None, True
 
     if hit is not None:
@@ -1335,15 +1313,12 @@ def _reconcile_training(solver, room, active, plans):
                 # 技能可读时保留原重检（练完由 dispatch/gate 收），不可读静默等待。
                 if room.panel.skill_name:
                     _wait_for_training(solver, room)
-                else:
-                    logger.debug("命中计划但技能不可读，不恢复、不排重检，静默等待")
             return None, True
         if _can_adopt_expiry(hit, room):
             # hit 为另一条 active 状态计划（active 重置后），面板可读且匹配 → 采纳
             _refresh_training_plan(solver, hit, room)
             return None, True
         # hit 技能名不可读 → 不采纳（不判计划外、不重检），静默等待
-        logger.debug("命中计划但面板技能不可读，不采纳倒计时，静默等待")
         return None, True
 
     if room.panel.operator_name:
@@ -1356,9 +1331,7 @@ def _reconcile_training(solver, room, active, plans):
             _wait_for_training(solver, room)
         else:
             _upsert_skill_upgrade_task(solver, datetime.now() + ARRANGING_RETRY_BUFFER)
-    else:
-        # 干员名不可读（B8）：不判计划外、不排重检，静默等排班下次自然进房重读
-        logger.debug("训练室占用但面板干员名不可读，不排重检，静默等待")
+    # 干员名不可读（B8）：不判计划外、不排重检，静默等排班下次自然进房重读
     return None, True
 
 
@@ -1384,10 +1357,6 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         suppress_help = True
         hit = None
     tier = room.panel.mastery_tier
-    # 日志用真实保护状态（_compute_protected 已按档位/状态算好）：专三待收取即使协助位
-    # 是逻各斯/艾丽妮也不保护（§16.3 第1格），只看协助位会误报保护=True。
-    protective = room.protected
-
     # 截图权威：DB active 与待收取房内干员不一致 → 假记录重置
     if active is not None and not _plan_matches_room(active, room):
         _reset_fake(solver, active, room)
@@ -1398,27 +1367,10 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         hit = active
 
     if defer_collect and hit is not None and _queue_has_mastery_task(solver):
-        _log_judgment(
-            solver,
-            room,
-            "waiting_collect",
-            "队列已有专精任务，跳过本次收集（留给任务收）",
-            计划=hit["id"],
-            协助位=room.support_slot,
-            保护=protective,
-        )
         return None, True
 
     if tier == 3:
         # 专三：正常收取 → 邮件③（截图）→ 无论如何不保护 → 可排班
-        _log_judgment(
-            solver,
-            room,
-            "waiting_collect",
-            "专三完成，正常收取",
-            协助位=room.support_slot,
-            保护=protective,
-        )
         if hit is not None:
             return _collect_plan(solver, hit, room), True
         _collect_silent(solver, room)
@@ -1433,14 +1385,6 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         # 不动协助位」——路线 operator 也没放，专三只留上一级减半换入的干员；减半与否
         # 由路线 swap_target + _schedule_swap_if_needed 管，专三 swap_target=None 本
         # 就不排换人，路线 operator 照常进协助位拿加成）。
-        _log_judgment(
-            solver,
-            room,
-            "waiting_collect",
-            "都在计划，恢复流程（收取→排前→idle→当场开）",
-            协助位=room.support_slot,
-            保护=protective,
-        )
         plan = _collect_plan(solver, hit, room)
         if plan is not None and plan["id"] == hit["id"]:
             _promote_plan(solver, plan)  # 非专三继续本级 → 排前
@@ -1449,14 +1393,6 @@ def _reconcile_waiting_collect(solver, room, active, plans, defer_collect=False)
         return plan, True
 
     # 干员不在计划 / 干员在技能不在：收取 + 通知④帮收（非专三，无论保护与否）
-    _log_judgment(
-        solver,
-        room,
-        "waiting_collect",
-        "非专三不在计划，帮收（通知④）",
-        协助位=room.support_slot,
-        保护=protective,
-    )
     _collect_silent(solver, room, suppress_help=suppress_help)
     return None, True
 

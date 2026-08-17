@@ -16,6 +16,7 @@ from flask import Flask
 
 from arknights_mower.solvers import record
 from arknights_mower.utils import mastery_db
+from arknights_mower.views import db_admin as db_admin_module
 from arknights_mower.views.db_admin import CATEGORY_TABLES, db_admin_bp
 
 ALL_TABLES = list(CATEGORY_TABLES.values())
@@ -174,6 +175,20 @@ class TestDbAdminDelete(unittest.TestCase):
         self.assertEqual(counts["mastery_plan"], 0)
         self.assertEqual(counts["log"], 0)
         self.assertEqual(counts["agent_action"], 1)
+
+    def test_delete_logs_bounded_summary(self):
+        with (
+            _patch_conn(self.db_path),
+            patch.object(db_admin_module.logger, "info") as info,
+        ):
+            resp = self.client.post(
+                "/db-admin/delete", json={"categories": ["mastery_plan", "log"]}
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        info.assert_called_once_with(
+            "operation=db_admin_delete result=success categories=2 rows=3"
+        )
 
     def test_delete_does_not_drop_table(self):
         # 删完全部类后表结构必须仍在（可继续插入）——防 #82 守卫误判 no-such-table

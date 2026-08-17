@@ -189,8 +189,8 @@ def insert_plan(
             )
             conn.commit()
             return cursor.lastrowid
-    except Exception as e:
-        logger.error(f"insert_plan failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=insert_plan result=failed")
         return -1
 
 
@@ -251,8 +251,8 @@ def get_all_plans(path: Optional[str] = None) -> list[dict]:
                 "ORDER BY priority, id"
             ).fetchall()
             return [lazy_fill_plan_names(dict(r), conn) for r in rows]
-    except Exception as e:
-        logger.error(f"get_all_plans failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_all_plans result=failed")
         return []
 
 
@@ -263,8 +263,8 @@ def get_plan_by_id(plan_id: int, path: Optional[str] = None) -> Optional[dict]:
                 "SELECT * FROM mastery_plan WHERE id=?", (plan_id,)
             ).fetchone()
             return lazy_fill_plan_names(dict(row), conn) if row else None
-    except Exception as e:
-        logger.error(f"get_plan_by_id failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_plan_by_id result=failed")
         return None
 
 
@@ -276,8 +276,8 @@ def get_active_plan(path: Optional[str] = None) -> Optional[dict]:
                 "LIMIT 1"
             ).fetchone()
             return lazy_fill_plan_names(dict(row), conn) if row else None
-    except Exception as e:
-        logger.error(f"get_active_plan failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_active_plan result=failed")
         return None
 
 
@@ -288,8 +288,8 @@ def get_next_idle_plan(path: Optional[str] = None) -> Optional[dict]:
                 "SELECT * FROM mastery_plan WHERE status='idle' ORDER BY priority, id LIMIT 1"
             ).fetchone()
             return lazy_fill_plan_names(dict(row), conn) if row else None
-    except Exception as e:
-        logger.error(f"get_next_idle_plan failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_next_idle_plan result=failed")
         return None
 
 
@@ -306,8 +306,8 @@ def get_failed_plans(path: Optional[str] = None) -> list[dict]:
                 "SELECT * FROM mastery_plan WHERE status='failed' ORDER BY priority, id"
             ).fetchall()
             return [lazy_fill_plan_names(dict(r), conn) for r in rows]
-    except Exception as e:
-        logger.error(f"get_failed_plans failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_failed_plans result=failed")
         return []
 
 
@@ -333,7 +333,10 @@ def update_plan_status(
     path: Optional[str] = None,
 ) -> bool:
     if status not in VALID_STATUSES:
-        logger.error(f"Invalid status: {status}")
+        logger.error(
+            "operation=mastery_db action=update_plan_status "
+            f"result=rejected status={status}"
+        )
         return False
     try:
         with _conn(path) as conn:
@@ -354,8 +357,8 @@ def update_plan_status(
             )
             conn.commit()
             return True
-    except Exception as e:
-        logger.error(f"update_plan_status failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=update_plan_status result=failed")
         return False
 
 
@@ -369,8 +372,10 @@ def update_plan_priority(
             )
             conn.commit()
             return True
-    except Exception as e:
-        logger.error(f"update_plan_priority failed: {e}")
+    except Exception:
+        logger.exception(
+            "operation=mastery_db action=update_plan_priority result=failed"
+        )
         return False
 
 
@@ -385,8 +390,8 @@ def delete_plan(plan_id: int, path: Optional[str] = None) -> bool:
             )
             conn.commit()
             return True
-    except Exception as e:
-        logger.error(f"delete_plan failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=delete_plan result=failed")
         return False
 
 
@@ -397,8 +402,8 @@ def get_all_history(path: Optional[str] = None) -> list[dict]:
                 "SELECT * FROM mastery_plan ORDER BY id DESC LIMIT 200"
             ).fetchall()
             return [dict(r) for r in rows]
-    except Exception as e:
-        logger.error(f"get_all_history failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_all_history result=failed")
         return []
 
 
@@ -438,8 +443,8 @@ def retry_failed_plans(path: Optional[str] = None) -> int:
             )
             conn.commit()
             return cursor.rowcount
-    except Exception as e:
-        logger.error(f"retry_failed_plans failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=retry_failed_plans result=failed")
         return 0
 
 
@@ -459,8 +464,8 @@ def should_notify(notify_type: str, dedup_key: str, path: Optional[str] = None) 
             )
             conn.commit()
             return cur.rowcount > 0
-    except Exception as e:
-        logger.error(f"should_notify failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=should_notify result=failed")
         return True
 
 
@@ -490,8 +495,8 @@ def save_route(
                 ),
             )
             conn.commit()
-    except Exception as e:
-        logger.error(f"save_route failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=save_route result=failed")
 
 
 # 全局路线设置的保留职业行（#91 修订）：中枢加成 + 换人缓冲时间，存 supports JSON。
@@ -520,8 +525,8 @@ def get_route_settings(path: Optional[str] = None) -> dict:
                     parsed = {}
                 if isinstance(parsed, dict):
                     defaults.update({k: parsed[k] for k in defaults if k in parsed})
-    except Exception as e:
-        logger.error(f"get_route_settings failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_route_settings result=failed")
     return defaults
 
 
@@ -545,8 +550,10 @@ def save_route_settings(
                 (_SETTINGS_PROFESSION, payload),
             )
             conn.commit()
-    except Exception as e:
-        logger.error(f"save_route_settings failed: {e}")
+    except Exception:
+        logger.exception(
+            "operation=mastery_db action=save_route_settings result=failed"
+        )
 
 
 def get_route(profession: str, path: Optional[str] = None) -> Optional[dict]:
@@ -563,8 +570,8 @@ def get_route(profession: str, path: Optional[str] = None) -> Optional[dict]:
                 (profession,),
             ).fetchone()
             return dict(row) if row else None
-    except Exception as e:
-        logger.error(f"get_route failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_route result=failed")
         return None
 
 
@@ -576,6 +583,6 @@ def get_all_routes(path: Optional[str] = None) -> list[dict]:
                 (_SETTINGS_PROFESSION,),
             ).fetchall()
             return [dict(r) for r in rows]
-    except Exception as e:
-        logger.error(f"get_all_routes failed: {e}")
+    except Exception:
+        logger.exception("operation=mastery_db action=get_all_routes result=failed")
         return []

@@ -48,7 +48,6 @@ def add_task():
         try:
             req = request.json
             task = req["task"]
-            logger.debug(f"收到新增任务请求：{req}")
             if base_scheduler and mower_thread and mower_thread.is_alive():
                 if task:
                     utc_time = datetime.strptime(task["time"], "%Y-%m-%dT%H:%M:%S.%f%z")
@@ -66,21 +65,22 @@ def add_task():
                     if base_scheduler.find_next_task(
                         compare_time=task_time, compare_type="="
                     ):
-                        raise Exception("找到同时间任务请勿重复添加")
+                        raise ValueError("找到同时间任务请勿重复添加")
                     if new_task.type == TaskTypes.SKILL_UPGRADE:
                         # #71：专精训练由 DB 计划状态机驱动（POST /mastery-plan），
                         # dispatch 只认 DB 计划；原始「技能专精」/task 不带 operator/
                         # skill，提交即死路。明确拒绝并指引计划 API。
-                        raise Exception(
+                        raise ValueError(
                             "专精任务请通过专精计划接口创建（POST /mastery-plan），"
                             "系统会自动调度训练"
                         )
                     base_scheduler.tasks.append(new_task)
-                    logger.debug(f"成功：{str(new_task)}")
                     return "添加任务成功！"
-            raise Exception("添加任务失败！！请确保Mower正在运行")
+            raise ValueError("添加任务失败！！请确保Mower正在运行")
+        except ValueError as e:
+            return str(e)
         except Exception as e:
-            logger.exception(f"添加任务失败：{str(e)}")
+            logger.exception("operation=add_task result=failed")
             return str(e)
     else:
         if base_scheduler and mower_thread and mower_thread.is_alive():

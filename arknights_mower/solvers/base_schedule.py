@@ -805,8 +805,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                                     reconcile_short(
                                         self, room_state, defer_collect=False
                                     )
-                            except Exception as e:
-                                logger.warning(f"训练室顺路对账失败: {e}")
+                            except Exception:
+                                logger.warning(
+                                    "operation=mastery_reconcile "
+                                    "result=degraded owner=mood_read"
+                                )
                         else:
                             # enable_mastery 关闭：不跑 mastery 读取器（铁律 10），保留
                             # 通用心情读取。
@@ -2587,10 +2590,12 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             )
 
                             if train_slot_locked(self):
-                                logger.info("训练位锁定（训练中/待收取）")
                                 locked1 = True
-                        except Exception as e:
-                            logger.warning(f"训练位锁定检测失败: {e}")
+                        except Exception:
+                            logger.warning(
+                                "operation=mastery_train_slot_lock "
+                                "result=degraded owner=choose_train"
+                            )
                         if locked1:
                             select_targets = [
                                 (i, n) for i, n in select_targets if i != 1
@@ -3272,8 +3277,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
 
                         try:
                             room_state = read_room_state(self, enter=False)
-                        except Exception as e:
-                            logger.warning(f"训练室状态读取失败: {e}")
+                        except Exception:
+                            logger.warning(
+                                "operation=mastery_room_read "
+                                "result=degraded owner=schedule_gate"
+                            )
                             room_state = None
                         if room_state is not None and config.conf.enable_mastery:
                             # #61 短动作排班路径内联：顺路核实/帮收/重置/对账，并据截图
@@ -3284,8 +3292,11 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                             # 触发开始训练）；队列空时照常收集兜底。
                             try:
                                 reconcile_short(self, room_state, defer_collect=True)
-                            except Exception as e:
-                                logger.warning(f"训练室顺路对账失败: {e}")
+                            except Exception:
+                                logger.warning(
+                                    "operation=mastery_reconcile "
+                                    "result=degraded owner=schedule_gate"
+                                )
                             # 对账后房间状态可能变化（帮收后空出），重读状态决定 gate。
                             # 只有待收取态 reconcile 会收走房间（变空）；训练/空闲态
                             # reconcile 只改 DB，物理房间不变，重读纯浪费（面板 OCR +
