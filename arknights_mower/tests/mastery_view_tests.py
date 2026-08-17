@@ -248,6 +248,19 @@ class TestMasteryPlanView(unittest.TestCase):
         self.assertIn("已专", res["reason"])
         insert.assert_not_called()
 
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    @patch("arknights_mower.views.mastery.get_skill_data")
+    def test_flat_rejects_bool_skill_index(self, get_skill, insert):
+        # #112：bool 是 int 子类（True in (0,1,2) 为真）——JSON true 必须被拒绝为
+        # invalid skill_index，不得静默当成二技能建错计划
+        get_skill.return_value = self._char_table()
+        for bad in (True, False):
+            r = self.client.post("/mastery-plan", json={"阿米娅": bad})
+            res = r.get_json()["results"][0]
+            self.assertEqual(res["status"], "error")
+            self.assertEqual(res["reason"], "invalid skill_index")
+        insert.assert_not_called()
+
     # --- #97 删除清理 ---
 
     @patch("arknights_mower.views.mastery._purge_plan_tasks")

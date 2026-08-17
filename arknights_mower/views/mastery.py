@@ -160,7 +160,13 @@ class MasteryPlanView(MethodView):
                         {"key": name, "status": "error", "reason": "operator not found"}
                     )
                     continue
-                if not isinstance(skill_index, int) or skill_index not in (0, 1, 2):
+                # #112：bool 是 int 子类（True in (0,1,2) 为真），显式拒绝，否则
+                # JSON true 会被静默当成二技能建错计划
+                if (
+                    isinstance(skill_index, bool)
+                    or not isinstance(skill_index, int)
+                    or skill_index not in (0, 1, 2)
+                ):
                     results.append(
                         {
                             "key": name,
