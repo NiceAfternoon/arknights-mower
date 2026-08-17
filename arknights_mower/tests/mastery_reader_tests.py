@@ -2168,8 +2168,35 @@ class TestCollectFlow(unittest.TestCase):
         taps = [c.args[0] for c in solver.tap.call_args_list]
         self.assertIn((solver.recog.w * 0.05, solver.recog.h * 0.95), taps)
         self.assertIn((solver.recog.w * 0.5, solver.recog.h * 0.5), taps)
-        # #61 流程第 8 步：点勾确认（confirm_train 模板或兜底坐标）
-        self.assertIn((solver.recog.w * 0.5, solver.recog.h * 0.85), taps)
+        # #106：点勾确认已挪到调用方（_collect_plan/_collect_silent），collect_flow 不再点
+
+    def test_collect_plan_reconciles_before_confirm(self):
+        # #106/C-34：先对账后点勾确认——崩溃窗口里 DB 先收敛，不会把已收的 target 计划
+        # 误当 training 重开。顺序断言：collect → reconcile → confirm。
+        solver = self._solver()
+        order = []
+        plan = make_plan()
+        room = make_room("waiting_collect")
+        with (
+            patch.object(
+                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+            ),
+            patch.object(
+                reader,
+                "_reconcile_after_collect",
+                side_effect=lambda *a, **k: order.append("reconcile"),
+            ) as rec,
+            patch.object(
+                reader,
+                "_tap_collect_confirm",
+                side_effect=lambda *a, **k: order.append("confirm"),
+            ) as confirm,
+        ):
+            result = reader._collect_plan(solver, plan, room)
+        self.assertEqual(order, ["collect", "reconcile", "confirm"])
+        rec.assert_called_once_with(solver, plan, room.panel)
+        confirm.assert_called_once_with(solver)
+        self.assertIsNone(result, "对账 mock 返回 None，结果原样透传")
 
     def test_collect_flow_prefers_template(self):
         solver = self._solver()
