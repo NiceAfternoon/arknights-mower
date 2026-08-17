@@ -130,7 +130,7 @@
 ## 6. 收取流程与通知
 
 ### `collect_flow`（固定顺序，不得重排）（C-34）
-主面板已读 → 点完成标记（模板 `skill_collect_confirm`/`training_completed` 优先，旧坐标 `(0.05w,0.95h)` 仅兜底）→ sleep ~2s → 点任意处跳过动画 → **截图**（收集页不读文本）→ 专3 才邮件（截图 + 面板信息）→ 对账 → 点勾确认。
+主面板已读 → 点完成标记（模板 `skill_collect_confirm`/`training_completed` 优先，旧坐标 `(0.05w,0.95h)` 仅兜底）→ sleep ~2s → 点任意处跳过动画 → **截图**（收集页不读文本）→ 专3 才邮件（截图 + 面板信息）→ 对账 → 点勾确认。**#106（2026-08-17）**：`collect_flow` 函数体止于专3 邮件，对账/点勾确认由调用方 `_collect_plan`/`_collect_silent` 在 `collect_flow` 返回后按此顺序执行（对账先、确认后，不得重排）——崩溃窗口里 DB 先收敛，不会把已收的 target 计划误当 training 重开。
 - 对账档位**只用主面板第 1 步读取值**（`panel.mastery_tier`），收集页不重读。（C-33）
 - 专3 邮件条件：命中计划（plan 非 None）且档位 == 3。（C-13）
 

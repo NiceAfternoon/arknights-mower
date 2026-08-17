@@ -2198,6 +2198,44 @@ class TestCollectFlow(unittest.TestCase):
         confirm.assert_called_once_with(solver)
         self.assertIsNone(result, "对账 mock 返回 None，结果原样透传")
 
+    def test_collect_silent_confirms_after_flow(self):
+        # #106 收尾：plan=None 纯收取也在 collect_flow 后补点勾确认（C-34 顺序）
+        solver = self._solver()
+        room = make_room("waiting_collect")
+        order = []
+        with (
+            patch.object(
+                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+            ),
+            patch.object(
+                reader,
+                "_tap_collect_confirm",
+                side_effect=lambda *a, **k: order.append("confirm"),
+            ) as confirm,
+            patch.object(reader, "_notify_help_collect") as notify,
+        ):
+            reader._collect_silent(solver, room)
+        self.assertEqual(order, ["collect", "confirm"], "静默收取 collect → confirm")
+        confirm.assert_called_once_with(solver)
+        # 非专三（tier=2）未抑制 → 帮收④也照发
+        notify.assert_called_once_with(solver, room)
+        order.clear()
+        with (
+            patch.object(
+                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+            ),
+            patch.object(
+                reader,
+                "_tap_collect_confirm",
+                side_effect=lambda *a, **k: order.append("confirm"),
+            ) as confirm,
+            patch.object(reader, "_notify_help_collect") as notify,
+        ):
+            reader._collect_silent(solver, room, suppress_help=True)
+        self.assertEqual(order, ["collect", "confirm"], "suppress_help 分支也要收尾确认")
+        confirm.assert_called_once_with(solver)
+        notify.assert_not_called()
+
     def test_collect_flow_prefers_template(self):
         solver = self._solver()
         finish_pos = ((50, 900), (130, 980))
