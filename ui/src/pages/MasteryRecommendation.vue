@@ -454,7 +454,7 @@
               />
               <n-text strong style="font-size: 13px">{{ op.name }}</n-text>
               <n-text depth="3" style="font-size: 11px">{{ op.rarity }}★</n-text>
-              <n-button size="tiny" quaternary @click="addAllToPlan(op)">全加</n-button>
+              <n-button size="tiny" quaternary @click="addAllToPlan(op, true)">全加</n-button>
             </n-space>
             <n-space :size="4" style="margin-left: 8px">
               <n-button
@@ -721,13 +721,45 @@ async function toggleSkillPlan(op, rec, draft = false) {
   }
 }
 
-function addAllToPlan(op) {
-  for (const rec of op.recommendations) {
-    const k = planKey(op.char_id, rec.skill_index)
-    plan.value[k] = true
-    draftRemoved.value.delete(k)
+async function addAllToPlan(op, draft = false) {
+  const recs = op.recommendations
+  if (draft) {
+    // 计划弹窗内草稿：只动本地，保存时 POST
+    for (const rec of recs) {
+      const k = planKey(op.char_id, rec.skill_index)
+      plan.value[k] = true
+      draftRemoved.value.delete(k)
+    }
+    message.success(`${op.name} 全部技能已加入计划`)
+    return
   }
-  message.success(`${op.name} 全部技能已加入计划`)
+  // 主列表 quick-add：立即写后端
+  try {
+    const r = await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan`, {
+      items: recs.map((rec) => ({ name: op.name, skill_index: rec.skill_index }))
+    })
+    const results = r.data?.results || []
+    const errs = []
+    results.forEach((res, i) => {
+      const rec = recs[i]
+      if (!rec) return
+      if (res.status === 'added') {
+        const k = planKey(op.char_id, rec.skill_index)
+        plan.value[k] = true
+        // #65：target_level 由服务端默认专三（与推荐一致）
+        planStatus.value[k] = { id: res.id, status: 'idle', target_level: 3, priority: 0 }
+      } else {
+        errs.push(res.reason || '添加失败')
+      }
+    })
+    if (errs.length) {
+      message.warning(`${op.name} 有 ${errs.length} 项未加入: ${errs.join('；')}`)
+    } else {
+      message.success(`${op.name} 全部技能已加入计划`)
+    }
+  } catch (e) {
+    message.error(`保存失败: ${e.message}`)
+  }
 }
 
 function removePlanEntry(e) {
