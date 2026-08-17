@@ -1052,6 +1052,7 @@ const routeSettings = reactive(
 let _autoSaveReady = false
 let _routeSaveChain = Promise.resolve()
 const _dirtyRouteProfessions = new Set()
+let _dirtyMasterySettings = false
 const routeSaving = ref(false)
 
 function persistRouteSettings() {
@@ -1101,6 +1102,14 @@ for (const profession of profKeys) {
     { deep: true }
   )
 }
+
+// #115：modal 级中枢加成/缓冲与逐职业路线同源走草稿语义——改了不保存关掉要还原
+watch(
+  () => [masterySettings.central_bonus, masterySettings.mastery_swap_buffer],
+  () => {
+    if (_autoSaveReady) _dirtyMasterySettings = true
+  }
+)
 
 function newSupport(p) {
   const n = routeSettings[p].supports.length
@@ -1184,6 +1193,7 @@ async function discardRouteChanges() {
   // _autoSaveReady 先置 false，避免还原过程（applyRoute 触发 watcher）被误标记 dirty。
   _autoSaveReady = false
   _dirtyRouteProfessions.clear()
+  _dirtyMasterySettings = false
   try {
     await loadRoute()
   } catch (e) {
@@ -1192,7 +1202,7 @@ async function discardRouteChanges() {
   }
 }
 watch(showSettings, (val) => {
-  if (!val && _dirtyRouteProfessions.size) {
+  if (!val && (_dirtyRouteProfessions.size || _dirtyMasterySettings)) {
     discardRouteChanges()
       .then(() => message.warning('专精路线修改未保存，已还原'))
       .catch((e) => console.error('discard route changes failed', e))
@@ -1208,6 +1218,7 @@ async function saveRouteAndClose() {
         mastery_swap_buffer: masterySettings.mastery_swap_buffer
       })
     ])
+    _dirtyMasterySettings = false // 已落库，关弹窗不再触发「未保存还原」
     showSettings.value = false
     message.success('专精路线设置已保存')
   } catch (e) {
