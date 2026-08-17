@@ -50,8 +50,18 @@ class TestMasteryRouteView(unittest.TestCase):
     @patch("arknights_mower.views.mastery.save_route")
     def test_route_post_rejects_wrong_shape(self, save_route_mock):
         # #114：合法 JSON 但形态不是数组/包装对象/旧字典 → 400
-        # （读取端 _route_entry_from_supports 返回 None 静默回退默认路线）
-        for bad in ("42", '"hello"', "null", '{"foo": 1}', "true"):
+        # （读取端 _route_entry_from_supports 返回 None 静默回退默认路线）；
+        # level_N 值非 dict（如字符串）能过 json.loads 却在读取端 dict() 抛 ValueError
+        # 被 _get_plan_route 吞掉静默回退 → 同样拒绝
+        for bad in (
+            "42",
+            '"hello"',
+            "null",
+            '{"foo": 1}',
+            "true",
+            '{"level_1": "garbage"}',
+            '{"level_1": 42}',
+        ):
             r = self.client.post(
                 "/mastery-route", json={"profession": "近卫", "supports": bad}
             )

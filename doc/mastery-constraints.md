@@ -311,7 +311,7 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 | `DELETE /mastery-plan` | body 需 id（缺 → 400；**#113** 非数字 id / bool → 400）；`delete_plan` 失败 → 500。**#97 清理**：删除后顺带清该计划 `plan_key=计划ID`（#101 补位已并入同一键，无独立 fill-{id}）的队列任务（SKILL_UPGRADE/SWAP）+ `mastery_notify` 中 `dedup_key=str(id)` 的去重行——残留任务不再按 plan_key 派发到已删计划 |
 | `PATCH /mastery-plan/order` | body 是 `[{id, priority}]`；未知/缺失 id 容忍；**#113** id/priority 非整数（含 bool、数字字符串）→ 400；返回 `{'status':'ok'}` |
 | `GET /mastery-route` | `{routes, defaults}`，defaults = `solvers.mastery.DEFAULT_ROUTES` |
-| `POST /mastery-route` | profession 非空（否则 400）；supports 接受 str 或 list；`is_default` 恒 0；optimal/half_off 透传，half_off 默认 True |
+| `POST /mastery-route` | profession 非空（否则 400）；supports 接受 str 或 list；**#114 写入端校验：supports 须是合法 JSON 且形态是数组/包装对象/旧字典之一（level_N 值须为对象），否则 400 拒绝保存**；`is_default` 恒 0；optimal/half_off 透传，half_off 默认 True |
 
 API 只增删计划与调优先级，**不得直写 status**（状态由执行层 `update_plan_status` 写）。（DB-02）
 
