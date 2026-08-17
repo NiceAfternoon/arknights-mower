@@ -479,9 +479,13 @@ class TestCanRecoverPlan(unittest.TestCase):
     def tearDown(self):
         skill_label_mod._name_to_char_id_cache = None
 
-    def _plan(self, char_name="测试干员", skill_index=1, skill_name="二技能·破坏与滋养"):
+    def _plan(
+        self, char_name="测试干员", skill_index=1, skill_name="二技能·破坏与滋养"
+    ):
         return make_plan(
-            char_id="char_test", char_name=char_name, skill_index=skill_index,
+            char_id="char_test",
+            char_name=char_name,
+            skill_index=skill_index,
             skill_name=skill_name,
         )
 
@@ -506,7 +510,9 @@ class TestCanRecoverPlan(unittest.TestCase):
     def test_ambiguous_operator_skill_rejects(self):
         # 干员两个技能共享前缀「破坏」（破坏与滋养/破坏之光）→ 解析器含混 → 不恢复
         room = make_room("training", operator_name="含混干员", skill_name="破坏")
-        plan = make_plan(char_name="含混干员", skill_index=0, skill_name="一技能·破坏与滋养")
+        plan = make_plan(
+            char_name="含混干员", skill_index=0, skill_name="一技能·破坏与滋养"
+        )
         self.assertFalse(reader._can_recover_plan(plan, room))
 
     def test_operator_mismatch_rejects(self):
@@ -516,7 +522,9 @@ class TestCanRecoverPlan(unittest.TestCase):
     def test_unknown_operator_rejects(self):
         # 干员不在技能表 → 解析器 None → 不恢复（宁可漏恢复，不可误接管）
         room = make_room("training", operator_name="陌生干员", skill_name="破坏与滋养A")
-        self.assertFalse(reader._can_recover_plan(self._plan(char_name="陌生干员"), room))
+        self.assertFalse(
+            reader._can_recover_plan(self._plan(char_name="陌生干员"), room)
+        )
 
     def test_skill_unreadable_rejects(self):
         room = make_room("training", operator_name="测试干员", skill_name="")
@@ -669,7 +677,8 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=active
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[active]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[active],
             ),
             patch.object(reader, "_update_expiry") as ue,
             patch.object(reader, "_collect_plan"),
@@ -687,7 +696,8 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_collect_plan") as cp,
             patch.object(reader, "_promote_plan"),
@@ -714,7 +724,8 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_collect_plan") as cp,
             patch.object(reader, "_promote_plan") as pp,
@@ -735,7 +746,8 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_collect_plan") as cp,
             patch.object(reader, "_promote_plan"),
@@ -759,7 +771,8 @@ class TestReconcileShort(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_collect_plan") as cp,
             patch.object(reader, "_promote_plan") as pp,
@@ -1053,8 +1066,7 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         swaps = [
             t
             for t in solver.tasks
-            if t.type == reader.TaskTypes.SWAP_SUPPORT
-            and t.plan_key == str(plan["id"])
+            if t.type == reader.TaskTypes.SWAP_SUPPORT and t.plan_key == str(plan["id"])
         ]
         self.assertEqual(len(swaps), 1)
         self.assertIn("补位为 夜半", swaps[0].meta_data)
@@ -1077,9 +1089,7 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.solvers.mastery._get_plan_route",
                 return_value=self._correction_route(),
             ),
-            patch(
-                "arknights_mower.solvers.mastery._schedule_swap_if_needed"
-            ) as sched,
+            patch("arknights_mower.solvers.mastery._schedule_swap_if_needed") as sched,
         ):
             result = reader._maybe_recover_swap(solver, plan, room)
         self.assertTrue(result)
@@ -1087,7 +1097,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         self.assertEqual(len(solver.tasks), 1, "不新增补位任务（改到 now 而非并存）")
         self.assertEqual(solver.tasks[0].plan_key, str(plan["id"]))
         self.assertLess(
-            abs((solver.tasks[0].time - datetime.now()).total_seconds()), 5,
+            abs((solver.tasks[0].time - datetime.now()).total_seconds()),
+            5,
             "已有半程换人任务被改到 now",
         )
 
@@ -1113,8 +1124,7 @@ class TestReconcileRecoverSwap(unittest.TestCase):
         swaps = [
             t
             for t in solver.tasks
-            if t.type == reader.TaskTypes.SWAP_SUPPORT
-            and t.plan_key == str(plan["id"])
+            if t.type == reader.TaskTypes.SWAP_SUPPORT and t.plan_key == str(plan["id"])
         ]
         self.assertEqual(len(swaps), 0, "读失败不补位（稳为先）")
         sched.assert_called_once()
@@ -1200,7 +1210,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_update_expiry"),
             patch(
@@ -1232,7 +1243,8 @@ class TestReconcileRecoverSwap(unittest.TestCase):
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=plan
             ),
             patch(
-                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[plan]
+                "arknights_mower.utils.mastery_db.get_reconcile_plans",
+                return_value=[plan],
             ),
             patch.object(reader, "_update_expiry"),
             patch(
@@ -2103,7 +2115,9 @@ class TestReconcileAndAct(unittest.TestCase):
             patch(
                 "arknights_mower.utils.mastery_db.get_active_plan", return_value=None
             ),
-            patch("arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[]),
+            patch(
+                "arknights_mower.utils.mastery_db.get_reconcile_plans", return_value=[]
+            ),
             patch.object(reader, "_reconcile", return_value=(scan_plan, True)) as rec,
         ):
             result, arrange_support, returned_room = reader.reconcile_and_act(
@@ -2179,7 +2193,9 @@ class TestCollectFlow(unittest.TestCase):
         room = make_room("waiting_collect")
         with (
             patch.object(
-                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+                reader,
+                "collect_flow",
+                side_effect=lambda *a, **k: order.append("collect"),
             ),
             patch.object(
                 reader,
@@ -2205,7 +2221,9 @@ class TestCollectFlow(unittest.TestCase):
         order = []
         with (
             patch.object(
-                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+                reader,
+                "collect_flow",
+                side_effect=lambda *a, **k: order.append("collect"),
             ),
             patch.object(
                 reader,
@@ -2222,7 +2240,9 @@ class TestCollectFlow(unittest.TestCase):
         order.clear()
         with (
             patch.object(
-                reader, "collect_flow", side_effect=lambda *a, **k: order.append("collect")
+                reader,
+                "collect_flow",
+                side_effect=lambda *a, **k: order.append("collect"),
             ),
             patch.object(
                 reader,
@@ -2232,7 +2252,9 @@ class TestCollectFlow(unittest.TestCase):
             patch.object(reader, "_notify_help_collect") as notify,
         ):
             reader._collect_silent(solver, room, suppress_help=True)
-        self.assertEqual(order, ["collect", "confirm"], "suppress_help 分支也要收尾确认")
+        self.assertEqual(
+            order, ["collect", "confirm"], "suppress_help 分支也要收尾确认"
+        )
         confirm.assert_called_once_with(solver)
         notify.assert_not_called()
 

@@ -106,9 +106,7 @@ class TestAutoScheduleReadsDb(unittest.TestCase):
 
     def test_db_plan_skipped_when_inventory_short(self):
         # #111 对照：同材料链库存 owned < count → skipped（确保正分支不是恒 True）
-        cultivate_path, skill_path = _write_inventory_files(
-            self.tmp.name, "item_T3", 5
-        )
+        cultivate_path, skill_path = _write_inventory_files(self.tmp.name, "item_T3", 5)
         mats = [{"name": "技巧概要·卷3", "count": 50}]
         with (
             patch(
