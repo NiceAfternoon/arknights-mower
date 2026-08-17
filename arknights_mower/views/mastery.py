@@ -4,6 +4,8 @@ from functools import wraps
 from flask import Blueprint, abort, current_app, request
 from flask.views import MethodView
 
+from arknights_mower.utils import config
+from arknights_mower.utils.log import logger
 from arknights_mower.utils.mastery_db import (
     add_plan_checked,
     delete_plan,
@@ -64,6 +66,34 @@ def _purge_plan_tasks(plan_id):
     ]
 
 
+def _dispatch_new_plans_immediately():
+    """一键专精建计划后立即尝试开始——复用仓库扫描的派发逻辑。
+
+    材料足够的 idle 计划入队 now 的 SKILL_UPGRADE（plan_key=计划ID），调度器下一轮
+    就执行；材料不足不派发，继续等下次扫描。受 enable_mastery 门控（OFF 停专精自动化，
+    与扫描派发一致）；base_scheduler 未运行（None）时防御按无任务处理。
+    """
+    if not config.conf.enable_mastery:
+        return
+    try:
+        from arknights_mower.__main__ import base_scheduler
+    except ImportError:
+        return
+    if base_scheduler is None or not hasattr(
+        base_scheduler, "_dispatch_scan_start_tasks"
+    ):
+        return
+    try:
+        from arknights_mower.utils.mastery_recommendation import (
+            auto_schedule_mastery_tasks,
+        )
+
+        res = auto_schedule_mastery_tasks()
+        base_scheduler._dispatch_scan_start_tasks(res.get("scheduled", []))
+    except Exception as e:
+        logger.exception(f"一键专精立即派发失败: {e}")
+
+
 class MasteryPlanView(MethodView):
     decorators = [_require_token]
 
@@ -117,6 +147,7 @@ class MasteryPlanView(MethodView):
         }
 
         results = []
+        added = False
         items = (
             data.get("items", [])
             if isinstance(data, dict) and "items" in data
@@ -150,6 +181,7 @@ class MasteryPlanView(MethodView):
                 )
                 if plan_id > 0:
                     results.append({"key": name, "status": "added", "id": plan_id})
+                    added = True
                 else:
                     results.append({"key": name, "status": "error", "reason": reason})
         else:
@@ -190,8 +222,11 @@ class MasteryPlanView(MethodView):
                 )
                 if plan_id > 0:
                     results.append({"key": name, "status": "added", "id": plan_id})
+                    added = True
                 else:
                     results.append({"key": name, "status": "error", "reason": reason})
+        if added:
+            _dispatch_new_plans_immediately()
         return {"results": results}
 
     def delete(self):

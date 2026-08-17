@@ -2,7 +2,7 @@ import sys
 import types
 import unittest
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from flask import Flask
 
@@ -411,6 +411,124 @@ class TestMasteryPlanView(unittest.TestCase):
         fake.base_scheduler = None
         with patch.dict(sys.modules, {"arknights_mower.__main__": fake}):
             _purge_plan_tasks(5)  # 不应抛异常
+
+    # --- 一键专精立即派发 ---
+
+    @patch("arknights_mower.views.mastery._dispatch_new_plans_immediately")
+    @patch("arknights_mower.utils.mastery_db.insert_plan")
+    @patch("arknights_mower.views.mastery.get_skill_data")
+    @patch("arknights_mower.utils.mastery_recommendation.get_current_mastery_level")
+    def test_post_added_dispatches_immediately(
+        self, get_level, get_skill, insert, dispatch
+    ):
+        # 一键专精建计划成功后立即派发，不再等下次仓库扫描
+        get_skill.return_value = self._char_table()
+        get_level.return_value = 1
+        insert.return_value = 5
+        r = self.client.post(
+            "/mastery-plan", json={"items": [{"name": "阿米娅", "skill_index": 0}]}
+        )
+        self.assertEqual(r.get_json()["results"][0]["status"], "added")
+        dispatch.assert_called_once()
+
+    @patch("arknights_mower.views.mastery._dispatch_new_plans_immediately")
+    @patch("arknights_mower.views.mastery.get_skill_data")
+    def test_post_no_add_no_dispatch(self, get_skill, dispatch):
+        # 全部 error（无新计划落库）→ 不派发
+        get_skill.return_value = self._char_table()
+        r = self.client.post(
+            "/mastery-plan", json={"items": [{"name": "不存在", "skill_index": 0}]}
+        )
+        self.assertEqual(r.get_json()["results"][0]["status"], "error")
+        dispatch.assert_not_called()
+
+    @patch("arknights_mower.views.mastery._dispatch_new_plans_immediately")
+    @patch("arknights_mower.views.mastery.get_skill_data")
+    def test_post_batch_all_errors_no_dispatch(self, get_skill, dispatch):
+        # batch 多计划全部 error（无 added）→ 不派发
+        get_skill.return_value = self._char_table()
+        r = self.client.post(
+            "/mastery-plan",
+            json={
+                "items": [
+                    {"name": "不存在1", "skill_index": 0},
+                    {"name": "不存在2", "skill_index": 1},
+                ]
+            },
+        )
+        statuses = [x["status"] for x in r.get_json()["results"]]
+        self.assertEqual(statuses, ["error", "error"])
+        dispatch.assert_not_called()
+
+    def test_dispatch_new_plans_immediately_calls_dispatch(self):
+        # 材料核算后把 scheduled 交给 _dispatch_scan_start_tasks（复用扫描派发逻辑）
+        from arknights_mower.views.mastery import _dispatch_new_plans_immediately
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        sched = MagicMock()
+        fake.base_scheduler = sched
+        scheduled = [{"char_id": "char_a", "skill_index": 1}]
+        with (
+            patch.dict(sys.modules, {"arknights_mower.__main__": fake}),
+            patch("arknights_mower.views.mastery.config.conf.enable_mastery", True),
+            patch(
+                "arknights_mower.utils.mastery_recommendation.auto_schedule_mastery_tasks",
+                return_value={"scheduled": scheduled, "skipped": []},
+            ),
+        ):
+            _dispatch_new_plans_immediately()
+        sched._dispatch_scan_start_tasks.assert_called_once_with(scheduled)
+
+    def test_dispatch_new_plans_immediately_noop_when_nothing_scheduled(self):
+        # 材料不足（scheduled 空）→ dispatch 拿空列表（_dispatch_scan_start_tasks 空返回
+        # no-op，不产生开始任务）——钉死「材料不足不派发」行为
+        from arknights_mower.views.mastery import _dispatch_new_plans_immediately
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        sched = MagicMock()
+        fake.base_scheduler = sched
+        with (
+            patch.dict(sys.modules, {"arknights_mower.__main__": fake}),
+            patch("arknights_mower.views.mastery.config.conf.enable_mastery", True),
+            patch(
+                "arknights_mower.utils.mastery_recommendation.auto_schedule_mastery_tasks",
+                return_value={
+                    "scheduled": [],
+                    "skipped": [{"char_id": "char_a", "skill_index": 1}],
+                },
+            ),
+        ):
+            _dispatch_new_plans_immediately()
+        sched._dispatch_scan_start_tasks.assert_called_once_with([])
+
+    def test_dispatch_new_plans_immediately_gated_off(self):
+        # enable_mastery=OFF 不派发（与扫描派发一致，铁律10「留」半边）
+        from arknights_mower.views.mastery import _dispatch_new_plans_immediately
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        fake.base_scheduler = MagicMock()
+        with (
+            patch.dict(sys.modules, {"arknights_mower.__main__": fake}),
+            patch("arknights_mower.views.mastery.config.conf.enable_mastery", False),
+            patch(
+                "arknights_mower.utils.mastery_recommendation.auto_schedule_mastery_tasks"
+            ) as mock_auto,
+        ):
+            _dispatch_new_plans_immediately()
+        mock_auto.assert_not_called()
+        fake.base_scheduler._dispatch_scan_start_tasks.assert_not_called()
+
+    def test_dispatch_new_plans_immediately_guards_no_scheduler(self):
+        # base_scheduler 未运行（None）→ 防御不崩
+        from arknights_mower.views.mastery import _dispatch_new_plans_immediately
+
+        fake = types.ModuleType("arknights_mower.__main__")
+        fake.base_scheduler = None
+        with (
+            patch.dict(sys.modules, {"arknights_mower.__main__": fake}),
+            patch("arknights_mower.views.mastery.config.conf.enable_mastery", True),
+        ):
+            _dispatch_new_plans_immediately()  # 不应抛异常
 
 
 if __name__ == "__main__":
