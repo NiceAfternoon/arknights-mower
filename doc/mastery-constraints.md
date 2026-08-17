@@ -250,7 +250,7 @@ idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）�
 
 ## 9. 全局开关 `enable_mastery`
 
-- 默认 `True`（`conf.py:331`）。OFF 语义边界（conf.py:332 注释原文：仅保留仓库材料扫描）：
+- 默认 `True`（`conf.py:333`）。OFF 语义边界（conf.py:332 注释原文：仅保留仓库材料扫描）：
   - **关**：`run_mastery_task`、`run_swap_support`、`reconcile_and_act` 全部直接返回；扫描派发入队（`_dispatch_scan_start_tasks`）也被 gate；排班内联 `reconcile_short` 不运行；排班 `resting()` 不再因 active DB 计划跳过训练室干员休息规划（**#109**，OFF 恒放行休息）。
   - **留**：N 小时仓库扫描钩子（`retry_failed_plans` + `auto_schedule_mastery_tasks` + `compute_workshop_config`）照跑。
   - **且**：排班永不触碰锁定训练位（L0/L1 freeze/skip）**不受开关影响**，必须保持。
