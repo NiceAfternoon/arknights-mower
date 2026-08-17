@@ -649,6 +649,28 @@ class TestPlanFailLabel(unittest.TestCase):
         self.assertNotIn("技能2", msg)
         self.assertNotIn("专3", msg)
 
+    def test_confirm_material_shortage_logs_actionable_next_step(self):
+        solver = MagicMock()
+        solver.train_scene.return_value = Scene.TRAIN_SKILL_UPGRADE_ERROR
+        plan = make_plan(status="arranging")
+        with (
+            patch("arknights_mower.utils.mastery_db.update_plan_status"),
+            patch("arknights_mower.utils.email.send_message"),
+            patch.object(mastery.logger, "error") as error,
+        ):
+            result = mastery._confirm_training_started(
+                solver,
+                plan,
+                datetime.now() + timedelta(minutes=1),
+            )
+
+        self.assertEqual(result, "failed")
+        error.assert_called_once_with(
+            "专精训练启动失败：operation=mastery_start "
+            "plan_id=1 from_state=arranging to_state=failed result=failed "
+            "reason=insufficient_material；下一步：请补足专精材料后重试"
+        )
+
     def test_ownership_check_stranger_reports_occupier(self):
         """占用者非本计划干员（路人）：读图标档位进「实际占用」，不作计划步级。"""
         solver = MagicMock()

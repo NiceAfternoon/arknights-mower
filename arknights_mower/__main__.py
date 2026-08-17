@@ -35,7 +35,7 @@ def _read_depot_scan_timestamp(path):
 
 # 执行自动排班
 def main(saved_state, restart_after_mood_read=False):
-    logger.info("task=%s state=%s", "mower", "started")
+    logger.info("Mower任务已启动：task=%s state=%s", "mower", "started")
     rapidocr.initialize_ocr()
     data = None
     if saved_state != {}:
@@ -91,7 +91,7 @@ def simulate(saved, restart_after_mood_read=False):
     """
     具体调用方法可见各个函数的参数说明
     """
-    logger.info("task=%s state=%s", "simulation", "started")
+    logger.info("模拟任务已启动：task=%s state=%s", "simulation", "started")
     tasks = saved["tasks"] if saved else []
     reconnect_max_tries = 10
     reconnect_tries = 0
@@ -263,7 +263,7 @@ def simulate(saved, restart_after_mood_read=False):
                     elif config.conf.maa_enable == 1:
                         next_task = base_scheduler.tasks[0]
                         logger.info(
-                            "task_type=%s scheduled_at=%s room_count=%s",
+                            "下一任务已安排：task_type=%s scheduled_at=%s room_count=%s",
                             next_task.type.name,
                             next_task.time.isoformat(timespec="seconds"),
                             min(len(next_task.plan), 64),

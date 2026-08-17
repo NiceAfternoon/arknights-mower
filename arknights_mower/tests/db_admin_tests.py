@@ -187,7 +187,8 @@ class TestDbAdminDelete(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         info.assert_called_once_with(
-            "operation=db_admin_delete result=success categories=2 rows=3"
+            "数据库分类删除成功：operation=db_admin_delete "
+            "result=success categories=2 rows=3"
         )
 
     def test_delete_does_not_drop_table(self):

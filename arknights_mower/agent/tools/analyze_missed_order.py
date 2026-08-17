@@ -188,7 +188,7 @@ def fetch_missed_event_rows(limit: int = 10, database_path=None) -> list[dict]:
                 task,
                 message
             FROM log
-            WHERE message LIKE 'event=missed_order state=detected%'
+            WHERE instr(message, 'event=missed_order state=detected') > 0
             ORDER BY time DESC
             LIMIT ?
             """,

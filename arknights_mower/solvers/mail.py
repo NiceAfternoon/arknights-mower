@@ -6,7 +6,7 @@ from arknights_mower.utils.recognize import Scene
 class MailSolver(SceneGraphSolver):
     def run(self) -> None:
         self.touched = False
-        logger.info("task=%s state=%s", "mail", "started")
+        logger.info("邮件领取任务已启动：task=%s state=%s", "mail", "started")
         super().run()
 
     def transition(self) -> bool:

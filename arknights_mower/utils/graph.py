@@ -489,10 +489,18 @@ class SceneGraphSolver(BaseSolver):
         if self.scene() == Scene.INDEX:
             return
         if self.scene_graph_navigation(Scene.INDEX):
-            logger.info("operation=%s result=%s", "scene_navigation", "index")
+            logger.info(
+                "场景导航已返回首页：operation=%s result=%s",
+                "scene_navigation",
+                "index",
+            )
 
     def back_to_infrastructure(self):
         if self.scene() == Scene.INFRA_MAIN:
             return
         if self.scene_graph_navigation(Scene.INFRA_MAIN):
-            logger.info("operation=%s result=%s", "scene_navigation", "infrastructure")
+            logger.info(
+                "场景导航已返回基建：operation=%s result=%s",
+                "scene_navigation",
+                "infrastructure",
+            )

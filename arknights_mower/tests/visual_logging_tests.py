@@ -73,7 +73,7 @@ class WebUILogProjectionTests(unittest.TestCase):
                 )
 
             log_info.assert_called_once_with(
-                "operation=%s result=%s representatives=%s",
+                "场景识别完成：operation=%s result=%s representatives=%s",
                 "scene",
                 "index",
                 "index_nav|matched|0.9500|0.9000|8",
@@ -92,11 +92,12 @@ class WebUILogProjectionTests(unittest.TestCase):
 
         self.assertIsNone(filename)
         log_error.assert_called_once_with(
-            "operation=%s result=%s",
+            "场景快照写入失败：operation=%s result=%s",
             "scene_snapshot",
             "failed",
             exc_info=True,
         )
+        self.assertNotIn("下一步", log_error.call_args.args[0])
 
     def test_same_scene_does_not_emit_another_refresh_record(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

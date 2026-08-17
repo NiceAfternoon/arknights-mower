@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import logging
 import os
 import sqlite3
 import tempfile
@@ -72,7 +73,7 @@ class TestSchedulerEventProjection(unittest.TestCase):
             )
 
         expected_message = (
-            "event=task_dispatch state=started task_type=RUN_ORDER "
+            "调度任务开始派发：event=task_dispatch state=started task_type=RUN_ORDER "
             "scheduled_at=2026-08-17T09:30:00 room=room_1_1 "
             "room_count=1 adjusted=false"
         )
@@ -118,7 +119,9 @@ class TestSchedulerEventProjection(unittest.TestCase):
 
         message = log.call_args.args[1]
         self.assertTrue(
-            message.startswith("event=missed_order state=detected miss_kind=current ")
+            message.startswith(
+                "跑单任务确认漏单：event=missed_order state=detected miss_kind=current "
+            )
         )
         self.assertIn("room=room_1_1", message)
         conn = sqlite3.connect(self.path)
@@ -139,7 +142,9 @@ class TestSchedulerEventProjection(unittest.TestCase):
                 attempt=2,
             )
 
-        message = "operation=scene_recovery outcome=recovered attempt=2"
+        message = (
+            "场景识别重试后恢复：operation=scene_recovery outcome=recovered attempt=2"
+        )
         log.assert_called_once_with(30, message, exc_info=False)
         conn = sqlite3.connect(self.path)
         try:
@@ -161,8 +166,10 @@ class TestSchedulerEventProjection(unittest.TestCase):
             )
 
         message = (
-            "operation=arrange_room outcome=exhausted attempt=4 error_type=ValueError"
+            "房间排班重试已耗尽：operation=arrange_room outcome=exhausted "
+            "attempt=4 error_type=ValueError"
         )
+        self.assertNotIn("下一步", message)
         log.assert_called_once_with(40, message, exc_info=True)
         self.assertNotIn("private details", message)
         conn = sqlite3.connect(self.path)
@@ -199,8 +206,53 @@ class TestSchedulerEventProjection(unittest.TestCase):
         ):
             record.emit_retry_outcome("scene_recovery", "exhausted", attempt=999)
 
-        message = "operation=scene_recovery outcome=exhausted attempt=32"
+        message = (
+            "场景识别重试已耗尽：operation=scene_recovery outcome=exhausted attempt=32"
+        )
         log.assert_called_once_with(40, message, exc_info=False)
+
+    def test_unexpected_final_failure_has_one_traceback_owner(self):
+        captured = []
+
+        class CaptureHandler(logging.Handler):
+            def emit(self, log_record):
+                captured.append(log_record)
+
+        handler = CaptureHandler()
+        with _temporary_record_database(self.path):
+            record.logger.addHandler(handler)
+            try:
+                try:
+                    raise RuntimeError("third-party raw failure")
+                except RuntimeError as exc:
+                    record.emit_retry_outcome(
+                        "reload_room",
+                        "exhausted",
+                        attempt=1,
+                        error=exc,
+                    )
+            finally:
+                record.logger.removeHandler(handler)
+
+        owned = [
+            item
+            for item in captured
+            if "operation=reload_room outcome=exhausted" in item.getMessage()
+        ]
+        self.assertEqual(len(owned), 1)
+        self.assertEqual(
+            owned[0].getMessage(),
+            "房间重载重试已耗尽：operation=reload_room outcome=exhausted "
+            "attempt=1 error_type=RuntimeError",
+        )
+        self.assertIsNotNone(owned[0].exc_info)
+        conn = sqlite3.connect(self.path)
+        try:
+            rows = conn.execute("SELECT level, message FROM log").fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [("ERROR", owned[0].getMessage())])
+        self.assertNotIn("third-party raw failure", rows[0][1])
 
     def test_agent_action_sqlite_success_is_silent(self):
         agent = SimpleNamespace(
@@ -433,7 +485,7 @@ class TestBoundedSchedulerSummaries(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         debug.assert_called_once_with(
-            "task_type=%s scheduled_at=%s room_count=%s",
+            "宿舍排班任务已生成：task_type=%s scheduled_at=%s room_count=%s",
             TaskTypes.SHIFT_ON.name,
             (now - timedelta(minutes=8)).isoformat(timespec="seconds"),
             1,
@@ -462,7 +514,7 @@ class TestBoundedSchedulerSummaries(unittest.TestCase):
 
         self.assertEqual(plan["dormitory_1"][0], "甲")
         debug.assert_called_once_with(
-            "room=%s moved_operator_count=%s", "dormitory_1", 1
+            "宿舍排序完成：room=%s moved_operator_count=%s", "dormitory_1", 1
         )
         self.assertNotIn("Dormitory(", str(debug.call_args_list))
 
@@ -510,7 +562,7 @@ class TestBoundedOperatorSummaries(unittest.TestCase):
             operators.add(Operator("但书", ""))
 
         debug.assert_called_once_with(
-            "operator=%s refresh_rooms=%s",
+            "干员刷新房间已记录：operator=%s refresh_rooms=%s",
             "但书",
             ",".join(f"room_{index}" for index in range(8)),
         )
@@ -560,7 +612,8 @@ class TestBoundedOperatorSummaries(unittest.TestCase):
 
         callback.assert_called_once_with(operator)
         debug.assert_called_once_with(
-            "operator=%s room=%s refresh_room_count=%s refresh_mood=%s",
+            "干员当前房间已更新：operator=%s room=%s "
+            "refresh_room_count=%s refresh_mood=%s",
             "但书",
             "room_1_2",
             1,

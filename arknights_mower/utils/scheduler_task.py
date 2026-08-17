@@ -299,7 +299,7 @@ def generate_plan_by_drom(tasks, op_data):
     merge_release_dorm(result, interval)
     for task in result:
         logger.debug(
-            "task_type=%s scheduled_at=%s room_count=%s",
+            "宿舍排班任务已生成：task_type=%s scheduled_at=%s room_count=%s",
             task.type.name,
             task.time.isoformat(timespec="seconds"),
             min(len(task.plan), 64),
@@ -346,7 +346,7 @@ def plan_metadata(op_data, tasks):
     new_task = {}
     for group_name, dorms in grouped_dorms.items():
         logger.debug(
-            "phase=%s room_count=%s operator_count=%s",
+            "排班计划摘要已生成：phase=%s room_count=%s operator_count=%s",
             "group",
             len({dorm.position[0] for dorm in dorms}),
             min(len(dorms), 64),
@@ -395,7 +395,7 @@ def plan_metadata(op_data, tasks):
                 default=None,
             )
             logger.debug(
-                "phase=%s room_count=%s operator_count=%s",
+                "排班计划摘要已更新：phase=%s room_count=%s operator_count=%s",
                 "timing",
                 len({dorm.position[0] for dorm in high_dorms}),
                 min(len(high_dorms), 64),
@@ -515,7 +515,7 @@ def try_reorder(op_data, new_plan):
                 plan[room_name][idx] = room.name
     for room_name, operators in plan.items():
         logger.debug(
-            "room=%s moved_operator_count=%s",
+            "宿舍排序完成：room=%s moved_operator_count=%s",
             room_name,
             sum(name != "Current" for name in operators),
         )
@@ -537,7 +537,11 @@ def try_workshop_tasks(op_data, tasks):
                 agent = op_data.operators[item.operator]
                 valid = agent.mood > 22
             else:
-                logger.info("task=%s state=%s", "workshop", "operator_added")
+                logger.info(
+                    "加工站干员已加入：task=%s state=%s",
+                    "workshop",
+                    "operator_added",
+                )
                 valid = True
                 op_data.add(Operator(item.operator, ""))
             match = False
@@ -592,7 +596,11 @@ def try_workshop_tasks(op_data, tasks):
                     task_type=TaskTypes.WORKSHOP, meta_data=item.operator
                 )
                 tasks.append(task)
-                logger.info("task=%s state=%s", "workshop", "scheduled")
+                logger.info(
+                    "加工站任务已安排：task=%s state=%s",
+                    "workshop",
+                    "scheduled",
+                )
             else:
                 continue
 
@@ -645,12 +653,17 @@ def try_add_release_dorm(plan, time, op_data, tasks):
                             plan[value.position[0]] = ["Current"] * 5
                         plan[value.position[0]][value.position[1]] = rest[2]
             if plan:
-                logger.info("task=%s state=%s", "release_dorm", "scheduled")
+                logger.info(
+                    "宿舍释放任务已安排：task=%s state=%s",
+                    "release_dorm",
+                    "scheduled",
+                )
                 task = SchedulerTask(task_plan=plan)
                 tasks.append(task)
         except Exception as ex:
             logger.exception(
-                "operation=release_dorm_plan outcome=failed error_type=%s",
+                "宿舍释放计划生成失败：operation=release_dorm_plan "
+                "outcome=failed error_type=%s",
                 type(ex).__name__,
             )
 
@@ -673,7 +686,11 @@ def add_release_dorm(tasks, op_data, name):
                 meta_data=name,
             )
             tasks.append(task)
-            logger.info("task=%s state=%s", "release_dorm", "scheduled")
+            logger.info(
+                "宿舍释放任务已安排：task=%s state=%s",
+                "release_dorm",
+                "scheduled",
+            )
 
 
 def check_dorm_ordering(tasks, op_data):
@@ -730,7 +747,11 @@ def check_dorm_ordering(tasks, op_data):
                 extra_plan[k] = v
             for k, v in extra_plan.items():
                 extra_plan[k] = [item for item in v if item != ""]
-            logger.info("task=%s state=%s", "dorm_reorder", "scheduled")
+            logger.info(
+                "宿舍排序任务已安排：task=%s state=%s",
+                "dorm_reorder",
+                "scheduled",
+            )
             task = SchedulerTask(
                 task_plan=extra_plan,
                 time=tasks[0].time - timedelta(seconds=1),

@@ -52,7 +52,7 @@ def publish_scene_result(
         filename = publish_scene_snapshot(scene, screenshot)
     except Exception:
         logger.error(
-            "operation=%s result=%s",
+            "场景快照写入失败：operation=%s result=%s",
             "scene_snapshot",
             "failed",
             exc_info=True,
@@ -61,7 +61,7 @@ def publish_scene_result(
     if filename is None:
         return None
     logger.info(
-        "operation=%s result=%s representatives=%s",
+        "场景识别完成：operation=%s result=%s representatives=%s",
         "scene",
         result,
         _format_visual_facts(facts),

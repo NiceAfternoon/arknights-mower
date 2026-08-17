@@ -80,7 +80,7 @@ def add_task():
         except ValueError as e:
             return str(e)
         except Exception as e:
-            logger.exception("operation=add_task result=failed")
+            logger.exception("任务添加失败：operation=add_task result=failed")
             return str(e)
     else:
         if base_scheduler and mower_thread and mower_thread.is_alive():

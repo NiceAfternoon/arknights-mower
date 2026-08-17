@@ -298,7 +298,11 @@ class Operators:
                         self.dorm.append(Dormitory((dorm, _idx)))
                         added.append(dorm + str(_idx))
             if config.conf.dorm_order == "":
-                logger.debug("config_section=%s issue_count=%s", "dorm_order", 0)
+                logger.debug(
+                    "宿舍顺序配置校验完成：config_section=%s issue_count=%s",
+                    "dorm_order",
+                    0,
+                )
                 config.conf.dorm_order = ",".join(
                     [
                         dorm.position[0] + "_" + str(dorm.position[1])
@@ -626,7 +630,7 @@ class Operators:
         )
         if refresh_rooms:
             logger.debug(
-                "operator=%s refresh_rooms=%s",
+                "干员刷新房间已记录：operator=%s refresh_rooms=%s",
                 _bounded_log_identifier(operator.name, 64),
                 ",".join(
                     _bounded_log_identifier(room, 32) for room in refresh_rooms[:8]
@@ -811,7 +815,7 @@ class Operators:
             tested_sequence.append(key)
             validation_msg = self.swap_plan(condition, True)
             logger.debug(
-                "condition=%s matched=%s",
+                "干员条件校验完成：condition=%s matched=%s",
                 "backup_plan",
                 str(validation_msg is None).lower(),
             )
@@ -926,7 +930,8 @@ class Operator:
                     else 0
                 )
                 logger.debug(
-                    "operator=%s room=%s refresh_room_count=%s refresh_mood=%s",
+                    "干员当前房间已更新：operator=%s room=%s "
+                    "refresh_room_count=%s refresh_mood=%s",
                     _bounded_log_identifier(self.name, 64),
                     _bounded_log_identifier(self._current_room, 32),
                     min(refresh_room_count, 8),

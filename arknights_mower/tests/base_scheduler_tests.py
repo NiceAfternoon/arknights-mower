@@ -130,7 +130,8 @@ class TestBaseScheduler(unittest.TestCase):
         debug.assert_not_called()
         error.assert_not_called()
         info.assert_called_once_with(
-            "maa_event=TaskChainCompleted task_chain=Fight outcome=completed"
+            "MAA任务执行完成：maa_event=TaskChainCompleted "
+            "task_chain=Fight outcome=completed"
         )
 
     @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
@@ -175,7 +176,9 @@ class TestBaseScheduler(unittest.TestCase):
             result = solver.get_free_list([])
 
         self.assertEqual(len(result), 300)
-        debug.assert_called_once_with("available_operator_count=%s", 256)
+        debug.assert_called_once_with(
+            "可用干员数量已统计：available_operator_count=%s", 256
+        )
 
     @patch.object(BaseSchedulerSolver, "__init__", lambda x: None)
     def test_run_projects_only_the_selected_task_fact(self):

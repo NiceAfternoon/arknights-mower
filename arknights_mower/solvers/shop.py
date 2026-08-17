@@ -21,7 +21,7 @@ for i in range(2):
 
 class CreditShop(SceneGraphSolver):
     def run(self):
-        logger.info("task=%s state=%s", "credit_shop", "started")
+        logger.info("信用商店任务已启动：task=%s state=%s", "credit_shop", "started")
         super().run()
 
     def number(

@@ -119,7 +119,8 @@ def save_action_to_sqlite_decorator(func):
 
         except sqlite3.Error as e:
             logger.exception(
-                "operation=agent_action_write outcome=failed error_type=%s",
+                "干员动作写入失败：operation=agent_action_write "
+                "outcome=failed error_type=%s",
                 type(e).__name__,
             )
 
@@ -169,7 +170,8 @@ def save_state_to_db(saved_state):
 
     except sqlite3.Error as e:
         logger.exception(
-            "operation=state_cache_write outcome=failed error_type=%s",
+            "状态缓存写入失败：operation=state_cache_write "
+            "outcome=failed error_type=%s",
             type(e).__name__,
         )
         return False
@@ -204,7 +206,7 @@ def load_state():
             loaded_state = pickle.loads(row[0])  # Deserialize the state
     except sqlite3.Error as e:
         logger.exception(
-            "operation=state_cache_read outcome=failed error_type=%s",
+            "状态缓存读取失败：operation=state_cache_read outcome=failed error_type=%s",
             type(e).__name__,
         )
 
@@ -227,11 +229,16 @@ def clear_data(date_time):
                 "DELETE FROM agent_action WHERE `current_time` < ?", (date_time_str,)
             )
             connection.commit()
-        logger.info("task=%s state=%s", "agent_action_cleanup", "completed")
+        logger.info(
+            "干员动作清理完成：task=%s state=%s",
+            "agent_action_cleanup",
+            "completed",
+        )
 
     except sqlite3.Error as e:
         logger.exception(
-            "operation=agent_action_cleanup outcome=failed error_type=%s",
+            "干员动作清理失败：operation=agent_action_cleanup "
+            "outcome=failed error_type=%s",
             type(e).__name__,
         )
 
@@ -439,7 +446,8 @@ def save_trading_info(func):
                     connection.commit()
         except sqlite3.Error as e:
             logger.exception(
-                "operation=trading_history_write outcome=failed error_type=%s",
+                "订单历史写入失败：operation=trading_history_write "
+                "outcome=failed error_type=%s",
                 type(e).__name__,
             )
         return result
@@ -493,7 +501,7 @@ def get_trading_history(start_date: str, end_date: str):
 
     except sqlite3.Error as e:
         logger.exception(
-            "operation=trading_report outcome=failed error_type=%s",
+            "订单报告查询失败：operation=trading_report outcome=failed error_type=%s",
             type(e).__name__,
         )
     result_list = [
@@ -573,7 +581,7 @@ def _project_log_fact(
             conn.commit()
     except Exception as exc:
         logger.exception(
-            "event=sqlite_projection state=failed error_type=%s",
+            "SQLite日志投影失败：event=sqlite_projection state=failed error_type=%s",
             type(exc).__name__,
         )
 
@@ -615,7 +623,12 @@ def emit_log_event(
                 f"adjusted={str(task_fact['adjusted']).lower()}",
             ]
         )
-    message = " ".join(fields)
+    prefixes = {
+        ("task_dispatch", "started"): "调度任务开始派发：",
+        ("missed_order", "detected"): "跑单任务确认漏单：",
+    }
+    prefix = prefixes[(event, state)]
+    message = prefix + " ".join(fields)
     _project_log_fact(
         message,
         level=level,
@@ -646,8 +659,32 @@ def emit_retry_outcome(
         fields.append(
             "error_type=" + _bounded_identifier(type(error).__name__, maximum=64)
         )
+    operation_labels = {
+        "scene_recovery": "场景识别",
+        "craft_material": "材料加工",
+        "infra_main": "基建任务",
+        "infra_planning": "基建排班",
+        "mood_room_read": "房间心情读取",
+        "generate_product": "加工站生产",
+        "plan_solver": "基建排班",
+        "backup_plan": "备用排班",
+        "clue": "线索任务",
+        "arrange_room": "房间排班",
+        "reload_room": "房间重载",
+        "maa_resource_update": "MAA资源更新",
+        "maa_plan": "MAA任务",
+        "skland_sign_in": "森空岛签到",
+        "mower_local_operation": "本地作战",
+        "sign_in": "签到任务",
+        "inventory_scan": "仓库扫描",
+    }
+    outcome_text = {
+        "recovered": "重试后恢复：",
+        "exhausted": "重试已耗尽：",
+    }[outcome]
+    prefix = operation_labels.get(operation, "业务操作") + outcome_text
     _project_log_fact(
-        " ".join(fields),
+        prefix + " ".join(fields),
         level="WARNING" if outcome == "recovered" else "ERROR",
         task_fact=_scheduler_task_fact(task) if task is not None else None,
         exc_info=error is not None,

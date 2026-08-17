@@ -61,7 +61,9 @@ class Client:
                 "未检测到相应设备。请运行 `adb devices` 确认列表中列出了目标模拟器或设备。"
             )
             raise RuntimeError("Device connection failure")
-        logger.info("operation=%s result=%s", "adb_connect", "connected")
+        logger.info(
+            "ADB设备连接成功：operation=%s result=%s", "adb_connect", "connected"
+        )
 
     def __choose_devices(self) -> Optional[str]:
         """choose available devices"""

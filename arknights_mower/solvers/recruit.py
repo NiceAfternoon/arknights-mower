@@ -91,7 +91,7 @@ class RecruitSolver(SceneGraphSolver):
                         + "]:{}".format(",".join(agent))
                     )
         if self.agent_choose or self.result_agent:
-            logger.info("task=%s state=%s", "recruit", "completed")
+            logger.info("公开招募汇总已完成：task=%s state=%s", "recruit", "completed")
             send_message(
                 recruit_template.render(
                     recruit_results=recruit_results,
@@ -107,7 +107,11 @@ class RecruitSolver(SceneGraphSolver):
     def transition(self) -> bool:
         if (scene := self.scene()) == Scene.RECRUIT_MAIN:
             if self.recruit_index > 4:
-                logger.info("task=%s state=%s", "recruit", "slots_complete")
+                logger.info(
+                    "公开招募槽位已处理：task=%s state=%s",
+                    "recruit",
+                    "slots_complete",
+                )
                 return True
             job_requirements_scope = [
                 va(

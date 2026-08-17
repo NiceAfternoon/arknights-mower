@@ -1,5 +1,5 @@
 {
-  "backendData": "2026-08-15 12:00:00,000 INFO operation=scene result=index\ntraceback continuation",
-  "desktopLog": "2026-08-15 12:00:00,000 INFO operation=scene result=index\ntraceback continuation",
-  "mobileLog": "INFO operation=scene result=index\ntraceback continuation"
+  "backendData": "2026-08-15 12:00:00,000 INFO 场景识别完成：operation=scene result=index\ntraceback continuation",
+  "desktopLog": "2026-08-15 12:00:00,000 INFO 场景识别完成：operation=scene result=index\ntraceback continuation",
+  "mobileLog": "INFO 场景识别完成：operation=scene result=index\ntraceback continuation"
 }

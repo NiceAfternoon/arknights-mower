@@ -383,7 +383,7 @@ def _log_transition(plan, to_status, trigger, **fields):
         "result=updated",
     ]
     parts.extend(f"{k}={v}" for k, v in fields.items())
-    logger.info(" ".join(parts))
+    logger.info("专精计划状态已更新：" + " ".join(parts))
 
 
 def run_mastery_task(solver):
@@ -478,7 +478,7 @@ def _exit_failed(solver, plan, reason, step_level=None):
 
     update_plan_status(plan["id"], "failed", failed_reason=reason)
     logger.error(
-        "operation=mastery_start "
+        "专精训练启动失败：operation=mastery_start "
         f"plan_id={plan['id']} from_state={plan.get('status')} "
         f"to_state=failed result=failed reason={reason}"
     )
@@ -502,9 +502,10 @@ def _exit_arranging_timeout(solver, plan, stats, stuck_scene, step_level=None):
     update_plan_status(plan["id"], "failed", failed_reason=reason)
     label = _plan_fail_label(plan, step_level)
     logger.error(
-        "operation=mastery_start "
+        "专精训练启动超时：operation=mastery_start "
         f"plan_id={plan['id']} from_state={plan.get('status')} "
-        f"to_state=failed result=timeout last_scene={scene_name} {stats}"
+        f"to_state=failed result=timeout last_scene={scene_name} {stats}；"
+        "将在下次仓库扫描后重试"
     )
     send_message(
         f"{label}：开始训练超时，最后持续停留在『{scene_name}』页面，未能确认训练是否开始，"
@@ -743,9 +744,10 @@ def _start_new_training(solver, plan, arrange_support=True, room=None, step_leve
             msg = f"{_plan_fail_label(plan)} 材料不足"
             update_plan_status(plan["id"], "failed", failed_reason="材料不足")
             logger.error(
-                "operation=mastery_start "
+                "专精训练启动失败：operation=mastery_start "
                 f"plan_id={plan['id']} from_state={plan.get('status')} "
-                "to_state=failed result=failed reason=insufficient_material"
+                "to_state=failed result=failed reason=insufficient_material；"
+                "下一步：请补足专精材料后重试"
             )
             from arknights_mower.utils.email import send_message
 
@@ -906,9 +908,10 @@ def _confirm_training_started(
             msg = f"{_plan_fail_label(plan)} 材料不足"
             update_plan_status(plan["id"], "failed", failed_reason="材料不足")
             logger.error(
-                "operation=mastery_start "
+                "专精训练启动失败：operation=mastery_start "
                 f"plan_id={plan['id']} from_state={plan.get('status')} "
-                "to_state=failed result=failed reason=insufficient_material"
+                "to_state=failed result=failed reason=insufficient_material；"
+                "下一步：请补足专精材料后重试"
             )
             send_message(msg, level="ERROR")
             solver.back()
@@ -936,6 +939,7 @@ def _arrange_support(solver, plan, step_level=None):
         solver.choose_train([support_name, "Current"])
     except Exception:
         logger.warning(
+            "专精协助位安排失败，继续当前流程："
             f"operation=mastery_support_arrange plan_id={plan['id']} result=degraded"
         )
 
@@ -1145,6 +1149,7 @@ def run_swap_support(solver):
                     solver.choose_train([operator, "Current"])
                 except Exception:
                     logger.warning(
+                        "专精协助位补位失败，继续收取安排："
                         "operation=mastery_support_arrange "
                         f"plan_id={plan['id']} result=degraded"
                     )
@@ -1212,6 +1217,7 @@ def run_swap_support(solver):
                 solver.choose_train([operator, "Current"])
             except Exception:
                 logger.warning(
+                    "专精协助位纠错失败，继续收取安排："
                     "operation=mastery_support_arrange "
                     f"plan_id={plan['id']} result=degraded"
                 )
@@ -1275,7 +1281,10 @@ def run_swap_support(solver):
 
 
 def _log_swap_success(plan):
-    logger.info(f"operation=mastery_support_swap plan_id={plan['id']} result=success")
+    logger.info(
+        "专精协助位换人成功："
+        f"operation=mastery_support_swap plan_id={plan['id']} result=success"
+    )
 
 
 def _try_swap(solver, plan, swap_target) -> bool:
@@ -1337,7 +1346,7 @@ def _retry_swap_in_place(solver, plan, route, swap_target) -> bool:
     while retries < SWAP_RETRY_LIMIT:
         if not _swap_still_worthwhile(solver, plan, route):
             logger.warning(
-                "operation=mastery_support_swap "
+                "专精协助位换人已放弃：operation=mastery_support_swap "
                 f"plan_id={plan['id']} result=degraded reason=not_worthwhile"
             )
             _notify_swap_giveup(solver, plan)
@@ -1346,12 +1355,12 @@ def _retry_swap_in_place(solver, plan, route, swap_target) -> bool:
         solver.sleep(1)
         if _try_swap(solver, plan, swap_target):
             logger.warning(
-                "operation=mastery_support_swap "
+                "专精协助位换人重试后恢复：operation=mastery_support_swap "
                 f"plan_id={plan['id']} result=recovered retries={retries}"
             )
             return True
     logger.error(
-        "operation=mastery_support_swap "
+        "专精协助位换人重试已耗尽：operation=mastery_support_swap "
         f"plan_id={plan['id']} result=exhausted retries={SWAP_RETRY_LIMIT}"
     )
     _notify_swap_giveup(solver, plan)
@@ -1459,5 +1468,8 @@ def _get_plan_route(plan, step_level=None) -> dict | None:
         prof_cn = PROF_MAP.get(prof_en, prof_en)
         return get_route_config(prof_cn, step_level or plan["target_level"])
     except Exception:
-        logger.exception(f"operation=mastery_route plan_id={plan['id']} result=failed")
+        logger.exception(
+            "专精路线读取失败："
+            f"operation=mastery_route plan_id={plan['id']} result=failed"
+        )
         return None

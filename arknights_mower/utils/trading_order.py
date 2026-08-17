@@ -71,7 +71,8 @@ class TradingOrder:
                 return self
         except Exception as e:
             logger.exception(
-                "operation=trading_order_recognition outcome=failed error_type=%s",
+                "订单识别失败：operation=trading_order_recognition "
+                "outcome=failed error_type=%s",
                 type(e).__name__,
             )
 
@@ -95,13 +96,15 @@ class TradingOrder:
                         failed_count += 1
             if failed_count:
                 logger.warning(
-                    "operation=trading_history_restore outcome=partial failed_count=%s",
+                    "订单历史恢复部分失败：operation=trading_history_restore "
+                    "outcome=partial failed_count=%s",
                     failed_count,
                 )
             return f"分析{count}个订单历史记录完成"
         except Exception as e:
             logger.exception(
-                "operation=trading_history_restore outcome=failed error_type=%s",
+                "订单历史恢复失败：operation=trading_history_restore "
+                "outcome=failed error_type=%s",
                 type(e).__name__,
             )
             return "分析订单历史记录失败，请反馈问题"

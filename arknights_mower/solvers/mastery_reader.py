@@ -452,10 +452,12 @@ def _retry_ocr(solver) -> RoomState:
                 _fill_slots_and_protection(solver, room)
             if retry > 1:
                 logger.warning(
+                    "训练室识别重试后恢复："
                     f"operation=mastery_room_read result=recovered retries={retry}"
                 )
             return room
     logger.warning(
+        "训练室识别重试已耗尽，按训练中保守处理："
         "operation=mastery_room_read result=exhausted retries=5 fallback=training"
     )
     return RoomState("training", first or RoomPanel(), read_failed=True)
@@ -742,7 +744,7 @@ def _reset_to_idle(solver, plan):
     previous = plan["status"]
     if update_plan_status(plan["id"], "idle"):
         logger.info(
-            "operation=mastery_plan_transition "
+            "过期专精安排已重置为空闲：operation=mastery_plan_transition "
             f"plan_id={plan['id']} from_state={previous} to_state=idle "
             "trigger=stale_arranging result=updated"
         )
@@ -809,7 +811,7 @@ def _recover_to_training(solver, plan, room):
         plan["expires_at"] = expires_at
     if updated:
         logger.info(
-            "operation=mastery_plan_transition "
+            "专精计划已按截图恢复训练中：operation=mastery_plan_transition "
             f"plan_id={plan['id']} from_state={prev} to_state=training "
             "trigger=authoritative_screenshot result=updated"
         )
@@ -1046,7 +1048,7 @@ def _promote_plan(solver, plan):
             update_plan_priority(p["id"], p["priority"] + 1)
     if updated:
         logger.info(
-            "operation=mastery_plan_priority "
+            "专精计划优先级已提升：operation=mastery_plan_priority "
             f"plan_id={plan['id']} result=updated priority={min_p}"
         )
 
@@ -1129,21 +1131,21 @@ def _reconcile_after_collect(solver, plan, panel: RoomPanel):
     if tier == plan["target_level"]:
         if update_plan_status(plan["id"], "completed"):
             logger.info(
-                "operation=mastery_plan_transition "
+                "专精计划收取后已完成：operation=mastery_plan_transition "
                 f"plan_id={plan['id']} from_state={plan['status']} "
                 f"to_state=completed trigger=collect tier={tier} result=updated"
             )
         return None
     if tier > plan["target_level"]:
         logger.warning(
-            "operation=mastery_collect "
+            "专精收取档位异常，计划保持空闲：operation=mastery_collect "
             f"plan_id={plan['id']} result=degraded tier={tier} "
             f"target_tier={plan['target_level']} action=keep_idle"
         )
     updated = update_plan_status(plan["id"], "idle")
     if tier < plan["target_level"] and updated:
         logger.info(
-            "operation=mastery_plan_transition "
+            "专精计划收取后已转为空闲：operation=mastery_plan_transition "
             f"plan_id={plan['id']} from_state={plan['status']} "
             f"to_state=idle trigger=collect tier={tier} result=updated"
         )
@@ -1250,7 +1252,7 @@ def _reconcile(
         if active is not None:
             if update_plan_status(active["id"], "idle"):
                 logger.info(
-                    "operation=mastery_plan_transition "
+                    "专精计划已按空闲房间重置：operation=mastery_plan_transition "
                     f"plan_id={active['id']} from_state={active['status']} "
                     "to_state=idle trigger=authoritative_empty_room result=updated"
                 )

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "description": "#121 deterministic seven-record fixture; this is not a real two-hour sample.",
+  "encoding": "UTF-8",
+  "line_ending": "CRLF",
+  "envelope": "2026-08-17 09:30:00,000 fixture.py:1 {level} contract: {message}",
+  "records": [
+    {
+      "level": "INFO",
+      "before": "event=task_dispatch state=started task_type=RUN_ORDER scheduled_at=2026-08-17T09:35:00 room=room_1_1 room_count=1 adjusted=false",
+      "after": "调度任务开始派发：event=task_dispatch state=started task_type=RUN_ORDER scheduled_at=2026-08-17T09:35:00 room=room_1_1 room_count=1 adjusted=false"
+    },
+    {
+      "level": "INFO",
+      "before": "operation=scene result=index representatives=1",
+      "after": "场景识别完成：operation=scene result=index representatives=1"
+    },
+    {
+      "level": "INFO",
+      "before": "operation=mastery_plan_transition plan_id=1 from_state=idle to_state=training trigger=countdown_confirmed result=updated",
+      "after": "专精计划状态已更新：operation=mastery_plan_transition plan_id=1 from_state=idle to_state=training trigger=countdown_confirmed result=updated"
+    },
+    {
+      "level": "WARNING",
+      "before": "operation=scene_recovery outcome=recovered attempt=2",
+      "after": "场景识别重试后恢复：operation=scene_recovery outcome=recovered attempt=2"
+    },
+    {
+      "level": "ERROR",
+      "before": "operation=arrange_room outcome=exhausted attempt=4 error_type=ValueError",
+      "after": "房间排班重试已耗尽：operation=arrange_room outcome=exhausted attempt=4 error_type=ValueError"
+    },
+    {
+      "level": "ERROR",
+      "before": "operation=reload_room outcome=exhausted attempt=1 error_type=RuntimeError",
+      "after": "房间重载重试已耗尽：operation=reload_room outcome=exhausted attempt=1 error_type=RuntimeError"
+    },
+    {
+      "level": "ERROR",
+      "before": "operation=mastery_start plan_id=1 from_state=arranging to_state=failed result=failed reason=insufficient_material",
+      "after": "专精训练启动失败：operation=mastery_start plan_id=1 from_state=arranging to_state=failed result=failed reason=insufficient_material；下一步：请补足专精材料后重试"
+    }
+  ]
+}

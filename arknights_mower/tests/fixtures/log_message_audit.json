@@ -1,0 +1,1717 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "38560876465a273fc5457c468452e7f416c337dc",
+  "scope": {
+    "frozen_ledger_rows": 749,
+    "scope_required": 278,
+    "scope_consistency": 471,
+    "direct_project_english_before": 142,
+    "dynamic_project_english_before": 4,
+    "project_english_before": 146
+  },
+  "judgement_rule": "Only explicitly pinned project-owned producers are audited; ASCII presence alone is not a violation.",
+  "allowed_english_categories": [
+    "log_level",
+    "stable_field_name",
+    "finite_enum_or_event_id",
+    "protocol_or_api_name",
+    "exception_or_symbol_name",
+    "path_device_or_tool_name",
+    "third_party_or_raw_error"
+  ],
+  "direct_producer_groups": [
+    {
+      "path": "arknights_mower/__main__.py",
+      "function": "main",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/__main__.py",
+      "function": "simulate",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/__main__.py",
+      "function": "simulate",
+      "method": "info",
+      "field_names": [
+        "task_type",
+        "scheduled_at",
+        "room_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_mixin.py",
+      "function": "profession_filter",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "_auto_schedule_mastery_after_scan",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_arrange",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_arrange_room",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "owner"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_get_mood",
+      "method": "debug",
+      "field_names": [
+        "mood_plan_state",
+        "operator_count"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_get_mood",
+      "method": "info",
+      "field_names": [
+        "mood_plan_state",
+        "operator_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_get_mood",
+      "method": "info",
+      "field_names": [
+        "room",
+        "operators"
+      ],
+      "count": 3,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "agent_get_mood",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "owner"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "choose_agent",
+      "method": "info",
+      "field_names": [
+        "room",
+        "operators"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "choose_agent",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "choose_train",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "owner"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "clue_new",
+      "method": "info",
+      "field_names": [
+        "clue",
+        "pool",
+        "candidate_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "clue_new",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 4,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "craft_material",
+      "method": "debug",
+      "field_names": [
+        "formula",
+        "material_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "current_room_changed",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "drone",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "generate_product",
+      "method": "debug",
+      "field_names": [
+        "product",
+        "facility",
+        "operator_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "generate_product",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "get_agent_from_room",
+      "method": "debug",
+      "field_names": [
+        "operator",
+        "stop_recording"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "get_agent_from_room",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "get_free_list",
+      "method": "debug",
+      "field_names": [
+        "available_operator_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "get_resting_plan",
+      "method": "debug",
+      "field_names": [
+        "rest_need",
+        "assigned"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "get_run_order_time",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "infra_main",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "maa_plan_solver",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 3,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "mower_plan_solver",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state",
+        "stage_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "overtake_room",
+      "method": "debug",
+      "field_names": [
+        "dorm_release_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "overtake_room",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "plan_solver",
+      "method": "debug",
+      "field_names": [
+        "plan_kind",
+        "room_count",
+        "operator_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "plan_solver",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "recruit_plan_solver",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "refresh_drained_time",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "refresh_run_order_time",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "rest_until_next_task",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "rest_until_next_task",
+      "method": "info",
+      "field_names": [
+        "task_type",
+        "scheduled_at",
+        "room_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "resting",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "run_order_solver",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/credit.py",
+      "function": "run",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mail.py",
+      "function": "run",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_arrange_support",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_confirm_training_started",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "result",
+        "reason"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_exit_arranging_timeout",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "result",
+        "last_scene"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_exit_failed",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "result",
+        "reason"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_get_plan_route",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_log_swap_success",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_retry_swap_in_place",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result",
+        "retries"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_retry_swap_in_place",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result",
+        "reason"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_retry_swap_in_place",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result",
+        "retries"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_start_new_training",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "result",
+        "reason"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "run_swap_support",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_promote_plan",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result",
+        "priority"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_reconcile",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "trigger",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_reconcile_after_collect",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "trigger",
+        "tier",
+        "result"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_reconcile_after_collect",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "result",
+        "tier",
+        "target_tier",
+        "action"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_recover_to_training",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "trigger",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_reset_to_idle",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "plan_id",
+        "from_state",
+        "to_state",
+        "trigger",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_retry_ocr",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "retries"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/mastery_reader.py",
+      "function": "_retry_ocr",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "retries",
+        "fallback"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "_project_log_fact",
+      "method": "exception",
+      "field_names": [
+        "event",
+        "state",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "clear_data",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "clear_data",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "get_trading_history",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "load_state",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "save_state_to_db",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "wrapper",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/recruit.py",
+      "function": "run",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/recruit.py",
+      "function": "transition",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/shop.py",
+      "function": "run",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/device/adb_client/core.py",
+      "function": "__init_device",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/device/device.py",
+      "function": "exit",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/device/device.py",
+      "function": "get_droidcast_classpath",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/device/device.py",
+      "function": "launch",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/device/device.py",
+      "function": "start_droidcast",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/graph.py",
+      "function": "back_to_index",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/graph.py",
+      "function": "back_to_infrastructure",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/log.py",
+      "function": "get_log_by_time",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "result",
+        "skipped_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#51"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/log.py",
+      "function": "screenshot_cleanup",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "delete_plan",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_active_plan",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_all_history",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_all_plans",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_all_routes",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_failed_plans",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_next_idle_plan",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_plan_by_id",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_route",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "get_route_settings",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "insert_plan",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "retry_failed_plans",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "save_route",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "save_route_settings",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "should_notify",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "update_plan_priority",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "update_plan_status",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "action",
+        "result",
+        "status"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/mastery_db.py",
+      "function": "update_plan_status",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "action",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/operators.py",
+      "function": "add",
+      "method": "debug",
+      "field_names": [
+        "operator",
+        "refresh_rooms"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/operators.py",
+      "function": "current_room",
+      "method": "debug",
+      "field_names": [
+        "operator",
+        "room",
+        "refresh_room_count",
+        "refresh_mood"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/operators.py",
+      "function": "init_and_validate",
+      "method": "debug",
+      "field_names": [
+        "config_section",
+        "issue_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/operators.py",
+      "function": "validate_condition",
+      "method": "debug",
+      "field_names": [
+        "condition",
+        "matched"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/recognize.py",
+      "function": "publish_scene_result",
+      "method": "error",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/recognize.py",
+      "function": "publish_scene_result",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result",
+        "representatives"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#49"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "add_release_dorm",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "check_dorm_ordering",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "generate_plan_by_drom",
+      "method": "debug",
+      "field_names": [
+        "task_type",
+        "scheduled_at",
+        "room_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "plan_metadata",
+      "method": "debug",
+      "field_names": [
+        "phase",
+        "room_count",
+        "operator_count"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "try_add_release_dorm",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "try_add_release_dorm",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "try_reorder",
+      "method": "debug",
+      "field_names": [
+        "room",
+        "moved_operator_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/scheduler_task.py",
+      "function": "try_workshop_tasks",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 2,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/skland.py",
+      "function": "log",
+      "method": "info",
+      "field_names": [
+        "task",
+        "state"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/trading_order.py",
+      "function": "restore_history",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/trading_order.py",
+      "function": "restore_history",
+      "method": "warning",
+      "field_names": [
+        "operation",
+        "outcome",
+        "failed_count"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/utils/trading_order.py",
+      "function": "save",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "outcome",
+        "error_type"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "#50"
+      ]
+    },
+    {
+      "path": "arknights_mower/views/db_admin.py",
+      "function": "delete",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/views/db_admin.py",
+      "function": "delete",
+      "method": "info",
+      "field_names": [
+        "operation",
+        "result",
+        "categories",
+        "rows"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/views/db_admin.py",
+      "function": "stats",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    },
+    {
+      "path": "arknights_mower/views/task.py",
+      "function": "add_task",
+      "method": "exception",
+      "field_names": [
+        "operation",
+        "result"
+      ],
+      "count": 1,
+      "origin_slices": [
+        "alpha_increment"
+      ]
+    }
+  ],
+  "dynamic_producers": [
+    {
+      "path": "arknights_mower/solvers/mastery.py",
+      "function": "_log_transition",
+      "origin_slice": "alpha_increment",
+      "required_chinese": [
+        "专精计划状态已更新："
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "emit_log_event",
+      "origin_slice": "#50",
+      "required_chinese": [
+        "调度任务开始派发：",
+        "跑单任务确认漏单："
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/record.py",
+      "function": "emit_retry_outcome",
+      "origin_slice": "#50",
+      "required_chinese": [
+        "重试后恢复：",
+        "重试已耗尽："
+      ]
+    },
+    {
+      "path": "arknights_mower/solvers/base_schedule.py",
+      "function": "log_maa",
+      "origin_slice": "#50",
+      "required_chinese": [
+        "MAA任务执行完成："
+      ]
+    }
+  ]
+}

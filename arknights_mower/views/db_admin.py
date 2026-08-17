@@ -75,7 +75,7 @@ def stats():
                 pass  # 表尚未创建（全新安装）→ active 按 0
             counts["mastery_plan_active"] = active
     except Exception as e:
-        logger.exception("operation=db_admin_stats result=failed")
+        logger.exception("数据库统计查询失败：operation=db_admin_stats result=failed")
         return {"error": str(e)}, 500
     return counts
 
@@ -114,12 +114,12 @@ def delete():
                     deleted[key] = 0
             conn.commit()
     except Exception as e:
-        logger.exception("operation=db_admin_delete result=failed")
+        logger.exception("数据库分类删除失败：operation=db_admin_delete result=failed")
         return {"error": str(e)}, 500
     for pid in plan_ids:
         _purge_plan_tasks(pid)
     logger.info(
-        "operation=db_admin_delete result=success "
+        "数据库分类删除成功：operation=db_admin_delete result=success "
         f"categories={len(keys)} rows={sum(deleted.values())}"
     )
     return {"deleted": deleted}

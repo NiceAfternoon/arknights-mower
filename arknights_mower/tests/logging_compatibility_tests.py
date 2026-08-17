@@ -145,7 +145,7 @@ with patch("logging.handlers.time.time", return_value=base_time + 3601):
                 """
 from arknights_mower.utils.log import logger
 
-logger.info("normal-exit-contract")
+logger.info("正常退出后日志可用")
 """,
                 data_dir,
             )
@@ -153,9 +153,7 @@ logger.info("normal-exit-contract")
             self.assertEqual(result.returncode, 0, result.stderr)
             runtime_log = data_dir / "log" / "runtime.log"
             self.assertTrue(runtime_log.is_file())
-            self.assertIn(
-                "normal-exit-contract", runtime_log.read_text(encoding="utf-8")
-            )
+            self.assertIn("正常退出后日志可用", runtime_log.read_text(encoding="utf-8"))
 
     def test_normal_mower_stop_completes_and_keeps_public_logger_available(self):
         import server
@@ -185,7 +183,7 @@ logger.info("normal-exit-contract")
                 capture_log_messages() as records,
             ):
                 response = server.app.test_client().get("/stop", headers=headers)
-                log_module.logger.info("post-normal-stop-contract")
+                log_module.logger.info("正常停止后日志可用")
 
             self.assertEqual(response.get_data(as_text=True), "true")
             self.assertFalse(thread.is_alive())
@@ -195,7 +193,7 @@ logger.info("normal-exit-contract")
             save.assert_called_once_with({})
             set_thread.assert_called_once_with(None)
             self.assertIn("成功停止mower线程", records)
-            self.assertIn("post-normal-stop-contract", records)
+            self.assertIn("正常停止后日志可用", records)
         finally:
             server.mower_thread = original_thread
             config.stop_mower.clear()
@@ -366,7 +364,7 @@ class WebSocketLogCompatibilityTests(unittest.TestCase):
             fixed_time = datetime(2026, 8, 15, 12).timestamp()
             with patch("time.time", return_value=fixed_time):
                 log_module.logger.info(
-                    "operation=scene result=index\ntraceback continuation"
+                    "场景识别完成：operation=scene result=index\ntraceback continuation"
                 )
 
             deadline = time.monotonic() + 5

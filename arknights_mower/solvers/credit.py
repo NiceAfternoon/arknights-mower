@@ -8,7 +8,7 @@ from arknights_mower.utils.recognize import Scene
 
 class CreditSolver(SceneGraphSolver):
     def run(self) -> None:
-        logger.info("task=%s state=%s", "visit_friend", "started")
+        logger.info("好友访问任务已启动：task=%s state=%s", "visit_friend", "started")
         self.wait_times = 5
         return super().run()
 

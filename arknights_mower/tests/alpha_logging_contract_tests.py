@@ -53,7 +53,8 @@ class TestMasteryRoomReadLogging(unittest.TestCase):
 
         self.assertEqual(room.state, "training")
         warning.assert_called_once_with(
-            "operation=mastery_room_read result=recovered retries=3"
+            "训练室识别重试后恢复：operation=mastery_room_read "
+            "result=recovered retries=3"
         )
 
     def test_ocr_retry_exhaustion_emits_one_summary(self):
@@ -67,7 +68,8 @@ class TestMasteryRoomReadLogging(unittest.TestCase):
 
         self.assertTrue(room.read_failed)
         warning.assert_called_once_with(
-            "operation=mastery_room_read result=exhausted retries=5 fallback=training"
+            "训练室识别重试已耗尽，按训练中保守处理：operation=mastery_room_read "
+            "result=exhausted retries=5 fallback=training"
         )
 
     def test_unchanged_training_state_is_silent(self):
@@ -105,7 +107,8 @@ class TestMasterySwapLogging(unittest.TestCase):
 
         self.assertTrue(result)
         warning.assert_called_once_with(
-            "operation=mastery_support_swap plan_id=7 result=recovered retries=2"
+            "专精协助位换人重试后恢复：operation=mastery_support_swap "
+            "plan_id=7 result=recovered retries=2"
         )
         error.assert_not_called()
 
@@ -123,7 +126,7 @@ class TestMasterySwapLogging(unittest.TestCase):
         self.assertFalse(result)
         warning.assert_not_called()
         error.assert_called_once_with(
-            "operation=mastery_support_swap plan_id=7 "
+            "专精协助位换人重试已耗尽：operation=mastery_support_swap plan_id=7 "
             f"result=exhausted retries={mastery.SWAP_RETRY_LIMIT}"
         )
 

@@ -248,7 +248,11 @@ class BaseMixin:
                 if retry > 5:
                     raise Exception("关闭职业筛选失败")
             if emit_result:
-                logger.info("operation=%s result=%s", "profession_filter", "closed")
+                logger.info(
+                    "职业筛选已关闭：operation=%s result=%s",
+                    "profession_filter",
+                    "closed",
+                )
             return
         x = 1918
         label_pos = [(x, 135 + i * 110) for i in range(9)]
@@ -274,7 +278,7 @@ class BaseMixin:
                 raise Exception("打开职业筛选失败")
         if emit_result:
             logger.info(
-                "operation=%s result=%s",
+                "职业筛选已选择：operation=%s result=%s",
                 "profession_filter",
                 f"selected:{profession}",
             )

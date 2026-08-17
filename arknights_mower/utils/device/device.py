@@ -148,12 +148,14 @@ class Device:
             self.run(command)
         else:
             self.run(f"am start -n {config.conf.APPNAME}/{config.APP_ACTIVITY_NAME}")
-        logger.info("operation=%s result=%s", "device_launch", "completed")
+        logger.info(
+            "游戏启动完成：operation=%s result=%s", "device_launch", "completed"
+        )
 
     def exit(self) -> None:
         """exit the application"""
         self.run(f"am force-stop {config.conf.APPNAME}")
-        logger.info("operation=%s result=%s", "device_exit", "completed")
+        logger.info("游戏退出完成：operation=%s result=%s", "device_exit", "completed")
 
     def return_home(self) -> None:
         """exit the application"""
@@ -197,7 +199,11 @@ class Device:
         end = out.rfind(postfix)
         class_path = out[beg + len(prefix) : (end + len(postfix))].strip()
         class_path = "CLASSPATH=" + class_path
-        logger.info("operation=%s result=%s", "droidcast_classpath", "available")
+        logger.info(
+            "DroidCast类路径已获取：operation=%s result=%s",
+            "droidcast_classpath",
+            "available",
+        )
         return class_path
 
     def start_droidcast(self) -> bool:
@@ -251,7 +257,7 @@ class Device:
             ],
         )
         config.droidcast.process = process
-        logger.info("operation=%s result=%s", "droidcast", "started")
+        logger.info("DroidCast已启动：operation=%s result=%s", "droidcast", "started")
         return True
 
     def screencap(self) -> bytes:

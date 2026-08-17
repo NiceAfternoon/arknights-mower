@@ -157,7 +157,11 @@ def screenshot_cleanup():
             i.unlink()
     global cleanup_time
     cleanup_time = datetime.now()
-    logger.info("operation=%s result=%s", "screenshot_cleanup", "completed")
+    logger.info(
+        "过期截图清理完成：operation=%s result=%s",
+        "screenshot_cleanup",
+        "completed",
+    )
 
 
 def screenshot_worker():
@@ -257,7 +261,7 @@ def get_log_by_time(target_time: datetime, time_range: float = 1) -> list[Path]:
             matching_files.append((first_timestamp, last_timestamp, file_path))
     if skipped_count:
         logger.warning(
-            "operation=%s result=%s skipped_count=%d",
+            "日志文件时间读取部分失败：operation=%s result=%s skipped_count=%d",
             "log_time_query",
             "partial",
             skipped_count,
