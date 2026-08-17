@@ -1,4 +1,6 @@
+import atexit
 import logging
+import re
 import shutil
 import sys
 import time
@@ -19,6 +21,10 @@ BASIC_FORMAT = (
 )
 COLOR_FORMAT = f"%(log_color)s{BASIC_FORMAT}"
 DATE_FORMAT = None
+LOG_TIMESTAMP_RE = re.compile(
+    rb"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})\s"
+    rb".+:\d+\s(?:DEBUG|INFO|WARNING|ERROR|CRITICAL|NOTSET)\s\S+:\s"
+)
 basic_formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
 color_formatter = colorlog.ColoredFormatter(COLOR_FORMAT, DATE_FORMAT)
 
@@ -66,6 +72,7 @@ whlr.setLevel(logging.INFO)
 
 log_queue = Queue()
 listener = None
+listener_lock = Lock()
 
 folder = Path(get_path("@app/log"))
 folder.mkdir(exist_ok=True, parents=True)
@@ -79,6 +86,18 @@ queue_handler = QueueHandler(log_queue)
 logger.addHandler(queue_handler)
 listener = QueueListener(log_queue, dhlr, fhlr, whlr, respect_handler_level=True)
 listener.start()
+
+
+def stop_logging() -> None:
+    global listener
+    with listener_lock:
+        active_listener = listener
+        listener = None
+    if active_listener is not None:
+        active_listener.stop()
+
+
+atexit.register(stop_logging)
 
 screenshot_folder = get_path("@app/screenshot")
 screenshot_folder.mkdir(exist_ok=True, parents=True)
@@ -164,25 +183,84 @@ def save_screenshot(img: bytes, sub_folder=None) -> None:
     screenshot_queue.put((img, filename))
 
 
-def get_log_by_time(target_time, time_range=1):
+def _parse_log_timestamp(line: bytes) -> datetime | None:
+    match = LOG_TIMESTAMP_RE.match(line)
+    if not match:
+        return None
+    try:
+        return datetime.strptime(
+            match.group("timestamp").decode("ascii"), "%Y-%m-%d %H:%M:%S,%f"
+        )
+    except ValueError:
+        return None
+
+
+def _reverse_lines(stream, chunk_size: int = 64 * 1024):
+    stream.seek(0, 2)
+    position = stream.tell()
+    buffer = b""
+    while position > 0:
+        read_size = min(chunk_size, position)
+        position -= read_size
+        stream.seek(position)
+        buffer = stream.read(read_size) + buffer
+        lines = buffer.split(b"\n")
+        buffer = lines[0]
+        for line in reversed(lines[1:]):
+            yield line.rstrip(b"\r")
+    if buffer:
+        yield buffer.rstrip(b"\r")
+
+
+def _log_file_bounds(file_path: Path) -> tuple[datetime, datetime] | None:
+    with file_path.open("rb") as stream:
+        first_timestamp = next(
+            (
+                timestamp
+                for line in stream
+                if (timestamp := _parse_log_timestamp(line)) is not None
+            ),
+            None,
+        )
+        if first_timestamp is None:
+            return None
+        last_timestamp = next(
+            (
+                timestamp
+                for line in _reverse_lines(stream)
+                if (timestamp := _parse_log_timestamp(line)) is not None
+            ),
+            first_timestamp,
+        )
+    return first_timestamp, last_timestamp
+
+
+def get_log_by_time(target_time: datetime, time_range: float = 1) -> list[Path]:
     folder = Path(get_path("@app/log"))
-    time_points = [
-        target_time - timedelta(hours=time_range),
-        target_time,
-        target_time + timedelta(hours=time_range),
-    ]
-    valid_suffixes = [tp.strftime("%Y-%m-%d_%H") for tp in time_points]
+    range_delta = timedelta(hours=time_range)
+    range_start = target_time - range_delta
+    range_end = target_time + range_delta
     matching_files = []
-    for file_path in folder.iterdir():
-        if file_path.is_file():
-            try:
-                if any(suffix in file_path.name for suffix in valid_suffixes):
-                    matching_files.append(file_path)
-                elif (
-                    file_path.name == "runtime.log"
-                    and (datetime.now() - target_time).total_seconds() <= 3600
-                ):
-                    matching_files.append(file_path)
-            except Exception as e:
-                logger.exception(f"Error processing file {file_path}: {e}")
-    return matching_files
+    skipped_count = 0
+    for file_path in folder.glob("runtime.log*"):
+        if not file_path.is_file():
+            continue
+        try:
+            bounds = _log_file_bounds(file_path)
+        except OSError:
+            skipped_count += 1
+            continue
+        if bounds is None:
+            continue
+        first_timestamp, last_timestamp = bounds
+        if first_timestamp <= range_end and last_timestamp >= range_start:
+            matching_files.append((first_timestamp, last_timestamp, file_path))
+    if skipped_count:
+        logger.warning(
+            "operation=%s result=%s skipped_count=%d",
+            "log_time_query",
+            "partial",
+            skipped_count,
+        )
+    matching_files.sort(key=lambda item: (item[0], item[1], item[2].name))
+    return [item[2] for item in matching_files]

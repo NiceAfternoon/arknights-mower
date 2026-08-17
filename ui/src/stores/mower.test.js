@@ -20,6 +20,7 @@ vi.mock('reconnecting-websocket', () => ({
 
 import axios from 'axios'
 import { useMowerStore } from './mower'
+import websocketLogContract from './websocket-log-contract.json'
 
 describe('WebUI scene snapshot contract', () => {
   beforeEach(() => {
@@ -83,13 +84,29 @@ describe('WebUI scene snapshot contract', () => {
     expect(store.sc_revision).toBe(2)
   })
 
-  it('keeps the mobile log readable while preserving continuation lines', () => {
+  it('retains 100 actual lines when websocket text ends with CRLF', () => {
     const store = useMowerStore()
-    store.log_lines = [
-      '2026-08-15 12:00:00,000 INFO operation=scene result=index',
-      'traceback continuation'
-    ]
+    store.listen_ws()
+    const lines = Array.from({ length: 105 }, (_, index) => `line-${index}`)
 
-    expect(store.log_mobile).toBe('INFO operation=scene result=index\ntraceback continuation')
+    sockets[0].onmessage({
+      data: JSON.stringify({ type: 'log', data: `${lines.join('\r\n')}\r\n` })
+    })
+
+    expect(store.log_lines).toHaveLength(100)
+    expect(store.log_lines[0]).toBe('line-5')
+    expect(store.log_lines[99]).toBe('line-104')
+  })
+
+  it('renders public logger websocket text on desktop and mobile', () => {
+    const store = useMowerStore()
+    store.listen_ws()
+
+    sockets[0].onmessage({
+      data: JSON.stringify({ type: 'log', data: websocketLogContract.backendData })
+    })
+
+    expect(store.log).toBe(websocketLogContract.desktopLog)
+    expect(store.log_mobile).toBe(websocketLogContract.mobileLog)
   })
 })

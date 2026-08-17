@@ -113,7 +113,7 @@ def read_log():
     while True:
         entry = config.log_queue.get()
         msg = entry["data"]
-        log_lines.extend(msg.split("\n"))
+        log_lines.extend(msg.splitlines())
         log_lines = log_lines[-100:]
         payload = {"type": "log", "data": msg}
         if screenshot := entry.get("screenshot"):
@@ -1263,7 +1263,6 @@ def delete_weekly_plan(key):
 @require_token
 def submit_feedback():
     req = request.json
-    logger.debug(f"收到反馈务请求：{req}")
 
     def ts_to_str(ts):
         if isinstance(ts, (int, float)):

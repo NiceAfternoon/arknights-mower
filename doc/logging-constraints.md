@@ -96,6 +96,14 @@ WebUI 的 Scene 快照是事件驱动合同：
 
 服务端事件名、载荷和前端消费者必须成对修改。新增或改名任何事件前，先搜索所有生产者和消费者，并以合同测试锁定双方。
 
+文本日志与反馈沿用现有公开合同：
+
+- `from arknights_mower.utils.log import logger` 继续可用；文件是 UTF-8 普通文本，保留时间、源码位置、英文等级、函数和消息外壳，不冻结旧消息正文；
+- `runtime.log` 与小时轮转的基本命名不变。`get_log_by_time(target_time, time_range=1)` 以文件内真实首末记录时间判断范围，返回存在的 `Path`，按记录时间稳定排序；调用方不得重新按文件名排序或解析文件名推断时间；
+- 反馈邮件直接附加查询返回的原始文本文件，不打包、不转成 SQLite/manifest/摘要；反馈正文只进入邮件正文，不得写入 logger 或终端输出；
+- 服务端与前端均按实际换行裁剪最近 100 行，CRLF 和消息尾随换行不得制造额外空行；桌面端保留完整文本，移动端只移除既有时间前缀并保留续行；
+- 正常解释器退出应幂等停止现有 `QueueListener`，让已经入队的记录完成既有投影。这不新增强制 flush 接口，不承诺并发生产者退出后的记录、活动文件不可变快照或精确查询起止时间。
+
 ## 6. 专精子系统映射
 
 修改 `mastery.py`、`mastery_reader.py`、`mastery_db.py`、专精相关排班路径或其日志前，必须完整阅读 `doc/mastery-constraints.md`。其中截图权威、状态机、恢复矩阵、通知去重、排班 gate 和 `enable_mastery` 语义均高于日志整形。
@@ -169,3 +177,16 @@ WebUI 的 Scene 快照是事件驱动合同：
 - 确定性合同 fixture：固定覆盖一次任务分派、一次 dorm 任务生成、MAA 进度与终态、重试恢复与耗尽、一次漏单和一次 SQLite 例行成功；按固定运行期前缀、UTF-8、CRLF 物化。文本由 18 条 / 1,966 actual file bytes 降为 6 条 / 847 bytes；SQLite `log` 由 9 行 / 811 logical text bytes 降为 4 行 / 615 bytes。该 fixture 只比较日志合同，不模拟业务时长或负载。
 - 测试：#50 专项覆盖单一文本/SQLite 投影、白名单、有限任务 JSON、漏单新消费者、公共时间查询、数据库只读 100 行上限、dorm/Operator 摘要、MAA 终态、场景与排班重试恢复/耗尽，以及例行 SQLite 成功静默；每个新合同先观察失败再实现。最终专项 80/80、全量 Python unittest 519/519、前端 Vitest 9/9 通过，Ruff lint/format、Prettier 和 Vite build 通过。
 - 剩余限制：没有采集与当前 feature 严格配对的两小时 after 实机窗口，因此不得把历史 before 与上述 fixture 拼成两小时降幅，也不声称 CPU/RSS 或实机吞吐改善。
+
+### 2026-08-17：#51 文本日志、时间检索与反馈兼容链路
+
+- 基线：#51 从 #50 修订提交 `ea27ce21` 开始；共同上游仍是 `fork/alpha` `ec64f26f`，实施前 feature 相对它为 0 behind。#50 修订只让漏单分析保留 `get_log_by_time` 的时间顺序，不混入本切片。
+- 文本与轮转：公共 `logger` 导入、UTF-8 普通文本外壳、`runtime.log` 和 `runtime.log.YYYY-MM-DD_HH` 小时轮转名称由隔离进程合同锁定。没有更换 logger、文件格式、等级或消息正文。
+- 时间检索：`get_log_by_time(target_time, time_range=1) -> list[Path]` 从每个 `runtime.log*` 的真实首末日志记录判断与目标前后范围是否重叠；首部顺序读取、尾部反向分块读取，不按文件名推断时间，也不全量扫描文件正文。跨小时、任意兼容段名和活动 `runtime.log` 按 `(首记录时间, 末记录时间, 文件名)` 稳定排序，返回项均为存在且可直接附加的原始文件。
+- 反馈：HTTP 边界与 `submit_issue` 不再记录或打印完整请求/description；正文仍进入正常邮件 HTML，Bug 反馈直接附加时间查询返回的原始文本文件，附件字节和文件名不变。没有 ZIP、SQLite 导出、manifest、摘要或其它诊断载体。
+- WebSocket 与展示：服务端和前端用真实换行语义处理消息，尾随 LF/CRLF 不再占用一行；两端继续只保留最新 100 行。桌面完整文本、移动端去时间前缀并保留 traceback/续行的既有展示合同不变。
+- 正常停止与退出：`/stop` 仍按既有事件、线程等待、状态保存和线程引用清理流程正常停止 Mower，停止后公共 logger 继续可用；现有 `QueueListener` 注册幂等 atexit 收口，使已入队记录在正常解释器退出时完成现有 handler 投影。未建设统一日志运行时、队列平台、强制 flush、不可变活动文件快照或历史查询产品。
+- 冻结范围：只读核验原 ledger 仍为 749 行且全部 include，其中 278 行 `scope_required`、471 行 `scope_consistency`。两种 selection basis 统一经过同一文本格式、时间查询、附件与 WebSocket 消费链路，不存在旧格式旁路；原始报告和 ledger 未修改。
+- 确定性计数：固定反馈输入下，旧 HTTP + tool 两条完整正文 DEBUG 投影为 2 条逻辑记录 / 474 actual file bytes（UTF-8 + CRLF），现为 0 条 / 0 bytes。该计数只覆盖本切片删除的正文泄漏；公共 logger 的代表性 INFO/WARNING 文本继续原样落盘，不用删除正常记录换取数字。
+- 测试与审查：#51 专项 Python 11/11、全量 Python unittest 531/531、相关前端 Vitest 10/10 通过，Ruff lint/format、Prettier 和 Vite build 通过。Standards 审查的完整外壳边界识别与测试重复、Spec 审查的正常停止与跨端 WebSocket 展示链路共 4 项发现均已修正；跨端测试由 Python 公共 logger 的真实发送链路与 Vitest 共同校验同一 payload fixture。
+- 可比性与限制：#48 三个历史窗口的全量文本仍为 69,548 / 10,572,140 bytes、540,302 / 74,842,448 bytes、55,376 / 8,787,188 bytes，只作历史规模证据。没有采集与当前 feature 严格配对的两小时 after，也不把固定反馈 fixture 冒充两小时降幅；真实三组两小时终验留给 #52。

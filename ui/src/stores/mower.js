@@ -67,7 +67,11 @@ export const useMowerStore = defineStore('mower', () => {
     ws.value.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'log') {
-        log_lines.value = log_lines.value.concat(data.data.split('\n')).slice(-100) // 追加日志
+        const incoming_lines = data.data.split(/\r\n|[\r\n]/)
+        if (incoming_lines.at(-1) === '') {
+          incoming_lines.pop()
+        }
+        log_lines.value = log_lines.value.concat(incoming_lines).slice(-100) // 追加日志
         if (data.screenshot && scene_preview_active.value) {
           sc_uri.value = data.screenshot
           sc_revision.value += 1

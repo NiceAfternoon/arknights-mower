@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from arknights_mower.utils.email import Email
-from arknights_mower.utils.log import get_log_by_time, logger
+from arknights_mower.utils.log import get_log_by_time
 
 
 def submit_issue(
@@ -15,18 +15,12 @@ def submit_issue(
     """
     try:
         log_files = []
-        logger.debug(
-            f"Submitting issue: {description}, type: {issue_type}, start_time: {start_time}, end_time: {end_time}"
-        )
         if issue_type == "Bug":
             if not (start_time and end_time):
                 return "请提供问题发生的起止时间（start_time 和 end_time，毫秒时间戳），以便附加日志。"
             # 直接用本地时间戳
             st = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
             et = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-            print(
-                f"Submitting issue: {description}, type: {issue_type}, start_time: {st}, end_time: {et}"
-            )
             log_files = get_log_by_time(et)
             if not log_files:
                 return "未找到对应时间的日志文件，无法上报。"
