@@ -1179,14 +1179,15 @@ def _collect_plan(solver, plan, room: RoomState):
 
 
 def _collect_silent(solver, room: RoomState, suppress_help=False):
-    """未命中计划纯收取：非专三且面板可读 → 通知④帮收（§16.3）；专三/面板不可读 → 静默。
+    """未命中计划纯收取：非专三 → 通知④帮收（§16.3）；专三/档位读失败 → 静默。
 
-    面板不可读（OCR 失败，干员名空）时不发④——档位可能误读为 0（如 TRAIN_FINISH
-    完成页主面板区域不可读），专三完成会被错发「帮收」；稳为先：不可读则静默。
+    #116 守卫用 mastery_tier 自身（像素读取）而非 operator_name（文本 OCR）判可读性：
+    待收取语境真实档位必 ≥1，tier 读成 0 = 图标像素读失败 → 不算专三也不算非专三，
+    抑制④（否则专三完成会被误发「帮收」）；tier ∈ (1,2) 才发④。
     suppress_help（#98）：干员其实在 failed 计划里（failed 待收取不接管），发
     「不在专精计划中」的帮收通知会误导 → 抑制。
     """
-    if not suppress_help and room.panel.mastery_tier != 3 and room.panel.operator_name:
+    if not suppress_help and room.panel.mastery_tier in (1, 2):
         _notify_help_collect(solver, room)
     collect_flow(solver, None, room.panel)
 

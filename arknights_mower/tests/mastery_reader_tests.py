@@ -1843,6 +1843,19 @@ class TestReconcile73(unittest.TestCase):
         nh.assert_called_once_with(solver, room)
         cp.assert_not_called()
 
+    def test_waiting_collect_tier_zero_pixel_fail_no_help_collect(self):
+        # #116：图标像素读取失败（tier 读成 0）+ 干员名可读 → 不得误发④帮收
+        # （读失败不算专三、不算非专三 → 静默），专三完成不再被错发「帮收」
+        solver = MagicMock()
+        room = make_room("waiting_collect", mastery_tier=0, operator_name="路人")
+        with (
+            patch.object(reader, "_notify_help_collect") as nh,
+            patch.object(reader, "_collect_plan") as cp,
+        ):
+            reader._reconcile(solver, room, None, [])
+        nh.assert_not_called()
+        cp.assert_not_called()
+
     def test_waiting_collect_below_m3_matched_recovers_and_promotes(self):
         # 非专三 + 都在计划 → 恢复流程（§16.6）：收取 + 优先级排前 + 继续本级当场开
         # （#74 第3段「都去掉」后一律当场开，不分扫描链/重启；路线 operator 照常安排）
