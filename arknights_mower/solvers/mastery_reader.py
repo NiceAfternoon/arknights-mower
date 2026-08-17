@@ -901,6 +901,18 @@ def _maybe_recover_swap(solver, plan, room) -> bool:
             and _find_swap_task(solver, str(plan["id"])) is None
         ):
             # 陌生人/坐错 → 排纠错任务（纠成 operator；减半与否由 dispatch 时再判）
+            # #107 保护门（2026-08-17）：逻各斯/艾丽妮在协助位（非路线干员/减半对象）
+            # 且剩余不足 5h+缓冲 → 不纠不换（她们本身是最优加成；expires_at 已由调用方
+            # _update_expiry 刷新），返回 False 让调用方排收取；剩余足够才照常纠错。
+            if support_slot in PROTECT_OPERATORS:
+                remaining = (countdown - datetime.now()).total_seconds() / 60
+                buffer_min = route.get("mastery_swap_buffer", 10)
+                if remaining < 300 + buffer_min:
+                    logger.info(
+                        f"[mastery] #107 协助位保护：{support_slot} 剩余不足 "
+                        f"{300 + buffer_min} 分钟，不纠错换人，仅刷新时间"
+                    )
+                    return False
             _schedule_correction_swap(solver, plan, operator)
             scheduled = True
         elif reliable and support_slot == swap_target:
