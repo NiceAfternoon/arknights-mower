@@ -733,16 +733,20 @@ async function addAllToPlan(op, draft = false) {
     message.success(`${op.name} 全部技能已加入计划`)
     return
   }
-  // 主列表 quick-add：立即写后端
+  // 主列表 quick-add：立即写后端（跳过已计划技能，后端无 (char,skill) 唯一约束，重复 POST 会建重复行）
+  const toAdd = recs.filter((rec) => !plan.value[planKey(op.char_id, rec.skill_index)])
+  if (!toAdd.length) {
+    message.info(`${op.name} 所有推荐技能都已在计划中`)
+    return
+  }
   try {
     const r = await axios.post(`${import.meta.env.VITE_HTTP_URL}/mastery-plan`, {
-      items: recs.map((rec) => ({ name: op.name, skill_index: rec.skill_index }))
+      items: toAdd.map((rec) => ({ name: op.name, skill_index: rec.skill_index }))
     })
     const results = r.data?.results || []
     const errs = []
     results.forEach((res, i) => {
-      const rec = recs[i]
-      if (!rec) return
+      const rec = toAdd[i]
       if (res.status === 'added') {
         const k = planKey(op.char_id, rec.skill_index)
         plan.value[k] = true
