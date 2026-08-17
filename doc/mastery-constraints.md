@@ -237,7 +237,7 @@
 idx1 在 `select_targets` 里时，先跑 `train_slot_locked`（截图权威）判锁定，锁定则丢弃 idx1，避免 2 分钟超时空转；**若 idx1 是唯一待换槽位（调用方明确要换训练位，如 `_swap_into_wrong_slot`）则抛异常**（#69/B3：换人失败不得静默 return，否则流程误以为换人成功继续点错干员开始）。详情浮层开着时先关详情读倒计时再重开，防动画中误退房。（C-10 / CS-04 / #69）
 
 ### `resting()` 用 DB active，不用队列
-`resting()` 跳过训练室干员的休息规划，依据 `get_active_plan()`（重启后队列可能为空，队列失真不影响休息规划）。（C-27）
+`resting()` 跳过训练室干员的休息规划，依据 `get_active_plan()`（重启后队列可能为空，队列失真不影响休息规划），且**只在 `enable_mastery=True` 时跳过**（**#109**：OFF 恒放行休息，残留 active 计划不得把训练室干员耗到心情尽；§9 OFF 清单）。（C-27）
 
 ### 槽位约定（固定）
 `get_agent_from_room('train')` scan[0] = 上排 = 协助位，scan[1] = 下排 = 训练位；`choose_train` idx0 → `choose_agent`，idx1 → `choose_train_ope`。（CS-01/CS-05）
