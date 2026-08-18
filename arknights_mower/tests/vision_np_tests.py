@@ -35,9 +35,8 @@ except ImportError:
     HAS_SKIMAGE = False
 
 try:
-    import sklearn.pipeline  # noqa: F401
-    import sklearn.preprocessing  # noqa: F401
-    import sklearn.svm  # noqa: F401
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.svm import LinearSVC
 
     HAS_SKLEARN = True
 except ImportError:
@@ -105,9 +104,9 @@ class TestSsimEquivalence(unittest.TestCase):
         rng = np.random.default_rng(1)
         for shape in ((50, 50), (100, 60), (200, 100), (440, 185)):
             a = rng.integers(0, 256, shape, dtype=np.uint8)
-            b = np.clip(
-                a.astype(int) + rng.integers(-8, 8, shape), 0, 255
-            ).astype(np.uint8)
+            b = np.clip(a.astype(int) + rng.integers(-8, 8, shape), 0, 255).astype(
+                np.uint8
+            )
             self.assertLess(
                 abs(skimage_ssim(a, b) - vision_np.ssim(a, b)),
                 1e-5,
@@ -115,9 +114,9 @@ class TestSsimEquivalence(unittest.TestCase):
             )
         # matcher 调用形态（multichannel=True 对 2D 是 no-op）
         a = rng.integers(0, 256, (300, 200), dtype=np.uint8)
-        b = np.clip(
-            a.astype(int) + rng.integers(-8, 8, (300, 200)), 0, 255
-        ).astype(np.uint8)
+        b = np.clip(a.astype(int) + rng.integers(-8, 8, (300, 200)), 0, 255).astype(
+            np.uint8
+        )
         self.assertLess(
             abs(skimage_ssim(a, b, multichannel=True) - vision_np.ssim(a, b)), 1e-5
         )
@@ -156,44 +155,48 @@ class TestLinearSvcEquivalence(unittest.TestCase):
     @unittest.skipUnless(HAS_SKLEARN, "sklearn 未安装")
     def test_collapse_matches_svm_model(self):
         m = _load_svm_model()
-        s = m.named_steps["standardscaler"]
-        svc = m.named_steps["linearsvc"]
-        w = svc.coef_[0] / s.scale_
-        b = svc.intercept_[0] - np.sum(svc.coef_[0] * s.mean_ / s.scale_)
+        self.assertEqual(set(m), {"w", "b"})
+        svc = LinearSVC()
+        svc.coef_ = m["w"][None, :]
+        svc.intercept_ = np.asarray([m["b"]])
+        svc.classes_ = np.asarray([False, True])
+        svc.n_features_in_ = m["w"].shape[0]
         rng = np.random.default_rng(0)
         # 广域随机 + 边界附近（决策值接近 0）
         for _ in range(5):
             X = rng.uniform(0, 1, (2000, 4))
             agree = sum(
-                vision_np.linear_svc_predict(row, w, b) == bool(m.predict([row])[0])
+                vision_np.linear_svc_predict(row, m["w"], m["b"])
+                == bool(svc.predict([row])[0])
                 for row in X
             )
             self.assertEqual(agree, 2000)
 
 
 class TestKnn1Equivalence(unittest.TestCase):
-    @unittest.skipUnless(HAS_SKLEARN, "sklearn 未安装")
-    def test_collapse_matches_consume_model(self):
-        knn = _load_knn("CONSUME")
-        Xn, yi, cl = knn._fit_X, knn._y, knn.classes_
+    def assert_model_matches_sklearn(self, name, rounds):
+        knn = _load_knn(name)
+        self.assertEqual(set(knn), {"X", "y", "classes"})
+        Xn, yi, cl = knn["X"], knn["y"], knn["classes"]
+        reference = KNeighborsClassifier(n_neighbors=1, weights="distance").fit(
+            Xn, cl[yi]
+        )
         rng = np.random.default_rng(0)
-        for _ in range(5):
+        for _ in range(rounds):
             Q = rng.uniform(0, 1, (100, Xn.shape[1]))
             agree = sum(
-                vision_np.knn1_predict(q, Xn, yi, cl) == knn.predict([q])[0] for q in Q
+                vision_np.knn1_predict(q, Xn, yi, cl) == reference.predict([q])[0]
+                for q in Q
             )
             self.assertEqual(agree, 100)
 
     @unittest.skipUnless(HAS_SKLEARN, "sklearn 未安装")
+    def test_collapse_matches_consume_model(self):
+        self.assert_model_matches_sklearn("CONSUME", 5)
+
+    @unittest.skipUnless(HAS_SKLEARN, "sklearn 未安装")
     def test_collapse_matches_normal_model(self):
-        knn = _load_knn("NORMAL")
-        Xn, yi, cl = knn._fit_X, knn._y, knn.classes_
-        rng = np.random.default_rng(0)
-        Q = rng.uniform(0, 1, (100, Xn.shape[1]))
-        agree = sum(
-            vision_np.knn1_predict(q, Xn, yi, cl) == knn.predict([q])[0] for q in Q
-        )
-        self.assertEqual(agree, 100)
+        self.assert_model_matches_sklearn("NORMAL", 1)
 
 
 if __name__ == "__main__":
