@@ -38,7 +38,7 @@ RUN python gen_server_requirements.py requirements.txt requirements-server.txt \
     && /opt/venv/bin/python scripts/prune_opencv.py \
     && find /opt/venv -type d -name '__pycache__' -prune -exec rm -rf {} + \
     && find /opt/venv -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete \
-    && find /opt/venv -type f -name '*.so' -exec strip --strip-unneeded {} + || true
+    && (find /opt/venv -type f -name '*.so' -exec strip --strip-unneeded {} + || true)
 
 # 构建运行时镜像
 FROM base AS runtime
