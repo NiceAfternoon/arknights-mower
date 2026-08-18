@@ -68,6 +68,13 @@ pip install -r requirements-dev.txt
 python -m unittest arknights_mower.tests.vision_np_tests
 ```
 
+运行依赖与开发依赖的锁文件必须由 Python 3.12 统一生成，避免环境 marker 与交付运行时不一致：
+
+```bash
+python -m pip install pip==25.3 pip-tools==7.6.0
+python scripts/compile_requirements.py
+```
+
 ### 打包（Windows）
 
 ```bash
