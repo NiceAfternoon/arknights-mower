@@ -28,7 +28,7 @@ def argrelmax(data, order=1):
     n = d.size
     if n <= 2 * order:
         return np.array([], dtype=int)
-    pad = np.pad(d, order, mode='edge')
+    pad = np.pad(d, order, mode="edge")
     w = np.lib.stride_tricks.sliding_window_view(pad, 2 * order + 1)[:n]
     c = w[:, order]
     return np.flatnonzero((c > w[:, :order].max(1)) & (c > w[:, order + 1 :].max(1)))
@@ -40,7 +40,7 @@ def argrelmin(data, order=1):
     n = d.size
     if n <= 2 * order:
         return np.array([], dtype=int)
-    pad = np.pad(d, order, mode='edge')
+    pad = np.pad(d, order, mode="edge")
     w = np.lib.stride_tricks.sliding_window_view(pad, 2 * order + 1)[:n]
     c = w[:, order]
     return np.flatnonzero((c < w[:, :order].min(1)) & (c < w[:, order + 1 :].min(1)))
@@ -53,8 +53,10 @@ def _box(img, size):
 
 def ssim(im1, im2, win_size=7, K1=0.01, K2=0.03):
     """复刻 skimage 0.23.2 默认路径：uniform 窗、data_range 由 dtype 推导、裁剪边框取均值。"""
-    dr = 255.0 if im1.dtype == np.uint8 else float(
-        max(im1.max(), im2.max()) - min(im1.min(), im2.min())
+    dr = (
+        255.0
+        if im1.dtype == np.uint8
+        else float(max(im1.max(), im2.max()) - min(im1.min(), im2.min()))
     )
     C1 = (K1 * dr) ** 2
     C2 = (K2 * dr) ** 2
