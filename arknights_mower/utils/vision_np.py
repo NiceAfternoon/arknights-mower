@@ -5,8 +5,21 @@ SSIM 的 7x7 均值窗用 cv2.blur（cv2 为本项目保留依赖，比 numpy �
 HOG 的 cell 直方图用 np.add.at 向量化（比 skimage 的 Cython 更快，偏差 1.3e-6）。
 """
 
+from typing import TypedDict
+
 import cv2
 import numpy as np
+
+
+class LinearSvcModel(TypedDict):
+    w: np.ndarray
+    b: float
+
+
+class Knn1Model(TypedDict):
+    X: np.ndarray
+    y: np.ndarray
+    classes: np.ndarray
 
 
 def argrelmax(data, order=1):
