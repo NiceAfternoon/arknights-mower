@@ -59,12 +59,28 @@ pip install -r requirements.in
 pip install Flask flask-cors flask-sock pywebview
 ```
 
+### 识别等价测试与模型重训
+
+scipy、scikit-image、scikit-learn 仅用于开发期 golden 对照与模型重训，不属于运行依赖：
+
+```bash
+pip install -r requirements-dev.txt
+python -m unittest arknights_mower.tests.vision_np_tests
+```
+
+运行依赖与开发依赖的锁文件必须由 Python 3.12 统一生成，避免环境 marker 与交付运行时不一致：
+
+```bash
+python -m pip install pip==25.3 pip-tools==7.6.0
+python scripts/compile_requirements.py
+```
+
 ### 打包（Windows）
 
 ```bash
 pip install pyinstaller
+python scripts/prune_opencv.py
 pyinstaller webui_zip.spec
-python scripts/fix_runtime_dlls.py
 ```
 
 生成的 `mower.exe` 在 `dist` 文件夹中，到此打包完成，已可使用。
@@ -73,6 +89,7 @@ python scripts/fix_runtime_dlls.py
 
 ```bash
 pip install pyinstaller
+python scripts/prune_opencv.py
 pyinstaller webui_zip_for_linux.spec
 ```
 
