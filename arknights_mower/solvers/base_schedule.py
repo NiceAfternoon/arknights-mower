@@ -374,6 +374,10 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
                     for t in self.tasks
                     if t.type in (TaskTypes.SKILL_UPGRADE, TaskTypes.REFRESH_TIME)
                 ]
+                # #144：清队后补立即空任务——队列只剩远期专精重检时，让下一次
+                # run() 走正常 planned 分支重读心情/换班/跑单，而不是睡到远期任务开始
+                logger.debug("清队后补立即空任务，下一轮走正常流程重读心情/换班/跑单")
+                self.tasks.append(SchedulerTask())
         elif self.find_next_task(datetime.now() + timedelta(hours=2.5)) is None:
             logger.debug("2.5小时内没有其他任务，生成一个空任务")
             self.tasks.append(SchedulerTask(time=datetime.now() + timedelta(hours=2.5)))
@@ -4602,10 +4606,20 @@ class BaseSchedulerSolver(SceneGraphSolver, BaseMixin):
         所有「等到下一个任务」的等待都必须经过这里，这样 /status 读到的
         `sleeping` 永远和实际行为一致；以后新增休息路径也不可能再漏设标志。
         用 try/finally 保证即使被 MowerExit（点停止）打断也能复位。
+        #141：web 一键专精派发 now 任务后设 `config.wake_scheduler` 事件打断休眠，
+        让调度器下一轮立即执行新任务（不依赖 csleep——csleep 全工程共用，不能全局
+        加唤醒检查）。轮询每 ~1s，保持 csleep 的停止检查粒度；结束时照常 recog.update
+        刷新场景缓存（原 self.sleep 结尾行为）。
         """
         self.sleeping = True
         try:
-            self.sleep(remaining_time)
+            end_time = datetime.now() + timedelta(seconds=remaining_time)
+            while datetime.now() < end_time:
+                if config.wake_scheduler.is_set():
+                    config.wake_scheduler.clear()
+                    break
+                csleep(min(1, (end_time - datetime.now()).total_seconds()))
+            self.recog.update()
         finally:
             self.sleeping = False
 
