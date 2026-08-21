@@ -2,6 +2,31 @@
 import multiprocessing as mp
 from urllib.parse import quote
 
+# 托盘开关窗口是杀进程重建（见 webview_window / start_tray），新窗口尺寸读
+# conf.yml。Windows WebView2 在窗口销毁路径会触发极小/零尺寸 resized，若被
+# 写回 conf.yml，下次托盘打开就缩成一团——下限钳制挡住这些残留事件。
+MIN_WINDOW_SIZE = 100
+# 与 arknights_mower/utils/config/conf.py 的 WebViewConf 默认值一致，仅在
+# conf.yml 里已有损坏（极小/零）尺寸时兜底，避免坏尺寸被读进创建并再次持久化。
+DEFAULT_WINDOW_SIZE = (1450, 850)
+
+
+def sanitize_window_size(width, height, min_size=MIN_WINDOW_SIZE):
+    """返回合法的窗口尺寸；极小/零/非数字视为销毁路径的残留事件，返回 None。"""
+    try:
+        w = int(width)
+        h = int(height)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if w < min_size or h < min_size:
+        return None
+    return (w, h)
+
+
+def resolve_window_size(width, height, min_size=MIN_WINDOW_SIZE):
+    """读取 conf 的初始尺寸；损坏（极小/零/非数字）时兜底到默认启动尺寸。"""
+    return sanitize_window_size(width, height, min_size) or DEFAULT_WINDOW_SIZE
+
 
 def splash_screen(queue: mp.Queue):
     import tkinter as tk
@@ -138,14 +163,16 @@ def webview_window(child_conn, global_space, instance_name, host, port, url, tra
     global height
 
     config.load_conf()
-    width = config.conf.webview.width
-    height = config.conf.webview.height
+    width, height = resolve_window_size(
+        config.conf.webview.width, config.conf.webview.height
+    )
 
     def window_size(w, h):
         global width
         global height
-        width = w
-        height = h
+        size = sanitize_window_size(w, h)
+        if size is not None:
+            width, height = size
 
     window = webview.create_window(
         f"arknights-mower {__version__} - {build_window_title(instance_name, port)}",
@@ -186,10 +213,11 @@ def webview_window(child_conn, global_space, instance_name, host, port, url, tra
     try:
         webview.start()
 
-        config.load_conf()
-        config.conf.webview.width = width
-        config.conf.webview.height = height
-        config.save_conf()
+        size = sanitize_window_size(width, height)
+        if size is not None:
+            config.load_conf()
+            config.conf.webview.width, config.conf.webview.height = size
+            config.save_conf()
         sys.exit()
     except Exception:
         import webbrowser
