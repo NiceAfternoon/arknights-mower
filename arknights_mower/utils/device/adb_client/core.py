@@ -38,6 +38,12 @@ class Client:
     def __init_device(self) -> None:
         # wait for the newly started ADB server to probe emulators
         csleep(1)
+        # 启动时先确认 adb server 已启动：走 adb.exe 命令路径可让未运行的 server 自动拉起，
+        # 仅探活不依赖特定设备，避免因 disconnect 未注册设备抛错。拉起失败才抛。
+        try:
+            self.__exec("start-server")
+        except (subprocess.CalledProcessError, OSError) as e:
+            raise RuntimeError("Can't start adb server") from e
         if self.device_id is None or self.device_id != config.conf.adb:
             self.device_id = self.__choose_devices()
         if self.device_id is None:
@@ -94,7 +100,7 @@ class Client:
         while True:
             try:
                 return Session().run(cmd)
-            except (socket.timeout, ConnectionRefusedError, RuntimeError):
+            except (socket.timeout, ConnectionError, RuntimeError):
                 if restart and error_limit > 0:
                     error_limit -= 1
                     if self.device_id and connect_retry > 0:
@@ -103,7 +109,8 @@ class Client:
                         self.__exec(f"connect {self.device_id}")
                         time.sleep(0.5)
                     else:
-                        self.__exec("kill-server")
+                        # 只 start-server：未运行的 server 由 adb 客户端自动拉起；
+                        # 显式 kill-server 会中断本可恢复的 server 会话（放大瞬时故障）
                         self.__exec("start-server")
                         time.sleep(10)
                     continue
@@ -143,7 +150,9 @@ class Client:
             try:
                 resp = self.session().exec(cmd)
                 break
-            except (socket.timeout, ConnectionRefusedError, RuntimeError) as e:
+            except (socket.timeout, ConnectionError, RuntimeError) as e:
+                # b'closed' 是 base ConnectionError（非 ConnectionRefusedError 子类），
+                # 漏掉会冒泡到 check_current_focus 的 restart_simulator，杀掉运行中的游戏
                 if error_limit > 0:
                     error_limit -= 1
                     # 只断开并重连当前设备，避免影响其他adb连接
@@ -153,7 +162,8 @@ class Client:
                         time.sleep(3)
                         self.__init_device()
                     else:
-                        self.__exec("kill-server")
+                        # 只 start-server：未运行的 server 由 adb 客户端自动拉起；
+                        # 显式 kill-server 会中断本可恢复的 server 会话（放大瞬时故障）
                         self.__exec("start-server")
                         time.sleep(10)
                         self.__init_device()
