@@ -255,11 +255,6 @@ const menuOptions = [
       }
     ]
   },
-  // {
-  //   label: () => h(RouterLink, { to: { path: '/aio' } }, { default: () => 'aio' }),
-  //   icon: renderIcon(Settings),
-  //   key: 'go-to-aio'
-  // },
   {
     label: () => h(RouterLink, { to: { path: '/plan-editor' } }, { default: () => '排班编辑' }),
     icon: renderIcon(Home),
