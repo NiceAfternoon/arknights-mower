@@ -268,6 +268,39 @@ def read_depot():
     return {"depot": data, "cultivate_ok": cultivate_ok, "cultivate_msg": cultivate_msg}
 
 
+@app.route("/stage/latest-activity")
+def stage_latest_activity():
+    """刷理智周计划：最近开启活动（stage_data_full 热更后最新）的选中关。
+
+    返回 [{value, label, code, materials}]，按代号尾号大到小。材料仅 MATERIAL 常规掉落
+    （剔 ACTIVITY_ITEM/COMPLETE）；库存取自 @app/tmp/cultivate.json（{id: count}）——
+    该材料缺档或为 0 时不带 (库存:n)。
+    """
+    from arknights_mower.data import key_mapping, stage_data_full
+    from arknights_mower.utils.weekly_stage import (
+        build_options,
+        select_latest_activity_stages,
+    )
+
+    in_path = get_path("@app/tmp/cultivate.json")
+    inventory = {}
+    if os.path.exists(in_path):
+        try:
+            with open(in_path, "r", encoding="utf-8") as f:
+                cdata = json.load(f)
+            for item in cdata.get("data", {}).get("items", []):
+                count = int(item.get("count", 0))
+                if count > 0:
+                    inventory[item.get("id", "")] = count
+        except (OSError, ValueError):
+            inventory = {}
+
+    selected = select_latest_activity_stages(
+        list(stage_data_full), key_mapping, int(time.time())
+    )
+    return build_options(selected, inventory)
+
+
 @app.route("/status")
 def get_status():
     response = {
@@ -486,6 +519,23 @@ def upload_sss_copilot():
         "details": data["doc"]["details"],
         "operators": data["opers"],
     }
+
+
+@app.route("/hot-update/manual", methods=["POST"])
+@require_token
+def hot_update_manual():
+    """手动应用一份 hot_update.zip（拖入/选择），校验后解压并触发读取。
+
+    用于国内直连 GitHub 不稳时的人工兜底；与网络下载共用 apply_manual_zip 的应用路径。
+    """
+    from arknights_mower.utils import hot_update as hu
+
+    update_file = request.files.get("update")
+    if update_file is None:
+        return {"ok": False, "message": "没有收到 hot_update.zip 文件"}
+    if hu.apply_manual_zip(update_file.read()):
+        return {"ok": True, "message": "热更包已应用"}
+    return {"ok": False, "message": "热更包应用失败（请确认是有效的 hot_update.zip）"}
 
 
 @app.route("/dialog/save/img", methods=["POST"])

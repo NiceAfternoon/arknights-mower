@@ -199,6 +199,13 @@ class LongTaskPart(ConfModel):
     sign_in: SignInConf
     "签到活动"
 
+    class HotUpdateConf(ConfModel):
+        enable: bool = False
+        "热更新检查开关（默认关）"
+
+    hot_update: HotUpdateConf
+    "热更新"
+
 
 class MaaPart(ConfModel):
     maa_path: str = "D:\\MAA-v4.13.0-win-x64"

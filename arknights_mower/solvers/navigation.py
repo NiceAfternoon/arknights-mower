@@ -13,6 +13,14 @@ from arknights_mower.utils import config, rapidocr
 from arknights_mower.utils.graph import SceneGraphSolver
 from arknights_mower.utils.image import loadres, thres2
 from arknights_mower.utils.log import logger
+from arknights_mower.utils.nav_steps import (
+    empty_nav_steps,
+    first_existing_path,
+    load_nav_file,
+    merge_nav_steps,
+    select_replay_steps,
+)
+from arknights_mower.utils.path import get_path
 from arknights_mower.utils.scene import Scene
 
 
@@ -1003,45 +1011,41 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         return f"{self.stage_pattern_stem(stage_name)}*"
 
     def load_nav_steps_data(self) -> dict:
-        path = Path(__rootdir__) / "data" / "nav_trie_steps.json"
-        if not path.exists():
-            return {"version": 1, "stages": {}, "patterns": {}}
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if "stages" not in data or not isinstance(data["stages"], dict):
-                data["stages"] = {}
-            if "patterns" not in data or not isinstance(data["patterns"], dict):
-                data["patterns"] = {}
-            return data
-        except Exception:
-            return {"version": 1, "stages": {}, "patterns": {}}
+        """本机用户自学文件（nav_trie_steps.json）——persist_nav_steps 只写这儿。
+
+        与官方层分开存，互不覆盖。
+        """
+        return load_nav_file(Path(__rootdir__) / "data" / "nav_trie_steps.json")
+
+    def _official_paths(self) -> tuple:
+        """官方层候选路径：热更目录优先，自带打包兜底。"""
+        return (
+            get_path("@install/tmp/hot_update/nav_steps.json"),
+            Path(__rootdir__) / "data" / "nav_steps.json",
+        )
+
+    def load_official_nav_steps(self) -> dict:
+        """官方层（nav_steps.json）：热更目录 / 自带打包，只读、程序不写它。"""
+        path = first_existing_path(*self._official_paths())
+        if path is None:
+            return empty_nav_steps()
+        return load_nav_file(path)
+
+    def load_merged_nav_steps(self) -> dict:
+        """官方打底 + 本机优先的合并视图（回放用）。"""
+        return merge_nav_steps(
+            self.load_official_nav_steps(), self.load_nav_steps_data()
+        )
 
     def get_replay_steps(self) -> list[dict]:
-        data = self.load_nav_steps_data()
-        stage_entry = data["stages"].get(self.name, {})
-        stage_steps = stage_entry.get("steps", [])
-        if stage_steps and stage_entry.get("success") is True:
-            logger.debug(
-                f"找到精确关卡历史步骤: {self.name} steps={len(stage_steps)} success=true"
-            )
-            return stage_steps
-        if stage_steps:
-            logger.debug(f"忽略精确关卡历史步骤: {self.name}（缺少success=true）")
+        data = self.load_merged_nav_steps()
         pattern_key = self.stage_pattern_key(self.name)
-        if pattern_key:
-            # Fallback to shared prefix path when exact stage path is absent.
-            pattern_entry = data["patterns"].get(pattern_key, {})
-            pattern_steps = pattern_entry.get("steps", [])
-            if pattern_steps and pattern_entry.get("success") is True:
-                logger.debug(
-                    f"找到同pattern历史步骤: {pattern_key} steps={len(pattern_steps)} success=true"
-                )
-                return pattern_steps
-            if pattern_steps:
-                logger.debug(
-                    f"忽略同pattern历史步骤: {pattern_key}（缺少success=true）"
-                )
-        return []
+        steps = select_replay_steps(data, self.name, pattern_key)
+        if steps:
+            logger.debug(
+                f"命中导航步骤（官方+本机合并）: {self.name} steps={len(steps)}"
+            )
+        return steps
 
     def try_replay_nav_steps(self) -> bool:
         if not self.back_to_terminal_main():

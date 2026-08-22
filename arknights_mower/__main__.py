@@ -52,6 +52,11 @@ def initialize(
         scheduler.handle_error(True)
         return scheduler
 
+    from arknights_mower.utils.hot_update import update as hot_update_update
+
+    # 独立于签到的一次性热更检查；内部按 config 开关 / 30 分钟节流 / 失败 guard。
+    hot_update_update()
+
     base_scheduler = BaseSchedulerSolver()
     from arknights_mower.utils.operators import build_global_plan
 

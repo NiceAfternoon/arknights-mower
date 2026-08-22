@@ -882,6 +882,9 @@ if (return_home_when_idle.value) {
       <div>
         <ChatBotSetting />
       </div>
+      <div>
+        <HotUpdate />
+      </div>
     </div>
   </div>
 </template>
