@@ -23,6 +23,16 @@ from arknights_mower.utils.nav_steps import (
 from arknights_mower.utils.path import get_path
 from arknights_mower.utils.scene import Scene
 
+# 剧情/故事「进入」按钮（OCR 常读成 "Story >>"）不是关卡入口，LLM 在线构建选它只会
+# 录进没用的路由，从导航候选中剔除。"Story Line · XX" 章节名不带 ">>"，不受影响。
+_NAV_ENTRY_EXCLUDE = ("story", "剧情")
+
+
+def _is_story_entry(text) -> bool:
+    """命中剧情入口按钮形态：以 ">>" 结尾且含 story/剧情 关键词。"""
+    t = str(text).strip()
+    return t.endswith(">>") and any(kw in t.lower() for kw in _NAV_ENTRY_EXCLUDE)
+
 
 class NavigationSolver(SceneGraphSolver, BaseMixin):
     def _activity_end_ts(self):
@@ -73,6 +83,11 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         )
         self.nav_steps = []
         self.nav_route_success = False
+        # 录制模式：跳过快速入口与历史回放，强制走在线构建（record_step=True）录新步骤
+        self.force_record = False
+        # 复用优先录制：跳过快速入口，回放并记录既有路由（省去重新构建共享前置），
+        # 回放失败才回退在线构建
+        self.reuse_record = False
         self._suppress_nav_recording = False
         self._activity_entry_done = False
         self._activity_entry_failed = False
@@ -105,7 +120,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 except Exception:
                     continue
             logger.debug(f"上次作战OCR: {texts}")
-            if self.name in texts:
+            if self.name in texts and not (self.force_record or self.reuse_record):
                 logger.debug("识别到上次作战与目标相同，尝试点击进入")
                 self.tap((self.recog.w * 0.88, self.recog.h * 0.81), interval=0.5)
                 self.success = True
@@ -173,6 +188,10 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
         elif scene in self.waiting_scene:
             self.waiting_solver()
         else:
+            # LLM 导航会进入活动页，这些页面场景识别为 UNKNOWN；导航已成功
+            # （success）就别退回终端主界面，直接结束，否则会退掉刚进入的活动页
+            if self.success:
+                return True
             self.scene_graph_navigation(Scene.TERMINAL_MAIN)
 
     def enter_annihilation_from_terminal_main(self) -> bool:
@@ -257,6 +276,40 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             self.stageType,
             self._builder_attempted,
         )
+
+        if self.reuse_record:
+            logger.info(
+                "录制模式（复用优先）：跳过快速入口，回放并记录既有路由，失败则在线构建"
+            )
+            replay_start = len(self.nav_steps)
+            if self.try_replay_nav_steps(record=True):
+                self.success = True
+                return True
+            # 丢弃失败回放残留的定位步骤，避免混进在线构建的新路由
+            self.nav_steps = self.nav_steps[:replay_start]
+            if not self._builder_attempted:
+                self._builder_attempted = True
+                logger.info("录制模式（复用优先）：复用失败，开始在线构建一次导航步骤")
+                ok = self.try_build_nav_steps_once()
+                if ok:
+                    self.success = True
+                    self.persist_nav_steps()
+                    return True
+            self._activity_entry_failed = True
+            logger.debug("录制模式（复用优先）：复用与构建均失败，终止本次导航")
+            return False
+
+        if self.force_record:
+            logger.info("录制模式：跳过快速入口与历史回放，直接在线构建导航步骤")
+            self._builder_attempted = True
+            ok = self.try_build_nav_steps_once()
+            if ok:
+                self.success = True
+                self.persist_nav_steps()
+                return True
+            self._activity_entry_failed = True
+            logger.debug("录制模式在线构建失败，终止本次导航")
+            return False
 
         if self.try_quick_entry_from_main():
             logger.debug("快速入口命中，导航成功")
@@ -829,6 +882,8 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                 except Exception:
                     continue
                 score = float(item[2]) if len(item) > 2 else 0.0
+                if _is_story_entry(text):
+                    continue
                 candidates.append(
                     {"text": str(text).strip(), "center": center, "score": score}
                 )
@@ -1047,7 +1102,7 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
             )
         return steps
 
-    def try_replay_nav_steps(self) -> bool:
+    def try_replay_nav_steps(self, record: bool = False) -> bool:
         if not self.back_to_terminal_main():
             logger.debug("历史回放失败：无法回到终端主界面")
             return False
@@ -1086,15 +1141,30 @@ class NavigationSolver(SceneGraphSolver, BaseMixin):
                     (int(vector[0]), int(vector[1])),
                 )
                 self.wait_for_scene_stable(timeout_seconds=5, interval_seconds=0.2)
+            if record:
+                self.record_nav_step(action, **payload)
             # Verify target after each step; return immediately on success.
-            if self.is_stage_code(self.name) and self.find_target_stage_after_entry(
-                self.name, max_swipes=3, pattern_only=True
-            ):
-                return True
+            # 验证期间的定位滑动不该混入录制结果（路由只到同 pattern 页面，
+            # 具体关卡定位由 find_target_stage_after_entry 运行时完成），临时压制录制。
+            prev_suppress = self._suppress_nav_recording
+            self._suppress_nav_recording = True
+            try:
+                if self.is_stage_code(self.name) and self.find_target_stage_after_entry(
+                    self.name, max_swipes=3, pattern_only=True
+                ):
+                    return True
+            finally:
+                self._suppress_nav_recording = prev_suppress
         if self.is_stage_code(self.name):
-            return self.find_target_stage_after_entry(
-                self.name, max_swipes=6, pattern_only=True
-            )
+            prev_suppress = self._suppress_nav_recording
+            self._suppress_nav_recording = True
+            try:
+                ok = self.find_target_stage_after_entry(
+                    self.name, max_swipes=6, pattern_only=True
+                )
+            finally:
+                self._suppress_nav_recording = prev_suppress
+            return ok
         return False
 
     def persist_nav_steps(self):

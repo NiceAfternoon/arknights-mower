@@ -334,5 +334,230 @@ class TestSolverMergedWiring(unittest.TestCase):
         self.assertNotIn("OFF", raw["stages"])
 
 
+class TestForceRecordEntryFlow(unittest.TestCase):
+    """force_record 录制模式：跳过快速入口与历史回放，直接走在线构建录新步骤。"""
+
+    def _mk(self, force_record: bool = False, reuse_record: bool = False):
+        s = object.__new__(NavigationSolver)
+        s.name = "AT-8"
+        s.stageType = "ACTIVITY"
+        s.stage_meta = {"endTs": {"endTs": 9999999999}}
+        s.nav_steps = []
+        s.nav_route_success = True
+        s.force_record = force_record
+        s.reuse_record = reuse_record
+        s._activity_entry_done = False
+        s._activity_entry_failed = False
+        s._builder_attempted = False
+        s.success = False
+        return s
+
+    def _engine(self, stack: ExitStack):
+        stack.enter_context(patch.object(nav_module.rapidocr, "engine", object()))
+
+    def test_force_record_skips_quick_and_replay(self):
+        s = self._mk(force_record=True)
+        with ExitStack() as stack:
+            self._engine(stack)
+            quick = stack.enter_context(
+                patch.object(s, "try_quick_entry_from_main", return_value=True)
+            )
+            replay = stack.enter_context(
+                patch.object(s, "try_replay_nav_steps", return_value=True)
+            )
+            build = stack.enter_context(
+                patch.object(s, "try_build_nav_steps_once", return_value=True)
+            )
+            persist = stack.enter_context(patch.object(s, "persist_nav_steps"))
+            ok = s.try_activity_entry()
+        self.assertTrue(ok)
+        quick.assert_not_called()
+        replay.assert_not_called()
+        build.assert_called_once()
+        persist.assert_called_once()
+        self.assertTrue(s.success)
+        self.assertTrue(s._builder_attempted)
+
+    def test_force_record_build_failure_terminates(self):
+        s = self._mk(force_record=True)
+        with ExitStack() as stack:
+            self._engine(stack)
+            stack.enter_context(
+                patch.object(s, "try_build_nav_steps_once", return_value=False)
+            )
+            ok = s.try_activity_entry()
+        self.assertFalse(ok)
+        self.assertTrue(s._activity_entry_failed)
+        self.assertFalse(s.success)
+
+    def test_normal_mode_still_tries_quick_then_replay(self):
+        s = self._mk(force_record=False)
+        with ExitStack() as stack:
+            self._engine(stack)
+            quick = stack.enter_context(
+                patch.object(s, "try_quick_entry_from_main", return_value=True)
+            )
+            replay = stack.enter_context(patch.object(s, "try_replay_nav_steps"))
+            build = stack.enter_context(patch.object(s, "try_build_nav_steps_once"))
+            ok = s.try_activity_entry()
+        self.assertTrue(ok)
+        quick.assert_called_once()
+        replay.assert_not_called()
+        build.assert_not_called()
+
+    def test_reuse_record_replays_with_recording(self):
+        s = self._mk(reuse_record=True)
+        with ExitStack() as stack:
+            self._engine(stack)
+            quick = stack.enter_context(
+                patch.object(s, "try_quick_entry_from_main", return_value=True)
+            )
+            replay = stack.enter_context(
+                patch.object(s, "try_replay_nav_steps", return_value=True)
+            )
+            build = stack.enter_context(patch.object(s, "try_build_nav_steps_once"))
+            ok = s.try_activity_entry()
+        self.assertTrue(ok)
+        quick.assert_not_called()
+        replay.assert_called_once_with(record=True)
+        build.assert_not_called()
+        self.assertTrue(s.success)
+
+    def test_reuse_record_fallback_to_build(self):
+        s = self._mk(reuse_record=True)
+        with ExitStack() as stack:
+            self._engine(stack)
+            replay = stack.enter_context(
+                patch.object(s, "try_replay_nav_steps", return_value=False)
+            )
+            build = stack.enter_context(
+                patch.object(s, "try_build_nav_steps_once", return_value=True)
+            )
+            persist = stack.enter_context(patch.object(s, "persist_nav_steps"))
+            ok = s.try_activity_entry()
+        self.assertTrue(ok)
+        replay.assert_called_once_with(record=True)
+        build.assert_called_once()
+        persist.assert_called_once()
+        self.assertTrue(s.success)
+
+    def test_reuse_record_truncates_partial_steps_on_fallback(self):
+        s = self._mk(reuse_record=True)
+        s.nav_steps = [{"action": "stale"}]
+        with ExitStack() as stack:
+            self._engine(stack)
+            stack.enter_context(
+                patch.object(s, "try_replay_nav_steps", return_value=False)
+            )
+            stack.enter_context(
+                patch.object(s, "try_build_nav_steps_once", return_value=True)
+            )
+            ok = s.try_activity_entry()
+        self.assertTrue(ok)
+        # 失败回放残留的定位步骤被截断，只保留进入 try_activity_entry 前的步骤
+        self.assertEqual(s.nav_steps, [{"action": "stale"}])
+
+    def test_reuse_record_both_fail_terminates(self):
+        s = self._mk(reuse_record=True)
+        with ExitStack() as stack:
+            self._engine(stack)
+            stack.enter_context(
+                patch.object(s, "try_replay_nav_steps", return_value=False)
+            )
+            stack.enter_context(
+                patch.object(s, "try_build_nav_steps_once", return_value=False)
+            )
+            ok = s.try_activity_entry()
+        self.assertFalse(ok)
+        self.assertTrue(s._activity_entry_failed)
+        self.assertFalse(s.success)
+
+
+class TestStoryEntryExclusion(unittest.TestCase):
+    """剧情入口按钮（"Story >>"）不是关卡入口，应从导航候选剔除。"""
+
+    def test_story_button_excluded(self):
+        for text in ["Story >>", "Story>>", "STORY >>", "剧情 >>", "剧情>>"]:
+            self.assertTrue(
+                nav_module._is_story_entry(text), f"should exclude: {text!r}"
+            )
+
+    def test_chapter_name_kept(self):
+        # "Story Line · XX" 是章节名（不带 >>），不能误杀
+        for text in ["Story Line · TS", "Story Line·LE", "Story", "剧情回顾"]:
+            self.assertFalse(nav_module._is_story_entry(text), f"should keep: {text!r}")
+
+    def test_other_entries_kept(self):
+        for text in ["关卡 >>", "墟", "AT-8", "进入", "开放", ""]:
+            self.assertFalse(nav_module._is_story_entry(text), f"should keep: {text!r}")
+
+    def test_non_string_kept(self):
+        self.assertFalse(nav_module._is_story_entry(None))
+        self.assertFalse(nav_module._is_story_entry(123))
+
+
+class TestReplayRecordsSteps(unittest.TestCase):
+    """try_replay_nav_steps 的 record 参数：录制时把回放的路由步骤记进 nav_steps。"""
+
+    _ROUTE = [
+        {"action": "tap", "payload": {"pos": [490, 1014], "text": "main_entry"}},
+        {"action": "swipe", "payload": {"start": [960, 700], "vector": [0, -910]}},
+    ]
+
+    def _solver(self):
+        s = object.__new__(NavigationSolver)
+        s.name = "AT-8"
+        s.nav_steps = []
+        s._suppress_nav_recording = False
+        return s
+
+    def _patch(
+        self, s, record: bool, verify: callable = None, stage_code: bool = False
+    ):
+        stack = ExitStack()
+        stack.enter_context(patch.object(s, "back_to_terminal_main", return_value=True))
+        stack.enter_context(
+            patch.object(s, "get_replay_steps", return_value=self._ROUTE)
+        )
+        stack.enter_context(patch.object(s, "is_stage_code", return_value=stage_code))
+        stack.enter_context(patch.object(s, "tap"))
+        stack.enter_context(patch.object(s, "swipe_noinertia"))
+        stack.enter_context(patch.object(s, "wait_for_scene_stable"))
+        if verify is not None:
+            stack.enter_context(
+                patch.object(s, "find_target_stage_after_entry", side_effect=verify)
+            )
+        return stack
+
+    def test_record_true_captures_route(self):
+        s = self._solver()
+        with self._patch(s, record=True):
+            ok = s.try_replay_nav_steps(record=True)
+        self.assertFalse(ok)  # is_stage_code=False，不触发验证，走完全部步骤返回 False
+        self.assertEqual(s.nav_steps, self._ROUTE)
+
+    def test_record_false_captures_nothing(self):
+        s = self._solver()
+        with self._patch(s, record=False):
+            ok = s.try_replay_nav_steps(record=False)
+        self.assertFalse(ok)
+        self.assertEqual(s.nav_steps, [])
+
+    def test_verify_suppresses_recording(self):
+        # 验证阶段的定位滑动不该混入录制结果（否则攒一堆重复滑动）
+        s = self._solver()
+        observed = {}
+
+        def _verify(*args, **kwargs):
+            observed["suppress"] = s._suppress_nav_recording
+            return False
+
+        with self._patch(s, record=True, verify=_verify, stage_code=True):
+            ok = s.try_replay_nav_steps(record=True)
+        self.assertFalse(ok)
+        self.assertTrue(observed["suppress"])
+        self.assertEqual(s.nav_steps, self._ROUTE)
+
+
 if __name__ == "__main__":
     unittest.main()

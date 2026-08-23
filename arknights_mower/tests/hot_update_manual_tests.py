@@ -122,7 +122,7 @@ class TestExtractZip(unittest.TestCase):
 
 
 class TestApplyManualZip(unittest.TestCase):
-    """手动应用编排：校验+解压 -> 记录版本（尽力） -> 重载模块。"""
+    """手动应用编排：校验+解压 -> 记录版本（尽力）。"""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -132,7 +132,6 @@ class TestApplyManualZip(unittest.TestCase):
         self.version = self.dir / "hot_update_version.json"
         self.extract_p = patch.object(hu, "extract_path", self.extract)
         self.version_p = patch.object(hu, "version_state", self.version)
-        self.load_p = patch.object(hu, "load_module")
 
     def test_applies_and_records_version(self):
         data = _zip_bytes(
@@ -141,14 +140,14 @@ class TestApplyManualZip(unittest.TestCase):
                 "version.json": json.dumps({"version": "v9.9.9"}),
             }
         )
-        with self.extract_p, self.version_p, self.load_p:
+        with self.extract_p, self.version_p:
             self.assertTrue(hu.apply_manual_zip(data))
             self.assertEqual(self.version.read_text(encoding="utf-8"), "v9.9.9")
 
     def test_applies_without_version_preserves_tag(self):
         data = _zip_bytes({"nav_steps.json": json.dumps({"version": 1})})
         self.version.write_text("v8.8.8", encoding="utf-8")
-        with self.extract_p, self.version_p, self.load_p:
+        with self.extract_p, self.version_p:
             self.assertTrue(hu.apply_manual_zip(data))
             self.assertEqual(self.version.read_text(encoding="utf-8"), "v8.8.8")
 
@@ -161,7 +160,7 @@ class TestApplyManualZip(unittest.TestCase):
             }
         )
         self.version.write_text("v2026.08.23-bbbbbb", encoding="utf-8")
-        with self.extract_p, self.version_p, self.load_p:
+        with self.extract_p, self.version_p:
             self.assertTrue(hu.apply_manual_zip(data))
             self.assertEqual(
                 self.version.read_text(encoding="utf-8"), "v2026.08.23-bbbbbb"
@@ -175,7 +174,7 @@ class TestApplyManualZip(unittest.TestCase):
             }
         )
         self.version.write_text("v2026.08.21-aaaaaa", encoding="utf-8")
-        with self.extract_p, self.version_p, self.load_p:
+        with self.extract_p, self.version_p:
             self.assertTrue(hu.apply_manual_zip(data))
             self.assertEqual(
                 self.version.read_text(encoding="utf-8"), "v2026.08.23-bbbbbb"
@@ -189,16 +188,15 @@ class TestApplyManualZip(unittest.TestCase):
             }
         )
         self.version.write_text("v2026.08.22-aaaaaa", encoding="utf-8")
-        with self.extract_p, self.version_p, self.load_p:
+        with self.extract_p, self.version_p:
             self.assertTrue(hu.apply_manual_zip(data))
             self.assertEqual(
                 self.version.read_text(encoding="utf-8"), "v2026.08.22-aaaaaa"
             )
 
-    def test_invalid_rejected_no_reload(self):
-        with self.extract_p, self.version_p, self.load_p as lm:
+    def test_invalid_rejected(self):
+        with self.extract_p, self.version_p:
             self.assertFalse(hu.apply_manual_zip(_zip_bytes({"x.txt": "a"})))
-            lm.assert_not_called()
 
 
 if __name__ == "__main__":

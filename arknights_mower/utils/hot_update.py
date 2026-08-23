@@ -1,8 +1,6 @@
 import json
 import re
-import sys
 from datetime import datetime, timedelta
-from importlib import reload
 from io import BytesIO
 from pathlib import PurePosixPath
 from shutil import rmtree
@@ -11,32 +9,14 @@ from zipfile import ZipFile
 import requests
 
 from arknights_mower.utils import config
-from arknights_mower.utils.image import loadimg
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
 
 extract_path = get_path("@install/tmp/hot_update")
 version_state = get_path("@install/tmp/hot_update_version.json")
-HOT_UPDATE_REPO = "armkowers/hot_update"
-sign_in = None
-navigation = None
+HOT_UPDATE_REPO = "ArkMowers/MowerHotUpdate"
 
 last_update = None
-
-
-def load_module(download_update):
-    global sign_in
-    global navigation
-    if "sign_in" in sys.modules and "navigation" in sys.modules:
-        if download_update:
-            loadimg.cache_clear()
-            reload(sign_in)
-            reload(navigation)
-    else:
-        if extract_path not in sys.path:
-            sys.path.append(str(extract_path))
-        import navigation
-        import sign_in
 
 
 def _latest_release_tag() -> str | None:
@@ -129,11 +109,11 @@ def _version_tag_from_zip(data: bytes) -> str | None:
 
 
 def apply_manual_zip(data: bytes) -> bool:
-    """手动应用一份 hot_update.zip 内容：校验 + 解压到热更目录 + 记录版本 + 重载。
+    """手动应用一份 hot_update.zip 内容：校验 + 解压到热更目录 + 记录版本。
 
-    与网络下载走同一套应用路径（_extract_zip + load_module(True)）；版本号尽力从
-    version.json 读，没有则不覆盖已记录版本。记录版本遵守与 #183 相同的「只升不降」
-    守卫——拖入更旧的包不覆盖已应用的更新版本。用于国内直连 GitHub 不稳时的人工兜底。
+    与网络下载走同一套应用路径（_extract_zip）；版本号尽力从 version.json 读，
+    没有则不覆盖已记录版本。记录版本遵守与 #183 相同的「只升不降」守卫——拖入更旧
+    的包不覆盖已应用的更新版本。用于国内直连 GitHub 不稳时的人工兜底。
     """
     if not _extract_zip(data):
         return False
@@ -146,7 +126,6 @@ def apply_manual_zip(data: bytes) -> bool:
             logger.warning(
                 f"手动热更包版本 {tag} 不新于已应用版本 {local or '无'}，保持已记录版本"
             )
-    load_module(True)
     return True
 
 
@@ -206,12 +185,10 @@ def update():
 
     if not config.conf.hot_update.enable:
         logger.info("热更新检查未开启，跳过")
-        load_module(False)
         return
 
     if last_update and datetime.now() - last_update < timedelta(minutes=30):
         logger.info("跳过热更新检查")
-        load_module(False)
         return
 
     remote_tag = _latest_release_tag()
@@ -223,7 +200,6 @@ def update():
     if not _is_newer(remote_tag, local_tag):
         logger.info(f"本地已是最新热更（{local_tag}），无需更新")
         last_update = datetime.now()
-        load_module(False)
         return
 
     logger.info(f"发现新热更版本 {remote_tag}（本地 {local_tag or '无'}），开始下载")
@@ -231,6 +207,5 @@ def update():
         _write_applied_tag(remote_tag)
         logger.info("热更新成功")
         last_update = datetime.now()
-        load_module(True)
     else:
         logger.error("热更新失败！")

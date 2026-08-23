@@ -31,7 +31,6 @@ class TestHotUpdateBase(unittest.TestCase):
         self.enable = patch.object(config.conf.hot_update, "enable", True)
         self.extract_p = patch.object(hu, "extract_path", self.extract)
         self.version_p = patch.object(hu, "version_state", self.version)
-        self.load_p = patch.object(hu, "load_module", lambda _download: None)
         # 模块全局 last_update 跨用例残留会触发 30 分钟节流，逐用例重置
         self._old_last_update = hu.last_update
         hu.last_update = None
@@ -80,7 +79,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             patch.object(config.conf.hot_update, "enable", False),
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v1") as latest,
         ):
             hu.update()
@@ -92,7 +90,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v2026.08.22-aaaaaa"),
             patch.object(hu, "_download_and_extract") as dl,
         ):
@@ -106,7 +103,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v2026.08.22-bbbbbb"),
             patch.object(hu, "_download_and_extract") as dl,
         ):
@@ -119,7 +115,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v2026.08.22-bbbbbb"),
             patch.object(hu, "_download_and_extract", return_value=True),
         ):
@@ -135,7 +130,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v2026.08.22-bbbbbb"),
             patch.object(hu, "_download_and_extract", return_value=True),
         ):
@@ -150,7 +144,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value="v2026.08.22-bbbbbb"),
             patch.object(hu, "_download_and_extract", return_value=False),
         ):
@@ -165,7 +158,6 @@ class TestUpdateOrchestration(TestHotUpdateBase):
             self.enable,
             self.extract_p,
             self.version_p,
-            self.load_p,
             patch.object(hu, "_latest_release_tag", return_value=None),
             patch.object(hu, "_download_and_extract") as dl,
         ):
