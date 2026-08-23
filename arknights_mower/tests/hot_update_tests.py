@@ -8,6 +8,7 @@ from zipfile import ZipFile
 
 from arknights_mower.utils import config
 from arknights_mower.utils import hot_update as hu
+from arknights_mower.utils.res_version import parse_version, version_newer
 
 
 def _fake_zip_bytes() -> bytes:
@@ -172,37 +173,49 @@ class TestTagCompare(unittest.TestCase):
     """「日期 + 哈希」tag 解析与「只升级不降级」守卫。"""
 
     def test_parse_valid(self):
-        self.assertEqual(hu._parse_tag("v2026.08.22-9f3c8a2"), (2026, 8, 22, "9f3c8a2"))
         self.assertEqual(
-            hu._parse_tag("v2026.08.22-9f3c8a2d4b1c"), (2026, 8, 22, "9f3c8a2d4b1c")
+            parse_version("v2026.08.22-9f3c8a2", require_v=True),
+            (2026, 8, 22, "9f3c8a2"),
+        )
+        self.assertEqual(
+            parse_version("v2026.08.22-9f3c8a2d4b1c", require_v=True),
+            (2026, 8, 22, "9f3c8a2d4b1c"),
         )
 
     def test_parse_invalid_returns_none(self):
-        self.assertIsNone(hu._parse_tag("v2026.08.22"))  # 缺哈希
-        self.assertIsNone(hu._parse_tag("v1"))
-        self.assertIsNone(hu._parse_tag(""))
-        self.assertIsNone(hu._parse_tag("abc"))
+        self.assertIsNone(parse_version("v2026.08.22", require_v=True))  # 缺哈希
+        self.assertIsNone(parse_version("v1", require_v=True))
+        self.assertIsNone(parse_version("", require_v=True))
+        self.assertIsNone(parse_version("abc", require_v=True))
 
     def test_is_newer_same_false(self):
-        self.assertFalse(hu._is_newer("v2026.08.22-aaaaaa", "v2026.08.22-aaaaaa"))
+        self.assertFalse(
+            version_newer("v2026.08.22-aaaaaa", "v2026.08.22-aaaaaa", require_v=True)
+        )
 
     def test_is_newer_remote_older_false(self):
         # remote 更旧 -> 不降级
-        self.assertFalse(hu._is_newer("v2026.08.22-aaaaaa", "v2026.08.23-bbbbbb"))
+        self.assertFalse(
+            version_newer("v2026.08.22-aaaaaa", "v2026.08.23-bbbbbb", require_v=True)
+        )
 
     def test_is_newer_date_true(self):
-        self.assertTrue(hu._is_newer("v2026.08.22-aaaaaa", "v2026.08.21-bbbbbb"))
+        self.assertTrue(
+            version_newer("v2026.08.22-aaaaaa", "v2026.08.21-bbbbbb", require_v=True)
+        )
 
     def test_is_newer_same_day_different_hash_true(self):
         # 同日两个 release：哈希不同即视为更新（内容变了）
-        self.assertTrue(hu._is_newer("v2026.08.22-bbbbbb", "v2026.08.22-aaaaaa"))
+        self.assertTrue(
+            version_newer("v2026.08.22-bbbbbb", "v2026.08.22-aaaaaa", require_v=True)
+        )
 
     def test_is_newer_unparsable_falls_back_to_different(self):
-        self.assertTrue(hu._is_newer("v2", "v1"))
-        self.assertFalse(hu._is_newer("v1", "v1"))
+        self.assertTrue(version_newer("v2", "v1", require_v=True))
+        self.assertFalse(version_newer("v1", "v1", require_v=True))
 
     def test_is_newer_empty_local(self):
-        self.assertTrue(hu._is_newer("v2026.08.22-aaaaaa", ""))
+        self.assertTrue(version_newer("v2026.08.22-aaaaaa", "", require_v=True))
 
 
 if __name__ == "__main__":

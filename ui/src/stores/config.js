@@ -107,7 +107,6 @@ export const useConfigStore = defineStore('config', () => {
   const visit_friend = ref(true)
   const credit_fight = ref({})
   const custom_screenshot = ref({})
-  const check_for_updates = ref(true)
   const hot_update_enable = ref(false)
   const notification_level = ref('INFO')
   const waiting_scene = ref({})
@@ -352,7 +351,6 @@ export const useConfigStore = defineStore('config', () => {
     fodder_operators.value = response.data.fodder_operators || ['九色鹿']
     t5_operators.value = response.data.t5_operators || ['年']
     book_operators.value = response.data.book_operators || ['司霆惊蛰']
-    check_for_updates.value = response.data.check_for_updates
     hot_update_enable.value = response.data.hot_update?.enable ?? false
     notification_level.value = response.data.notification_level
     waiting_scene.value = response.data.waiting_scene
@@ -467,7 +465,6 @@ export const useConfigStore = defineStore('config', () => {
       fodder_operators: fodder_operators.value,
       t5_operators: t5_operators.value,
       book_operators: book_operators.value,
-      check_for_updates: check_for_updates.value,
       hot_update: { enable: hot_update_enable.value },
       notification_level: notification_level.value,
       waiting_scene: waiting_scene.value,
@@ -608,7 +605,6 @@ export const useConfigStore = defineStore('config', () => {
     visit_friend,
     credit_fight,
     custom_screenshot,
-    check_for_updates,
     hot_update_enable,
     notification_level,
     waiting_scene,

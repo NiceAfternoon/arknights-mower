@@ -6,14 +6,13 @@
 """
 
 import json
-import re
 from pathlib import Path
 
 import requests
 
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
-from arknights_mower.utils.res_version import display_version
+from arknights_mower.utils.res_version import display_version, version_newer
 from arknights_mower.utils.resource_pkg import resource_pkg_path
 
 RESOURCE_VERSION_URL = (
@@ -21,35 +20,6 @@ RESOURCE_VERSION_URL = (
 )
 LOCAL_VERSION_PATH = resource_pkg_path("arknights_mower/data/version.json")
 TMP_VERSION_PATH = get_path("@install/tmp/resource_version.json")
-
-_RES_VERSION_RE = re.compile(r"^v?(\d{4})\.(\d{2})\.(\d{2})-([0-9a-fA-F]{6,40})$")
-
-
-def _parse_res_version(v: str) -> tuple | None:
-    """解析「日期-内容哈希」res_version -> (年, 月, 日, 哈希)；前导 v 可带可不带，非法返回 None。"""
-    m = _RES_VERSION_RE.match(v or "")
-    if not m:
-        return None
-    return (
-        int(m.group(1)),
-        int(m.group(2)),
-        int(m.group(3)),
-        m.group(4),
-    )
-
-
-def _res_version_newer(remote: str, local: str) -> bool:
-    """remote 严格新于 local 才 True（防手滑发旧版降级）。
-
-    日期不同按日期定序；同日哈希不同 = 内容变了 = 视为更新。本地缺失时 remote 恒新。
-    无法解析的版本回退到「不同即更新」的保守行为。
-    """
-    remote_t, local_t = _parse_res_version(remote), _parse_res_version(local)
-    if remote_t is None or local_t is None:
-        return remote != local
-    if remote_t[:3] != local_t[:3]:
-        return remote_t[:3] > local_t[:3]
-    return remote_t[3] != local_t[3]
 
 
 def _read_json(path: Path) -> dict | None:
@@ -131,6 +101,6 @@ def check_resource_update() -> dict:
         "current_display": current_display,
         "remote_version": remote_version,
         "remote_display": display_version(remote) or "",
-        "update_available": _res_version_newer(remote_version, current_version),
+        "update_available": version_newer(remote_version, current_version),
         "error": None,
     }

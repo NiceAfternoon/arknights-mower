@@ -3,6 +3,7 @@ from contextlib import ExitStack
 from unittest.mock import patch
 
 from arknights_mower.utils import resource_version as rv
+from arknights_mower.utils.res_version import parse_version, version_newer
 
 
 def _version(res_version="2026.08.23-31a240b", name="墟·复刻", time=1724068800):
@@ -16,12 +17,8 @@ def _version(res_version="2026.08.23-31a240b", name="墟·复刻", time=17240688
 
 class TestParseResVersion(unittest.TestCase):
     def test_valid(self):
-        self.assertEqual(
-            rv._parse_res_version("2026.08.23-31a240b"), (2026, 8, 23, "31a240b")
-        )
-        self.assertEqual(
-            rv._parse_res_version("v2026.08.23-31a240b"), (2026, 8, 23, "31a240b")
-        )
+        self.assertEqual(parse_version("2026.08.23-31a240b"), (2026, 8, 23, "31a240b"))
+        self.assertEqual(parse_version("v2026.08.23-31a240b"), (2026, 8, 23, "31a240b"))
 
     def test_invalid(self):
         for bad in [
@@ -32,44 +29,32 @@ class TestParseResVersion(unittest.TestCase):
             None,
             "2026.08.23-zzz",
         ]:
-            self.assertIsNone(rv._parse_res_version(bad), f"should reject: {bad!r}")
+            self.assertIsNone(parse_version(bad), f"should reject: {bad!r}")
 
 
 class TestResVersionNewer(unittest.TestCase):
     def test_same_date_diff_hash_is_newer(self):
-        self.assertTrue(
-            rv._res_version_newer("2026.08.23-bbbbbbb", "2026.08.23-aaaaaaa")
-        )
+        self.assertTrue(version_newer("2026.08.23-bbbbbbb", "2026.08.23-aaaaaaa"))
 
     def test_later_date_is_newer(self):
-        self.assertTrue(
-            rv._res_version_newer("2026.08.24-aaaaaaa", "2026.08.23-aaaaaaa")
-        )
+        self.assertTrue(version_newer("2026.08.24-aaaaaaa", "2026.08.23-aaaaaaa"))
 
     def test_earlier_date_is_not_newer(self):
-        self.assertFalse(
-            rv._res_version_newer("2026.08.22-aaaaaaa", "2026.08.23-aaaaaaa")
-        )
+        self.assertFalse(version_newer("2026.08.22-aaaaaaa", "2026.08.23-aaaaaaa"))
 
     def test_equal_is_not_newer(self):
-        self.assertFalse(
-            rv._res_version_newer("2026.08.23-aaaaaaa", "2026.08.23-aaaaaaa")
-        )
+        self.assertFalse(version_newer("2026.08.23-aaaaaaa", "2026.08.23-aaaaaaa"))
 
     def test_absent_local_is_always_newer(self):
-        self.assertTrue(rv._res_version_newer("2026.08.23-aaaaaaa", ""))
+        self.assertTrue(version_newer("2026.08.23-aaaaaaa", ""))
 
     def test_v_prefix_ignored(self):
-        self.assertFalse(
-            rv._res_version_newer("v2026.08.23-aaaaaaa", "2026.08.23-aaaaaaa")
-        )
-        self.assertTrue(
-            rv._res_version_newer("v2026.08.24-aaaaaaa", "2026.08.23-aaaaaaa")
-        )
+        self.assertFalse(version_newer("v2026.08.23-aaaaaaa", "2026.08.23-aaaaaaa"))
+        self.assertTrue(version_newer("v2026.08.24-aaaaaaa", "2026.08.23-aaaaaaa"))
 
     def test_unparsable_falls_back_to_inequality(self):
-        self.assertTrue(rv._res_version_newer("nope", "2026.08.23-aaaaaaa"))
-        self.assertFalse(rv._res_version_newer("nope", "nope"))
+        self.assertTrue(version_newer("nope", "2026.08.23-aaaaaaa"))
+        self.assertFalse(version_newer("nope", "nope"))
 
 
 class TestCheckResourceUpdate(unittest.TestCase):

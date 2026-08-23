@@ -1,8 +1,6 @@
 import json
-import re
 from datetime import datetime, timedelta
 from io import BytesIO
-from pathlib import PurePosixPath
 from shutil import rmtree
 from zipfile import ZipFile
 
@@ -11,6 +9,8 @@ import requests
 from arknights_mower.utils import config
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
+from arknights_mower.utils.res_version import version_newer
+from arknights_mower.utils.zip_safe import is_unsafe_zip_member
 
 extract_path = get_path("@install/tmp/hot_update")
 version_state = get_path("@install/tmp/hot_update_version.json")
@@ -52,20 +52,10 @@ def _write_applied_tag(tag: str) -> None:
 # 有效热更包的数据标记（zip 根目录）。version.json 只是可选版本清单，不单独算有效包。
 _HOTUPDATE_MARKERS = ("nav_steps.json", "stage_data.json")
 
-_WINDOWS_DRIVE_RE = re.compile(r"^[A-Za-z]:")
-
 
 def _has_hotupdate_marker(names: list[str]) -> bool:
     """zip 根目录至少要带一个热更数据文件（nav_steps.json / stage_data.json）。"""
     return any(n in _HOTUPDATE_MARKERS for n in names)
-
-
-def _unsafe_member(name: str) -> bool:
-    """zip-slip 防护：拒绝绝对路径、穿越段、Windows 盘符路径。"""
-    p = PurePosixPath(name)
-    if p.is_absolute() or ".." in p.parts:
-        return True
-    return bool(_WINDOWS_DRIVE_RE.match(name))
 
 
 def _extract_zip(data: bytes) -> bool:
@@ -78,7 +68,7 @@ def _extract_zip(data: bytes) -> bool:
                     f"不是有效的热更包（缺 {_HOTUPDATE_MARKERS} 任一）：{names}"
                 )
                 return False
-            if any(_unsafe_member(n) for n in names):
+            if any(is_unsafe_zip_member(n) for n in names):
                 logger.warning(f"热更包含非法路径，拒绝应用：{names}")
                 return False
             if extract_path.exists():
@@ -120,7 +110,7 @@ def apply_manual_zip(data: bytes) -> bool:
     tag = _version_tag_from_zip(data)
     if tag:
         local = _read_applied_tag()
-        if _is_newer(tag, local):
+        if version_newer(tag, local, require_v=True):
             _write_applied_tag(tag)
         else:
             logger.warning(
@@ -145,37 +135,6 @@ def _download_and_extract() -> bool:
         return False
 
 
-# 日期 + 哈希：vYYYY.MM.DD-<hex>。日期定序（守卫用），哈希保证唯一（同日多发天然区分）
-_TAG_RE = re.compile(r"^v(\d{4})\.(\d{2})\.(\d{2})-([0-9a-fA-F]{6,40})$")
-
-
-def _parse_tag(tag: str) -> tuple[int, int, int, str] | None:
-    """解析「日期+哈希」tag -> (年, 月, 日, 哈希)；非法格式返回 None。"""
-    m = _TAG_RE.match(tag or "")
-    if not m:
-        return None
-    return (
-        int(m.group(1)),
-        int(m.group(2)),
-        int(m.group(3)),
-        m.group(4),
-    )
-
-
-def _is_newer(remote: str, local: str) -> bool:
-    """remote 严格新于 local 才返回 True（防手滑发旧版降级）。
-
-    日期不同按日期定序；同日只需哈希不同即视为更新（内容变了）。
-    无法解析的 tag 回退到「不同即更新」的保守行为。
-    """
-    remote_t, local_t = _parse_tag(remote), _parse_tag(local)
-    if remote_t is None or local_t is None:
-        return remote != local
-    if remote_t[:3] != local_t[:3]:
-        return remote_t[:3] > local_t[:3]
-    return remote != local
-
-
 def update():
     """检查并应用热更：GitHub Releases latest 的 tag 与本地已应用版本比对。
 
@@ -196,7 +155,7 @@ def update():
         return
 
     local_tag = _read_applied_tag()
-    if not _is_newer(remote_tag, local_tag):
+    if not version_newer(remote_tag, local_tag, require_v=True):
         last_update = datetime.now()
         return
 

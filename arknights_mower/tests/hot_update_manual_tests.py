@@ -7,6 +7,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from arknights_mower.utils import hot_update as hu
+from arknights_mower.utils.zip_safe import is_unsafe_zip_member
 
 
 def _zip_bytes(entries=None) -> bytes:
@@ -41,17 +42,17 @@ class TestUnsafeMember(unittest.TestCase):
     """zip-slip 防护：拒绝绝对路径 / 穿越 / Windows 盘符路径。"""
 
     def test_traversal_rejected(self):
-        self.assertTrue(hu._unsafe_member("../../etc/passwd"))
-        self.assertTrue(hu._unsafe_member("a/../../b"))
-        self.assertTrue(hu._unsafe_member("/abs/path"))
+        self.assertTrue(is_unsafe_zip_member("../../etc/passwd"))
+        self.assertTrue(is_unsafe_zip_member("a/../../b"))
+        self.assertTrue(is_unsafe_zip_member("/abs/path"))
 
     def test_windows_drive_rejected(self):
-        self.assertTrue(hu._unsafe_member("C:/evil"))
-        self.assertTrue(hu._unsafe_member("c:evil"))
+        self.assertTrue(is_unsafe_zip_member("C:/evil"))
+        self.assertTrue(is_unsafe_zip_member("c:evil"))
 
     def test_normal_ok(self):
-        self.assertFalse(hu._unsafe_member("nav_steps.json"))
-        self.assertFalse(hu._unsafe_member("a/b/nav_steps.json"))
+        self.assertFalse(is_unsafe_zip_member("nav_steps.json"))
+        self.assertFalse(is_unsafe_zip_member("a/b/nav_steps.json"))
 
 
 class TestVersionTagFromZip(unittest.TestCase):

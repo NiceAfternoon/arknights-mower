@@ -8,9 +8,8 @@
 """
 
 import os
-import re
 from io import BytesIO
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from shutil import rmtree
 from zipfile import ZipFile
 
@@ -19,6 +18,7 @@ import requests
 from arknights_mower import __rootdir__
 from arknights_mower.utils.log import logger
 from arknights_mower.utils.path import get_path
+from arknights_mower.utils.zip_safe import is_unsafe_zip_member
 
 RESOURCE_OVERLAY = get_path("@install/tmp/resource")
 _STAGING = get_path("@install/tmp/resource_staging")
@@ -31,8 +31,6 @@ RESOURCE_ZIP_URL = (
 _RESOURCE_MARKER = "arknights_mower/data/version.json"
 _PKG_PREFIX = "arknights_mower/"
 
-_WINDOWS_DRIVE_RE = re.compile(r"^[A-Za-z]:")
-
 
 def resource_pkg_path(rel: str) -> Path:
     """资源包 overlay 优先、回退内置。rel 为 zip 内相对仓库根路径（如 ``arknights_mower/data/X.json``）。"""
@@ -41,14 +39,6 @@ def resource_pkg_path(rel: str) -> Path:
         return p
     builtin_rel = rel[len(_PKG_PREFIX) :] if rel.startswith(_PKG_PREFIX) else rel
     return Path(__rootdir__) / builtin_rel
-
-
-def _unsafe_member(name: str) -> bool:
-    """zip-slip 防护：拒绝绝对路径、穿越段、Windows 盘符路径（同 hot_update）。"""
-    p = PurePosixPath(name)
-    if p.is_absolute() or ".." in p.parts:
-        return True
-    return bool(_WINDOWS_DRIVE_RE.match(name))
 
 
 def download_resource_pkg() -> bytes | None:
@@ -73,7 +63,7 @@ def install_resource_pkg(data: bytes) -> bool:
                     f"不是有效的资源包（缺 {_RESOURCE_MARKER}）：{names[:5]}"
                 )
                 return False
-            if any(_unsafe_member(n) for n in names):
+            if any(is_unsafe_zip_member(n) for n in names):
                 logger.warning(f"资源包含非法路径，拒绝应用：{names[:5]}")
                 return False
             if _STAGING.exists():

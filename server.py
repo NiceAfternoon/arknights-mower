@@ -59,6 +59,22 @@ if token := config.conf.webview.token:
 mower_thread = None
 log_lines = []
 ws_connections = []
+
+
+def _mower_busy_response():
+    """mower 正在运行任务时返回 409 拒绝；空闲返回 None。"""
+    from arknights_mower.__main__ import base_scheduler
+
+    if (
+        mower_thread
+        and mower_thread.is_alive()
+        and base_scheduler
+        and not base_scheduler.sleeping
+    ):
+        return {"ok": False, "message": "mower 正在运行任务，请稍后再试"}, 409
+    return None
+
+
 maa_check_job = {
     "id": None,
     "process": None,
@@ -550,7 +566,6 @@ def hot_update_manual():
 
     用于国内直连 GitHub 不稳时的人工兜底：热更走 apply_manual_zip，资源包走 overlay 原子安装。
     """
-    from io import BytesIO
     from zipfile import ZipFile
 
     from arknights_mower.utils import hot_update as hu
@@ -576,15 +591,9 @@ def hot_update_manual():
             "message": "热更包应用失败（请确认是有效的 hot_update.zip）",
         }
     if _RESOURCE_MARKER in names:
-        from arknights_mower.__main__ import base_scheduler
-
-        if (
-            mower_thread
-            and mower_thread.is_alive()
-            and base_scheduler
-            and not base_scheduler.sleeping
-        ):
-            return {"ok": False, "message": "mower 正在运行任务，请稍后再试"}, 409
+        busy = _mower_busy_response()
+        if busy:
+            return busy
         if install_resource_pkg(raw):
             return {"ok": True, "message": "资源包安装成功，重启后完全生效"}
         return {"ok": False, "message": "资源包安装失败（已回滚）"}
@@ -785,15 +794,9 @@ def get_resource_version():
 @require_token
 def install_resource():
     """下载并原子安装资源包（overlay 模型）；mower 运行任务时拒绝。"""
-    from arknights_mower.__main__ import base_scheduler
-
-    if (
-        mower_thread
-        and mower_thread.is_alive()
-        and base_scheduler
-        and not base_scheduler.sleeping
-    ):
-        return {"ok": False, "message": "mower 正在运行任务，请稍后再试"}, 409
+    busy = _mower_busy_response()
+    if busy:
+        return busy
 
     from arknights_mower.utils.resource_pkg import (
         download_resource_pkg,

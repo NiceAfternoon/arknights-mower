@@ -116,8 +116,6 @@ class ExtraPart(ConfModel):
     "截图最短间隔（毫秒）"
     screenshot: float = 0.02
     "截图保留时长（小时）"
-    check_for_updates: bool = True
-    "检查更新"
     waiting_scene: WaitingSceneConf
     "等待时间"
 
