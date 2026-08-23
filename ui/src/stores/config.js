@@ -108,6 +108,7 @@ export const useConfigStore = defineStore('config', () => {
   const credit_fight = ref({})
   const custom_screenshot = ref({})
   const check_for_updates = ref(true)
+  const hot_update_enable = ref(false)
   const notification_level = ref('INFO')
   const waiting_scene = ref({})
   const exipring_medicine_on_weekend = ref(false)
@@ -352,6 +353,7 @@ export const useConfigStore = defineStore('config', () => {
     t5_operators.value = response.data.t5_operators || ['年']
     book_operators.value = response.data.book_operators || ['司霆惊蛰']
     check_for_updates.value = response.data.check_for_updates
+    hot_update_enable.value = response.data.hot_update?.enable ?? false
     notification_level.value = response.data.notification_level
     waiting_scene.value = response.data.waiting_scene
     exipring_medicine_on_weekend.value = response.data.exipring_medicine_on_weekend
@@ -466,6 +468,7 @@ export const useConfigStore = defineStore('config', () => {
       t5_operators: t5_operators.value,
       book_operators: book_operators.value,
       check_for_updates: check_for_updates.value,
+      hot_update: { enable: hot_update_enable.value },
       notification_level: notification_level.value,
       waiting_scene: waiting_scene.value,
       exipring_medicine_on_weekend: exipring_medicine_on_weekend.value,
@@ -606,6 +609,7 @@ export const useConfigStore = defineStore('config', () => {
     credit_fight,
     custom_screenshot,
     check_for_updates,
+    hot_update_enable,
     notification_level,
     waiting_scene,
     exipring_medicine_on_weekend,

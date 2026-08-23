@@ -885,6 +885,9 @@ if (return_home_when_idle.value) {
       <div>
         <HotUpdate />
       </div>
+      <div>
+        <ResourceVersion />
+      </div>
     </div>
   </div>
 </template>

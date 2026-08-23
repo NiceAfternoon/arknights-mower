@@ -3,11 +3,17 @@ from pathlib import Path
 
 from .. import __rootdir__
 from ..utils.path import get_path
+from ..utils.resource_pkg import resource_pkg_path
+
+
+def _data_path(name: str) -> Path:
+    """资源包 overlay 优先（@install/tmp/resource），回退内置 data/。"""
+    return resource_pkg_path(f"arknights_mower/data/{name}")
 
 
 def stage_data_path() -> Path:
     """打包内置的全量关卡基线（常驻 + 当时活动），启动读一次，之后不变。"""
-    return Path(__rootdir__) / "data" / "stage_data_full.json"
+    return _data_path("stage_data_full.json")
 
 
 def stage_data_overlay_path() -> Path:
@@ -69,18 +75,12 @@ class StageData:
 stage_data_full = StageData()
 
 # agents list in Arknights
-agent_list = json.loads(Path(f"{__rootdir__}/data/agent.json").read_text("utf-8"))
+agent_list = json.loads(_data_path("agent.json").read_text("utf-8"))
 
-agent_profession = json.loads(
-    Path(f"{__rootdir__}/data/agent_profession.json").read_text("utf-8")
-)
-workshop_formula = json.loads(
-    Path(f"{__rootdir__}/data/workshop_formula.json").read_text("utf-8")
-)
+agent_profession = json.loads(_data_path("agent_profession.json").read_text("utf-8"))
+workshop_formula = json.loads(_data_path("workshop_formula.json").read_text("utf-8"))
 
-stage_order = json.loads(
-    Path(f"{__rootdir__}/data/stage_order.json").read_text("utf-8")
-)
+stage_order = json.loads(_data_path("stage_order.json").read_text("utf-8"))
 
 # # agents base skills
 # agent_base_config = json.loads(
@@ -118,15 +118,11 @@ weekly_zones = json.loads(Path(f"{__rootdir__}/data/weekly.json").read_text("utf
 scene_list = json.loads(Path(f"{__rootdir__}/data/scene.json").read_text("utf-8"))
 
 # recruit database
-recruit_agent = json.loads(Path(f"{__rootdir__}/data/recruit.json").read_text("utf-8"))
+recruit_agent = json.loads(_data_path("recruit.json").read_text("utf-8"))
 
-recruit_result = json.loads(
-    Path(f"{__rootdir__}/data/recruit_result.json").read_text("utf-8")
-)
+recruit_result = json.loads(_data_path("recruit_result.json").read_text("utf-8"))
 
-key_mapping = json.loads(
-    Path(f"{__rootdir__}/data/key_mapping.json").read_text("utf-8")
-)
+key_mapping = json.loads(_data_path("key_mapping.json").read_text("utf-8"))
 
 recruit_tag = ["资深干员", "高级资深干员"]
 for x in recruit_agent.values():

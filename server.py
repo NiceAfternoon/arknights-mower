@@ -7,6 +7,7 @@ import subprocess
 import time
 from functools import wraps
 from io import BytesIO
+from pathlib import Path
 from threading import RLock, Thread
 
 from flask import Flask, abort, request, send_file, send_from_directory
@@ -125,6 +126,16 @@ def read_log():
 Thread(target=read_log, daemon=True).start()
 
 
+def _check_hot_update_on_launch():
+    """打开 mower 时后台检查一次热更（config 开关 + 节流内置，不阻塞启动）。"""
+    from arknights_mower.utils.hot_update import update as hot_update_update
+
+    hot_update_update()
+
+
+Thread(target=_check_hot_update_on_launch, daemon=True).start()
+
+
 def require_token(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -138,6 +149,17 @@ def require_token(f):
 @app.route("/<path:path>")
 def serve_index(path):
     return send_from_directory("ui/dist", path)
+
+
+@app.before_request
+def serve_resource_overlay():
+    """资源包 webp（depot/avatar/building_skill）overlay 优先，刷新即生效。"""
+    path = request.path.lstrip("/")
+    if path.startswith(("depot/", "avatar/", "building_skill/")):
+        base = Path(get_path("@install/tmp/resource/ui/public"))
+        p = (base / path).resolve()
+        if base.resolve() in p.parents and p.is_file():
+            return send_file(p)
 
 
 @app.after_request
@@ -524,18 +546,52 @@ def upload_sss_copilot():
 @app.route("/hot-update/manual", methods=["POST"])
 @require_token
 def hot_update_manual():
-    """手动应用一份 hot_update.zip（拖入/选择），校验后解压并触发读取。
+    """手动应用一份更新包（拖入/选择），按 zip 内容自动识别热更包/资源包。
 
-    用于国内直连 GitHub 不稳时的人工兜底；与网络下载共用 apply_manual_zip 的应用路径。
+    用于国内直连 GitHub 不稳时的人工兜底：热更走 apply_manual_zip，资源包走 overlay 原子安装。
     """
+    from io import BytesIO
+    from zipfile import ZipFile
+
     from arknights_mower.utils import hot_update as hu
+    from arknights_mower.utils.resource_pkg import (
+        _RESOURCE_MARKER,
+        install_resource_pkg,
+    )
 
     update_file = request.files.get("update")
     if update_file is None:
-        return {"ok": False, "message": "没有收到 hot_update.zip 文件"}
-    if hu.apply_manual_zip(update_file.read()):
-        return {"ok": True, "message": "热更包已应用"}
-    return {"ok": False, "message": "热更包应用失败（请确认是有效的 hot_update.zip）"}
+        return {"ok": False, "message": "没有收到更新包文件"}
+    raw = update_file.read()
+    try:
+        with ZipFile(BytesIO(raw)) as z:
+            names = z.namelist()
+    except Exception:
+        return {"ok": False, "message": "不是有效的 zip 包"}
+    if hu._has_hotupdate_marker(names):
+        if hu.apply_manual_zip(raw):
+            return {"ok": True, "message": "热更包已应用"}
+        return {
+            "ok": False,
+            "message": "热更包应用失败（请确认是有效的 hot_update.zip）",
+        }
+    if _RESOURCE_MARKER in names:
+        from arknights_mower.__main__ import base_scheduler
+
+        if (
+            mower_thread
+            and mower_thread.is_alive()
+            and base_scheduler
+            and not base_scheduler.sleeping
+        ):
+            return {"ok": False, "message": "mower 正在运行任务，请稍后再试"}, 409
+        if install_resource_pkg(raw):
+            return {"ok": True, "message": "资源包安装成功，重启后完全生效"}
+        return {"ok": False, "message": "资源包安装失败（已回滚）"}
+    return {
+        "ok": False,
+        "message": "无法识别的更新包（热更包需 nav_steps.json，资源包需 version.json）",
+    }
 
 
 @app.route("/dialog/save/img", methods=["POST"])
@@ -715,6 +771,41 @@ def ack_update_notice():
         return UpdateNoticeManager().acknowledge(version)
     except ValueError as exc:
         return {"ok": False, "message": str(exc)}, 400
+
+
+@app.route("/resource-version")
+@require_token
+def get_resource_version():
+    from arknights_mower.utils.resource_version import check_resource_update
+
+    return check_resource_update()
+
+
+@app.route("/resource/install", methods=["POST"])
+@require_token
+def install_resource():
+    """下载并原子安装资源包（overlay 模型）；mower 运行任务时拒绝。"""
+    from arknights_mower.__main__ import base_scheduler
+
+    if (
+        mower_thread
+        and mower_thread.is_alive()
+        and base_scheduler
+        and not base_scheduler.sleeping
+    ):
+        return {"ok": False, "message": "mower 正在运行任务，请稍后再试"}, 409
+
+    from arknights_mower.utils.resource_pkg import (
+        download_resource_pkg,
+        install_resource_pkg,
+    )
+
+    data = download_resource_pkg()
+    if data is None:
+        return {"ok": False, "message": "资源包下载失败，请检查网络"}
+    if not install_resource_pkg(data):
+        return {"ok": False, "message": "资源包安装失败（已回滚）"}
+    return {"ok": True, "message": "安装成功，重启后完全生效"}
 
 
 def str2date(target: str):

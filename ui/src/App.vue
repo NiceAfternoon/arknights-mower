@@ -95,12 +95,12 @@
                       aria-modal="true"
                     >
                       <div>
-                        <n-button @click=";((showModal2 = false), $router.push('/mowersettings'))">
+                        <n-button @click=";(showModal2 = false), $router.push('/mowersettings')">
                           mower设置
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";((showModal2 = false), $router.push('/maasettings'))">
+                        <n-button @click=";(showModal2 = false), $router.push('/maasettings')">
                           maa设置
                         </n-button>
                       </div>
@@ -134,28 +134,28 @@
                       aria-modal="true"
                     >
                       <div>
-                        <n-button @click=";((showModal = false), $router.push('/record/line'))">
+                        <n-button @click=";(showModal = false), $router.push('/record/line')">
                           心情曲线
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";((showModal = false), $router.push('/record/pie'))">
+                        <n-button @click=";(showModal = false), $router.push('/record/pie')">
                           心情饼图
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";((showModal = false), $router.push('/record/depot'))">
+                        <n-button @click=";(showModal = false), $router.push('/record/depot')">
                           仓库
                         </n-button>
                       </div>
                       <div>
-                        <n-button @click=";((showModal = false), $router.push('/record/report'))">
+                        <n-button @click=";(showModal = false), $router.push('/record/report')">
                           基建报告
                         </n-button>
                       </div>
                       <div>
                         <n-button
-                          @click=";((showModal = false), $router.push('/record/trading_analysis'))"
+                          @click=";(showModal = false), $router.push('/record/trading_analysis')"
                         >
                           贸易订单分析
                         </n-button>
@@ -367,6 +367,7 @@ import { useConfigStore } from '@/stores/config'
 import { useMowerStore } from '@/stores/mower'
 import { usePlanStore } from '@/stores/plan'
 import { useUpdateNoticeStore } from '@/stores/updateNotice'
+import { useResourceVersionStore } from '@/stores/resourceVersion'
 
 import { usewatermarkStore } from '@/stores/watermark'
 
@@ -392,6 +393,9 @@ const update_notice_store = useUpdateNoticeStore()
 const { notice: updateNotice } = storeToRefs(update_notice_store)
 const { ackUpdateNotice, loadUpdateNotice } = update_notice_store
 const showUpdateNoticeModal = ref(false)
+
+const resource_version_store = useResourceVersionStore()
+const { loadResourceVersion } = resource_version_store
 
 const axios = inject('axios')
 
@@ -491,6 +495,11 @@ onMounted(async () => {
     } catch (error) {
       console.error('failed to load update notice', error)
       showUpdateNoticeModal.value = false
+    }
+    try {
+      await loadResourceVersion()
+    } catch (error) {
+      console.error('failed to load resource version', error)
     }
   }
 
@@ -688,8 +697,8 @@ td {
 
 pre {
   word-break: break-all !important;
-  font-family:
-    'Cascadia Mono', Consolas, 'Microsoft YaHei', 'SF Mono', 'Menlo', 'PingFang SC', monospace !important;
+  font-family: 'Cascadia Mono', Consolas, 'Microsoft YaHei', 'SF Mono', 'Menlo', 'PingFang SC',
+    monospace !important;
 }
 
 .n-dynamic-input-item__action {

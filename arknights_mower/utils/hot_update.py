@@ -180,15 +180,14 @@ def update():
     """检查并应用热更：GitHub Releases latest 的 tag 与本地已应用版本比对。
 
     由 config.conf.hot_update.enable 控制（默认关）；保留 30 分钟节流。
+    仅在发现新版本或检测失败时记录日志，其余情况静默返回。
     """
     global last_update
 
     if not config.conf.hot_update.enable:
-        logger.info("热更新检查未开启，跳过")
         return
 
     if last_update and datetime.now() - last_update < timedelta(minutes=30):
-        logger.info("跳过热更新检查")
         return
 
     remote_tag = _latest_release_tag()
@@ -198,7 +197,6 @@ def update():
 
     local_tag = _read_applied_tag()
     if not _is_newer(remote_tag, local_tag):
-        logger.info(f"本地已是最新热更（{local_tag}），无需更新")
         last_update = datetime.now()
         return
 
