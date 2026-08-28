@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">Mower 支持的自动化任务</title>
+  <desc id="desc">Mower 支持基建、日常、森空岛、长期任务和 MAA 任务，并记录运行结果。</desc>
+  <defs>
+    <pattern id="paper-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#DCD9CF" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="620" rx="30" fill="#F3F0E7"/>
+  <rect width="1200" height="620" rx="30" fill="url(#paper-grid)" opacity="0.72"/>
+  <g transform="translate(58 48)">
+    <text fill="#6C776F" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="2.2">SUPPORTED AUTOMATION TASKS</text>
+    <rect y="24" width="56" height="6" rx="3" fill="#18A058"/>
+    <text y="84" fill="#121A16" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="45" font-weight="800">Mower 支持的自动化任务</text>
+  </g>
+
+  <g transform="translate(58 164)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <rect x="10" y="10" width="505" height="130" rx="22" fill="#C9C7BE" opacity="0.55" transform="rotate(-1 262 75)"/>
+    <g transform="rotate(-1 252 65)">
+      <rect width="505" height="130" rx="22" fill="#121A16"/>
+      <text x="28" y="37" fill="#6ED5A0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">01 · RIIC</text>
+      <text x="28" y="78" fill="#F7F4EC" font-size="28" font-weight="800">基建任务</text>
+      <text x="28" y="108" fill="#A6B5AD" font-size="19">跑单 · 按心情换班 · 合成材料 · 自动专精</text>
+      <g transform="translate(406 31)" fill="none" stroke="#6ED5A0" stroke-width="4" stroke-linecap="round">
+        <path d="M0 63V21M21 63V6M42 63V34M63 63V14"/>
+      </g>
+    </g>
+
+    <g transform="translate(540 0) rotate(1 272 70)">
+      <rect width="544" height="140" rx="22" fill="#D6EEDF"/>
+      <text x="28" y="38" fill="#2D6F4D" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">02 · DAILY</text>
+      <text x="28" y="80" fill="#123222" font-size="28" font-weight="800">日常任务</text>
+      <text x="28" y="112" fill="#466959" font-size="19">公招 · 邮件 · 线索 · 清理智 · 活动签到</text>
+      <path d="M455 48l22 22 39-45" fill="none" stroke="#18A058" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <g transform="translate(0 165) rotate(0.7 170 72)">
+      <rect width="340" height="145" rx="22" fill="#DCEAF4"/>
+      <text x="26" y="37" fill="#32739A" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">03 · SKLAND</text>
+      <text x="26" y="80" fill="#173C52" font-size="27" font-weight="800">森空岛</text>
+      <text x="26" y="112" fill="#4F748A" font-size="19">签到 · 仓库读取</text>
+      <circle cx="280" cy="77" r="32" fill="none" stroke="#2080F0" stroke-width="5"/>
+      <path d="M257 79l16 14 31-36" fill="none" stroke="#2080F0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <g transform="translate(360 154) rotate(-1.2 180 80)">
+      <rect width="360" height="160" rx="22" fill="#F7D89E"/>
+      <text x="26" y="39" fill="#8A5A08" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">04 · LONG TASKS</text>
+      <text x="26" y="82" fill="#3C2A0B" font-size="27" font-weight="800">长期任务</text>
+      <text x="26" y="115" fill="#73561F" font-size="19">生息演算 · 隐秘战线</text>
+      <path d="M278 112V47h44" fill="none" stroke="#F0A020" stroke-width="6" stroke-linecap="round"/>
+      <path d="M307 34l15 13-15 13" fill="none" stroke="#F0A020" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <g transform="translate(740 166) rotate(0.8 172 72)">
+      <rect width="344" height="145" rx="22" fill="#252A3A"/>
+      <text x="26" y="38" fill="#9FA8FF" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">05 · MAA TASKS</text>
+      <text x="26" y="80" fill="#F5F4FF" font-size="27" font-weight="800">MAA 任务</text>
+      <text x="26" y="112" fill="#B8BBD1" font-size="19">肉鸽 · 保全派驻</text>
+      <text x="270" y="94" text-anchor="middle" fill="#7A86FF" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="42" font-weight="900">MAA</text>
+    </g>
+
+    <g transform="translate(0 340)">
+      <rect width="1084" height="88" rx="22" fill="#FFFFFF" stroke="#D5D4CB"/>
+      <text x="27" y="34" fill="#A04A5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="800">06 · LOGS &amp; REPORTS</text>
+      <text x="27" y="67" fill="#242B28" font-size="25" font-weight="800">运行日志和基建报表记录任务结果</text>
+      <g transform="translate(820 17)">
+        <rect x="0" y="36" width="42" height="22" rx="5" fill="#64BFEC"/>
+        <rect x="55" y="18" width="42" height="40" rx="5" fill="#F5744F"/>
+        <rect x="110" y="28" width="42" height="30" rx="5" fill="#F3E28F"/>
+        <path d="M0 12c35 16 63-6 97 4 22 6 34-4 55-12" fill="none" stroke="#D03050" stroke-width="4" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+</svg>

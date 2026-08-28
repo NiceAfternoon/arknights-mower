@@ -1,0 +1,37 @@
+{
+  "width": 1200,
+  "fps": 30,
+  "duration": 5.4,
+  "colors": 192,
+  "dither": "none",
+  "transparent_color": "#ff00ff",
+  "alpha_threshold": 128,
+  "clip_to_base_alpha": true,
+  "max_size_mb": 2.0,
+  "reveals": [
+    {
+      "id": "schedule-trace",
+      "axis": "x",
+      "start": 0.25,
+      "end": 1.7,
+      "exit": { "start": 4.45, "end": 5.34 }
+    }
+  ],
+  "layers": [
+    {
+      "id": "daily-shift",
+      "enter": { "start": 0.7, "end": 1.4, "from": [38, -8] },
+      "exit": { "start": 4.65, "end": 5.25, "to": [28, -6] }
+    },
+    {
+      "id": "review-shift",
+      "enter": { "start": 1.05, "end": 1.75, "from": [32, -8] },
+      "exit": { "start": 4.45, "end": 5.1, "to": [24, -6] }
+    },
+    {
+      "id": "active-shift",
+      "enter": { "start": 0.35, "end": 1.1, "from": [46, -8] },
+      "exit": { "start": 4.75, "end": 5.34, "to": [32, -6] }
+    }
+  ]
+}

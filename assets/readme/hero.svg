@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Arknights Mower 自动化任务排班</title>
+  <desc id="desc">Mower 按照排班计划执行基建、日常和长期任务，并记录执行结果。</desc>
+  <defs>
+    <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#DCD9CF" stroke-width="1"/>
+    </pattern>
+    <clipPath id="hero-clip">
+      <rect width="1200" height="420" rx="30"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#hero-clip)">
+    <rect width="1200" height="420" fill="#F3F0E7"/>
+    <rect width="1200" height="420" fill="url(#hero-grid)" opacity="0.72"/>
+
+    <g id="title-block">
+      <rect x="54" y="42" width="82" height="82" rx="22" fill="#121A16"/>
+      <path aria-label="Mower 项目标志" transform="translate(60 48) scale(.273)" fill="#F7F4EC" fill-rule="evenodd" d="M 17 158 34 159 34 160 35 160 35 159 37 159 37 158 39 158 39 157 41 157 41 156 44 156 44 155 50 155 50 148 51 148 51 146 52 146 54 143 99 143 99 140 98 140 98 138 97 138 97 136 96 136 96 132 95 132 95 129 94 129 94 124 93 124 93 99 94 99 95 90 96 90 97 84 98 84 98 82 99 82 99 80 100 80 100 78 101 78 103 72 104 72 105 69 108 67 108 65 109 65 109 64 110 64 110 63 111 63 111 62 112 62 112 61 113 61 113 60 114 60 114 59 115 59 115 58 116 58 121 52 123 52 123 51 126 50 127 48 129 48 129 47 131 47 132 45 137 44 137 43 139 43 139 42 141 42 141 41 148 40 148 39 152 39 152 38 158 38 158 37 176 37 176 38 186 39 186 40 189 40 189 41 195 42 195 43 197 43 197 44 199 44 199 45 202 46 202 49 201 49 201 62 199 62 198 60 196 60 196 59 194 59 194 58 192 58 192 57 190 57 190 56 187 56 187 55 184 55 184 54 181 54 181 53 175 53 175 52 158 52 158 53 153 53 153 54 146 55 146 56 144 56 144 57 142 57 142 58 139 58 138 60 134 61 134 62 131 63 126 69 124 69 124 71 119 75 119 77 118 77 117 80 115 81 115 83 114 83 114 85 113 85 113 87 112 87 112 89 111 89 111 92 110 92 110 95 109 95 109 99 108 99 108 105 107 105 107 117 108 117 108 124 109 124 109 128 110 128 111 134 112 134 112 136 113 136 115 142 116 142 117 145 119 146 119 148 120 148 120 149 121 149 121 150 122 150 122 151 123 151 123 152 124 152 124 153 125 153 130 159 132 159 134 162 136 162 136 163 138 163 138 164 140 164 140 165 142 165 142 166 144 166 144 167 147 167 147 168 150 168 150 169 153 169 153 170 159 170 159 171 175 171 175 170 181 170 181 169 184 169 184 168 190 167 190 166 192 166 192 165 198 163 199 161 201 161 201 168 202 168 202 177 201 177 201 178 199 178 199 179 197 179 197 180 195 180 195 181 192 181 192 182 186 183 186 184 175 185 175 186 158 186 158 185 152 185 152 184 144 183 144 182 142 182 142 181 139 181 139 180 137 180 137 179 132 178 131 176 127 175 127 174 124 173 122 170 120 170 120 169 119 169 119 168 118 168 118 167 117 167 117 166 116 166 116 165 115 165 115 164 109 159 109 157 108 157 107 154 106 154 106 201 105 201 105 203 104 203 103 205 101 205 101 206 55 206 55 205 53 205 53 204 51 203 51 201 50 201 50 193 43 193 43 192 40 192 40 191 38 191 37 189 35 189 33 186 29 186 29 185 25 185 25 184 22 184 22 183 18 183 18 182 17 182 Z M 26 148 27 148 27 147 34 147 34 148 37 148 37 149 40 151 40 155 37 155 36 153 27 153 27 152 26 152 Z M 41 175 41 185 44 185 44 186 50 186 50 162 43 162 43 163 42 163 42 175 Z M 56 99 57 99 58 94 59 94 62 90 64 90 64 89 68 89 68 90 70 91 70 95 67 96 67 97 65 98 63 105 64 105 64 108 66 109 66 111 68 112 68 114 69 114 69 116 70 116 70 118 71 118 71 129 70 129 69 133 67 134 67 136 64 137 64 138 62 138 62 137 59 135 59 133 60 133 60 131 61 131 61 129 62 129 62 127 63 127 63 125 64 125 64 121 63 121 63 119 61 118 61 116 59 115 59 113 58 113 58 111 57 111 57 108 56 108 Z M 75 98 76 98 77 94 78 94 81 90 83 90 83 89 87 89 87 90 89 91 88 96 86 96 86 97 83 99 82 106 83 106 84 110 86 111 86 113 87 113 88 116 89 116 89 119 90 119 90 128 89 128 87 134 85 135 85 137 83 137 83 138 81 138 81 137 78 136 78 132 79 132 80 128 82 127 82 123 83 123 83 122 82 122 80 116 78 115 78 113 77 113 77 111 76 111 76 109 75 109 Z M 124 111 125 111 125 109 126 109 127 107 129 107 129 106 137 106 137 107 139 107 139 108 141 109 141 111 142 111 142 115 143 115 141 121 140 121 139 123 137 123 137 124 134 124 134 125 127 123 127 122 125 121 125 119 124 119 Z M 154 128 155 128 156 126 159 126 159 127 161 127 161 128 163 128 163 129 170 129 170 128 174 127 174 126 178 123 179 118 184 117 184 118 186 119 186 123 185 123 184 128 183 128 179 133 177 133 177 134 175 134 175 135 173 135 173 136 168 136 168 137 160 136 160 135 158 135 158 134 156 134 156 133 154 132 Z M 178 90 179 90 180 86 182 86 183 84 185 84 185 83 190 83 190 84 192 84 192 85 194 85 194 86 196 87 196 89 197 89 197 96 196 96 196 98 195 98 193 101 191 101 191 102 184 102 184 101 182 101 182 100 179 98 Z M 207 64 210 62 210 60 211 60 214 56 217 57 217 41 232 41 232 219 217 219 217 109 211 109 211 108 207 105 207 100 217 100 217 94 207 94 Z"/>
+
+      <text x="160" y="58" fill="#6C776F" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800" letter-spacing="2.2">ARKNIGHTS AUTOMATION · SCHEDULED TASKS</text>
+      <rect x="160" y="74" width="56" height="6" rx="3" fill="#18A058"/>
+      <text x="156" y="132" fill="#121A16" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif" font-size="70" font-weight="900" letter-spacing="-2">MOWER</text>
+      <text x="58" y="179" fill="#18211D" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="800">通过排班计划持续执行</text>
+      <text x="58" y="214" fill="#18211D" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="800">基建、日常和长期任务</text>
+      <g transform="translate(58 238)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="800">
+        <rect width="140" height="30" rx="15" fill="#121A16"/>
+        <circle cx="17" cy="15" r="5" fill="#5DD493"/>
+        <text x="31" y="20" fill="#F7F4EC">OPEN SOURCE</text>
+        <text x="160" y="20" fill="#6C776F">WINDOWS · MACOS · LINUX</text>
+      </g>
+    </g>
+
+    <g id="duty-roster" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+      <text x="726" y="53" fill="#6C776F" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800" letter-spacing="2.2">TODAY / TASK SCHEDULE</text>
+      <path d="M726 69h54" stroke="#F0A020" stroke-width="6" stroke-linecap="round"/>
+
+      <g id="daily-shift" transform="translate(744 170) rotate(1 194 41)">
+        <rect width="388" height="82" rx="20" fill="#D6EEDF"/>
+        <text x="24" y="29" fill="#2D6F4D" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="800">02 · DAILY</text>
+        <text x="24" y="61" fill="#123222" font-size="24" font-weight="850">日常任务</text>
+        <text x="226" y="31" fill="#466959" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="800">18:05</text>
+        <rect x="301" y="18" width="66" height="28" rx="14" fill="#B9DFC9"/>
+        <text x="334" y="37" text-anchor="middle" fill="#2D6F4D" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="900">QUEUED</text>
+        <text x="226" y="61" fill="#466959" font-size="16">公招 · 邮件 · 线索</text>
+      </g>
+
+      <g id="review-shift" transform="translate(726 246) rotate(-.8 204 41)">
+        <rect width="408" height="82" rx="20" fill="#DCEAF4"/>
+        <text x="24" y="29" fill="#32739A" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="800">03 · RECORD</text>
+        <text x="24" y="61" fill="#173C52" font-size="24" font-weight="850">运行记录</text>
+        <text x="226" y="31" fill="#4F748A" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="800">06:00</text>
+        <text x="226" y="61" fill="#4F748A" font-size="16">日志 · 报表</text>
+        <g transform="translate(317 17)">
+          <rect width="69" height="48" rx="12" fill="#FFFFFF" stroke="#9CC7DF" stroke-width="2"/>
+          <path d="M14 30h9V18h9v12h9V12h9v18" fill="#64BFEC"/>
+          <path d="M13 36c11 5 19-4 28 0 6 3 11 0 16-4" fill="none" stroke="#D03050" stroke-width="3" stroke-linecap="round"/>
+        </g>
+      </g>
+
+      <g id="active-shift" transform="translate(716 78) rotate(-1.2 210 47)">
+        <rect x="8" y="8" width="420" height="94" rx="21" fill="#C9C7BE" opacity=".62"/>
+        <rect width="420" height="94" rx="21" fill="#121A16"/>
+        <text x="25" y="30" fill="#6ED5A0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="800">01 · RIIC</text>
+        <text x="25" y="67" fill="#F7F4EC" font-size="26" font-weight="850">基建换班</text>
+        <text x="236" y="31" fill="#8CA198" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="800">17:00</text>
+        <text x="236" y="66" fill="#A6B5AD" font-size="16">room_1_2 → 1_1</text>
+        <rect x="329" y="17" width="82" height="29" rx="14.5" fill="#183D2B" stroke="#2D6F4D"/>
+        <circle cx="343" cy="31.5" r="5" fill="#5DD493"/>
+        <text x="355" y="36" fill="#A9EBC7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="900">RUNNING</text>
+      </g>
+    </g>
+
+    <g id="schedule-line" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="900">
+      <path d="M58 350H1142" stroke="#CDCAC1" stroke-width="5" stroke-linecap="round"/>
+      <g fill="#F3F0E7" stroke="#A9A79F" stroke-width="3">
+        <circle cx="58" cy="350" r="9"/><circle cx="384" cy="350" r="9"/><circle cx="710" cy="350" r="9"/><circle cx="1036" cy="350" r="9"/><circle cx="1142" cy="350" r="9"/>
+      </g>
+      <g id="schedule-trace">
+        <path d="M58 350H1142" stroke="#18A058" stroke-width="5" stroke-linecap="round"/>
+        <g fill="#18A058" stroke="#F3F0E7" stroke-width="3">
+          <circle cx="58" cy="350" r="9"/><circle cx="384" cy="350" r="9"/><circle cx="710" cy="350" r="9"/><circle cx="1036" cy="350" r="9"/><circle cx="1142" cy="350" r="9"/>
+        </g>
+      </g>
+      <text x="58" y="387" fill="#32739A">CONNECT</text>
+      <text x="384" y="387" text-anchor="middle" fill="#2D6F4D">SCHEDULE</text>
+      <text x="710" y="387" text-anchor="middle" fill="#8A5A08">EXECUTE</text>
+      <text x="1036" y="387" text-anchor="middle" fill="#32739A">RECORD</text>
+      <text x="1142" y="387" text-anchor="end" fill="#A04A5C">REPEAT</text>
+    </g>
+  </g>
+</svg>

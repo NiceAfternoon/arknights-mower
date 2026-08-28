@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">Mower 的任务执行流程</title>
+  <desc id="desc">Mower 通过 ADB 连接设备，读取排班计划，执行基建、日常和 MAA 任务，并将结果写入日志和报表。</desc>
+  <defs>
+    <pattern id="ops-grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0V44" fill="none" stroke="#2A3731" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="460" rx="30" fill="#121916"/>
+  <rect width="1200" height="460" rx="30" fill="url(#ops-grid)" opacity="0.52"/>
+  <g transform="translate(58 48)">
+    <text fill="#81958B" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="2.2">CONNECT → SCHEDULE → EXECUTE → RECORD</text>
+    <rect y="24" width="56" height="6" rx="3" fill="#2080F0"/>
+    <text y="83" fill="#F7F4EC" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="43" font-weight="800">从设备连接到记录任务结果</text>
+  </g>
+
+  <g transform="translate(58 180)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <path d="M118 78H322M402 78H606M686 78H890" stroke="#405249" stroke-width="5" stroke-linecap="round"/>
+    <path d="M305 66l17 12-17 12M589 66l17 12-17 12M873 66l17 12-17 12" fill="none" stroke="#71867B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g>
+      <rect width="236" height="170" rx="22" fill="#F3F0E7"/>
+      <text x="24" y="34" fill="#32739A" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800">01 · CONNECT</text>
+      <text x="24" y="76" fill="#16222B" font-size="26" font-weight="800">连接设备</text>
+      <text x="24" y="108" fill="#557080" font-size="18">模拟器 / ADB</text>
+      <rect x="157" y="95" width="52" height="38" rx="7" fill="none" stroke="#2080F0" stroke-width="4"/>
+      <path d="M170 145h26M183 133v12" stroke="#2080F0" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(284)">
+      <rect width="236" height="170" rx="22" fill="#D6EEDF"/>
+      <text x="24" y="34" fill="#2D6F4D" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800">02 · SCHEDULE</text>
+      <text x="24" y="76" fill="#123222" font-size="26" font-weight="800">读取排班计划</text>
+      <text x="24" y="108" fill="#496C5A" font-size="18">时间 · 房间 · 干员</text>
+      <g transform="translate(158 92)" stroke="#18A058" stroke-width="4" fill="none" stroke-linecap="round">
+        <rect width="52" height="50" rx="8"/>
+        <path d="M0 14h52M13 0v13M39 0v13M13 27h8M31 27h8M13 39h8"/>
+      </g>
+    </g>
+
+    <g transform="translate(568)">
+      <rect width="236" height="170" rx="22" fill="#F7D89E"/>
+      <text x="24" y="34" fill="#8A5A08" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800">03 · EXECUTE</text>
+      <text x="24" y="76" fill="#3C2A0B" font-size="26" font-weight="800">执行任务</text>
+      <g transform="translate(24 102)" font-size="17" font-weight="700">
+        <rect width="55" height="30" rx="15" fill="#FFF2D8"/><text x="12" y="21" fill="#725318">基建</text>
+        <rect x="64" width="55" height="30" rx="15" fill="#FFF2D8"/><text x="76" y="21" fill="#725318">日常</text>
+        <rect x="128" width="55" height="30" rx="15" fill="#FFF2D8"/><text x="140" y="21" fill="#725318">MAA</text>
+      </g>
+    </g>
+
+    <g transform="translate(852)">
+      <rect width="236" height="170" rx="22" fill="#DCEAF4"/>
+      <text x="24" y="34" fill="#32739A" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800">04 · RECORD</text>
+      <text x="24" y="76" fill="#173C52" font-size="26" font-weight="800">记录结果</text>
+      <text x="24" y="108" fill="#4F748A" font-size="18">日志 · 图表 · 报表</text>
+      <g transform="translate(160 94)">
+        <rect y="26" width="14" height="28" rx="3" fill="#64BFEC"/>
+        <rect x="22" y="8" width="14" height="46" rx="3" fill="#F5744F"/>
+        <rect x="44" y="18" width="14" height="36" rx="3" fill="#F0A020"/>
+      </g>
+    </g>
+  </g>
+</svg>
