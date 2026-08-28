@@ -24,7 +24,8 @@ class TestInfraNotification(unittest.TestCase):
         self.assertEqual(infra_notification(img), (389, 250))
 
     def test_notification_at_left_edge_not_swallowed(self):
-        # 通知右缘在 x=0：right 扫到 0 表示已找到亮列，不能被「全暗」哨兵误吞
+        # 通知贴近 x=0：right-scan 在最右亮列（right=9）停下、不会扫到 right==0；
+        # 全暗哨兵（right==0）只对整帧全暗触发，不会误吞左侧的通知
         img = self._blue_notification(0, 10, 200, 300)
         self.assertIsNotNone(infra_notification(img))
 
