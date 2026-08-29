@@ -1,17 +1,13 @@
 import sys
 import unittest
-import unittest.mock as mock
 from unittest.mock import Mock, patch
 
 # mastery_view_tests 等模块收集期会先往 sys.modules 塞 skland 的 MagicMock 桩
-# （skland 导入时 get_d_id 会联网算设备指纹，见 SecuritySm）。本测试需要真实模块：
-# 删桩后打桩 get_d_id 再导入；测试结束恢复桩，避免影响后续依赖该桩的测试。
-import arknights_mower.utils.SecuritySm as _security_sm
-
+# （历史原因：skland 导入时 get_d_id 会联网）。本测试需要真实模块：删桩后导入
+# （导入已惰性化、不再联网），测试结束恢复桩，避免影响后续依赖该桩的测试。
 _saved_skland = sys.modules.get("arknights_mower.utils.skland")
 sys.modules.pop("arknights_mower.utils.skland", None)
-with mock.patch.object(_security_sm, "get_d_id", return_value="B" + "0" * 16):
-    from arknights_mower.utils import skland
+from arknights_mower.utils import skland  # noqa: E402
 
 
 def tearDownModule():
@@ -111,18 +107,40 @@ class TestLoginSyncsServerTime(unittest.TestCase):
     def setUp(self):
         skland.server_time_offset = 0
 
-    def test_login_calibrates_offset(self):
+    def test_login_calibrates_offset_and_wires_did(self):
         fake = Mock()
         fake.headers = {"Date": "Fri, 28 Aug 2026 23:43:24 GMT"}
         fake.json = Mock(return_value={"status": 0, "data": {"token": "abc"}})
         account = Mock(account="13800000000", password="pw")
+        fake_did = "B" + "0" * 16
         with (
             patch("requests.post", return_value=fake),
             patch("time.time", return_value=LOCAL_EPOCH),
+            patch.object(skland, "_ensure_device_id", return_value=fake_did),
         ):
             token = skland.log(account)
         self.assertEqual(token, "abc")
         self.assertEqual(skland.server_time_offset, SERVER_EPOCH - LOCAL_EPOCH)
+        self.assertEqual(skland.header_login["dId"], fake_did)
+
+
+class TestEnsureDeviceId(unittest.TestCase):
+    def setUp(self):
+        skland._device_id = ""
+
+    def test_degraded_to_empty_on_failure(self):
+        # 设备信息服务不可达 → 降级为空串，不抛异常
+        with patch.object(skland, "get_d_id", side_effect=Exception("fp-it down")):
+            self.assertEqual(skland._ensure_device_id(), "")
+        # 缓存空串，不再重试
+        with patch.object(
+            skland, "get_d_id", side_effect=AssertionError("不应重试")
+        ):
+            self.assertEqual(skland._ensure_device_id(), "")
+
+    def test_returns_device_id(self):
+        with patch.object(skland, "get_d_id", return_value="B123"):
+            self.assertEqual(skland._ensure_device_id(), "B123")
 
 
 if __name__ == "__main__":

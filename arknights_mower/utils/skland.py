@@ -42,9 +42,24 @@ header_login = {
     "User-Agent": "Skland/1.62.0 (com.hypergryph.skland; build:106200040; Android 36; ) Okhttp/4.11.0",
     "Accept-Encoding": "gzip",
     "Connection": "close",
-    "dId": get_d_id(),
+    "dId": "",
 }
 header_for_sign = {"platform": "", "timestamp": "", "dId": "", "vName": ""}
+
+# 设备指纹惰性取：导入时不联网（fp-it 服务不可达也不会导致导入崩溃），
+# 首次登录前取，失败降级为空串
+_device_id = ""
+
+
+def _ensure_device_id() -> str:
+    """取森空岛设备指纹；设备信息服务不可达时降级为空串，不抛异常。"""
+    global _device_id
+    if not _device_id:
+        try:
+            _device_id = get_d_id()
+        except Exception:
+            logger.warning("设备指纹获取失败（设备信息服务不可达），设备校验可能被拒")
+    return _device_id
 
 # 服务器与本机时钟的偏移（秒），由 _sync_server_time 从每次响应校准；
 # 签名时间戳用它落在服务器时间上，避免「请勿修改设备本地时间」被拒
@@ -177,6 +192,7 @@ def get_cred_by_token(token):
 
 
 def log(account):
+    header_login["dId"] = _ensure_device_id()
     resp = requests.post(
         token_password_url,
         json={"phone": account.account, "password": account.password},
