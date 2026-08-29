@@ -1,0 +1,129 @@
+import sys
+import unittest
+import unittest.mock as mock
+from unittest.mock import Mock, patch
+
+# mastery_view_tests 等模块收集期会先往 sys.modules 塞 skland 的 MagicMock 桩
+# （skland 导入时 get_d_id 会联网算设备指纹，见 SecuritySm）。本测试需要真实模块：
+# 删桩后打桩 get_d_id 再导入；测试结束恢复桩，避免影响后续依赖该桩的测试。
+import arknights_mower.utils.SecuritySm as _security_sm
+
+_saved_skland = sys.modules.get("arknights_mower.utils.skland")
+sys.modules.pop("arknights_mower.utils.skland", None)
+with mock.patch.object(_security_sm, "get_d_id", return_value="B" + "0" * 16):
+    from arknights_mower.utils import skland
+
+
+def tearDownModule():
+    sys.modules["arknights_mower.utils.skland"] = _saved_skland
+
+# 服务器 Date 头 / 错误响应 timestamp 对应的服务器 epoch（2026-08-28 23:43:24 UTC）
+SERVER_EPOCH = 1787960604
+# 测试里 mock 的本机 epoch
+LOCAL_EPOCH = 1787960614
+
+
+class TestSyncServerTime(unittest.TestCase):
+    def setUp(self):
+        skland.server_time_offset = 0
+
+    def test_sync_from_date_header(self):
+        resp = Mock()
+        resp.headers = {"Date": "Fri, 28 Aug 2026 23:43:24 GMT"}
+        resp.json = Mock(return_value={})
+        with patch("time.time", return_value=LOCAL_EPOCH):
+            skland._sync_server_time(resp)
+        self.assertEqual(skland.server_time_offset, SERVER_EPOCH - LOCAL_EPOCH)
+
+    def test_sync_from_body_timestamp(self):
+        resp = Mock()
+        resp.headers = {}
+        resp.json = Mock(return_value={"timestamp": str(SERVER_EPOCH)})
+        with patch("time.time", return_value=LOCAL_EPOCH):
+            skland._sync_server_time(resp)
+        self.assertEqual(skland.server_time_offset, SERVER_EPOCH - LOCAL_EPOCH)
+
+    def test_sync_no_source_keeps_offset(self):
+        skland.server_time_offset = 7
+        resp = Mock()
+        resp.headers = {}
+        resp.json = Mock(return_value={})
+        skland._sync_server_time(resp)
+        self.assertEqual(skland.server_time_offset, 7)
+
+
+class TestGenerateSignatureTimestamp(unittest.TestCase):
+    def setUp(self):
+        skland.server_time_offset = 0
+
+    def test_timestamp_uses_server_offset(self):
+        skland.server_time_offset = 10
+        with patch("time.time", return_value=LOCAL_EPOCH):
+            _, header_ca = skland.generate_signature("tok", "/api/path", "a=1")
+        self.assertEqual(header_ca["timestamp"], str(LOCAL_EPOCH + 10 - 2))
+
+    def test_zero_offset_keeps_minus_two(self):
+        # 偏移为 0（本机时钟准）时保持原 -2 秒行为，零回归
+        with patch("time.time", return_value=1000000000):
+            _, header_ca = skland.generate_signature("tok", "/api/path", "")
+        self.assertEqual(header_ca["timestamp"], "999999998")
+
+
+class TestGetBindingList(unittest.TestCase):
+    def setUp(self):
+        skland.server_time_offset = 0
+
+    def _resp(self, body):
+        fake = Mock()
+        fake.headers = {}
+        fake.json = Mock(return_value=body)
+        return fake
+
+    def test_error_without_data_returns_empty(self):
+        # 非 0 code 的错误响应没有 data 字段，原代码掉进 resp["data"]["list"] 崩 KeyError
+        fake = self._resp({"code": 1000, "message": "请勿修改设备本地时间"})
+        with patch("requests.get", return_value=fake):
+            self.assertEqual(skland.get_binding_list("tok"), [])
+
+    def test_not_logged_in_returns_empty(self):
+        fake = self._resp({"code": 1000, "message": "用户未登录"})
+        with patch("requests.get", return_value=fake):
+            self.assertEqual(skland.get_binding_list("tok"), [])
+
+    def test_success_returns_binding_list(self):
+        body = {
+            "code": 0,
+            "data": {
+                "list": [
+                    {"appCode": "arknights", "bindingList": [{"gameId": 1, "uid": "u1"}]},
+                    {"appCode": "endfield", "bindingList": [{"gameId": 3, "uid": "u3"}]},
+                    {"appCode": "other", "bindingList": [{"gameId": 9, "uid": "u9"}]},
+                ]
+            },
+        }
+        fake = self._resp(body)
+        with patch("requests.get", return_value=fake):
+            result = skland.get_binding_list("tok")
+        self.assertEqual(result, [{"gameId": 1, "uid": "u1"}, {"gameId": 3, "uid": "u3"}])
+
+
+class TestLoginSyncsServerTime(unittest.TestCase):
+    def setUp(self):
+        skland.server_time_offset = 0
+
+    def test_login_calibrates_offset(self):
+        fake = Mock()
+        fake.headers = {"Date": "Fri, 28 Aug 2026 23:43:24 GMT"}
+        fake.json = Mock(return_value={"status": 0, "data": {"token": "abc"}})
+        account = Mock(account="13800000000", password="pw")
+        with (
+            patch("requests.post", return_value=fake),
+            patch("time.time", return_value=LOCAL_EPOCH),
+        ):
+            token = skland.log(account)
+        self.assertEqual(token, "abc")
+        self.assertEqual(skland.server_time_offset, SERVER_EPOCH - LOCAL_EPOCH)
+
+
+if __name__ == "__main__":
+    unittest.main()

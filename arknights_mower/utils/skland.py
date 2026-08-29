@@ -34,17 +34,46 @@ grant_code_url = "https://as.hypergryph.com/user/oauth2/v2/grant"
 cred_code_url = "https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code"
 header = {
     "cred": "",
-    "User-Agent": "Skland/1.53.0 (com.hypergryph.skland; build:105300018; Android 31; ) Okhttp/4.11.0",
+    "User-Agent": "Skland/1.62.0 (com.hypergryph.skland; build:105300018; Android 31; ) Okhttp/4.11.0",
     "Accept-Encoding": "gzip",
     "Connection": "close",
 }
 header_login = {
-    "User-Agent": "Skland/1.53.0 (com.hypergryph.skland; build:105300018; Android 31; ) Okhttp/4.11.0",
+    "User-Agent": "Skland/1.62.0 (com.hypergryph.skland; build:105300018; Android 31; ) Okhttp/4.11.0",
     "Accept-Encoding": "gzip",
     "Connection": "close",
     "dId": get_d_id(),
 }
 header_for_sign = {"platform": "", "timestamp": "", "dId": "", "vName": ""}
+
+# 服务器与本机时钟的偏移（秒），由 _sync_server_time 从每次响应校准；
+# 签名时间戳用它落在服务器时间上，避免「请勿修改设备本地时间」被拒
+server_time_offset = 0
+
+
+def _sync_server_time(resp):
+    """从响应刷新服务器时间偏移：优先 HTTP Date 头，其次错误响应 body 的 timestamp 字段。"""
+    global server_time_offset
+    date = resp.headers.get("Date")
+    if date:
+        try:
+            srv = datetime.datetime.strptime(
+                date, "%a, %d %b %Y %H:%M:%S GMT"
+            ).replace(tzinfo=datetime.timezone.utc)
+            server_time_offset = int(srv.timestamp()) - int(time.time())
+            return
+        except ValueError:
+            pass
+    try:
+        body = resp.json()
+    except Exception:
+        return
+    ts = body.get("timestamp") if isinstance(body, dict) else None
+    if ts:
+        try:
+            server_time_offset = int(ts) - int(time.time())
+        except (TypeError, ValueError):
+            pass
 
 
 def generate_signature(token: str, path, body_or_query):
@@ -58,9 +87,10 @@ def generate_signature(token: str, path, body_or_query):
     :param body_or_query: 如果是GET，则是它的query。POST则为它的body
     :return: 计算完毕的sign
     """
-    # 总是说请勿修改设备时间，怕不是yj你的服务器有问题吧，所以这里特地-2
+    # 服务器对本机时钟偏差敏感：签名时间戳用服务器时间校准（_sync_server_time
+    # 算出的偏移），再减 2 秒落在过去窗口内，避免「请勿修改设备本地时间」
 
-    t = str(int(time.time()) - 2)
+    t = str(int(time.time()) + server_time_offset - 2)
     token = token.encode("utf-8")
     header_ca = json.loads(json.dumps(header_for_sign))
     header_ca["timestamp"] = t
@@ -126,14 +156,16 @@ def get_binding_list(sign_token):
             sign_token,
         ),
         timeout=30,
-    ).json()
+    )
+    _sync_server_time(resp)
+    body = resp.json()
 
-    if resp["code"] != 0:
-        logger.info(f"请求角色列表出现问题：{resp['message']}")
-        if resp.get("message") == "用户未登录":
+    if body["code"] != 0:
+        logger.info(f"请求角色列表出现问题：{body['message']}")
+        if body.get("message") == "用户未登录":
             logger.warning("用户登录可能失效了，请重新运行此程序！")
-            return []
-    for i in resp["data"]["list"]:
+        return []
+    for i in body["data"]["list"]:
         if i.get("appCode") not in ("arknights", "endfield"):
             continue
         v.extend(i.get("bindingList"))
@@ -145,12 +177,14 @@ def get_cred_by_token(token):
 
 
 def log(account):
-    r = requests.post(
+    resp = requests.post(
         token_password_url,
         json={"phone": account.account, "password": account.password},
         headers=header_login,
         timeout=30,
-    ).json()
+    )
+    _sync_server_time(resp)
+    r = resp.json()
     if r.get("status") != 0:
         raise Exception(f"获得token失败：{r['msg']}")
     logger.info("森空岛登陆成功")
