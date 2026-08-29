@@ -54,13 +54,23 @@ class TestGenerateSignatureTimestamp(unittest.TestCase):
 
     def test_timestamp_uses_server_offset(self):
         skland.server_time_offset = 10
-        with patch("time.time", return_value=LOCAL_EPOCH):
+        with (
+            patch("time.time", return_value=LOCAL_EPOCH),
+            patch.object(skland, "_ensure_device_id", return_value="B123"),
+        ):
             _, header_ca = skland.generate_signature("tok", "/api/path", "a=1")
         self.assertEqual(header_ca["timestamp"], str(LOCAL_EPOCH + 10 - 2))
+        # 签名输入携带真实平台/设备/版本字段，与请求头一致
+        self.assertEqual(header_ca["platform"], "1")
+        self.assertEqual(header_ca["vName"], "1.62.0")
+        self.assertEqual(header_ca["dId"], "B123")
 
     def test_zero_offset_keeps_minus_two(self):
         # 偏移为 0（本机时钟准）时保持原 -2 秒行为，零回归
-        with patch("time.time", return_value=1000000000):
+        with (
+            patch("time.time", return_value=1000000000),
+            patch.object(skland, "_ensure_device_id", return_value="B123"),
+        ):
             _, header_ca = skland.generate_signature("tok", "/api/path", "")
         self.assertEqual(header_ca["timestamp"], "999999998")
 
@@ -68,6 +78,12 @@ class TestGenerateSignatureTimestamp(unittest.TestCase):
 class TestGetBindingList(unittest.TestCase):
     def setUp(self):
         skland.server_time_offset = 0
+        # get_sign_header 走 generate_signature，会调 _ensure_device_id，隔离设备指纹网络
+        self._did = patch.object(skland, "_ensure_device_id", return_value="B123")
+        self._did.start()
+
+    def tearDown(self):
+        self._did.stop()
 
     def _resp(self, body):
         fake = Mock()
@@ -141,6 +157,34 @@ class TestEnsureDeviceId(unittest.TestCase):
     def test_returns_device_id(self):
         with patch.object(skland, "get_d_id", return_value="B123"):
             self.assertEqual(skland._ensure_device_id(), "B123")
+
+
+class TestSignHeaderFields(unittest.TestCase):
+    def setUp(self):
+        skland.server_time_offset = 0
+
+    def test_sign_header_carries_real_fields(self):
+        # 请求头带上的签名字段与签名输入一致（真实平台/设备/版本，而非空串）
+        with patch.object(skland, "_ensure_device_id", return_value="B123"):
+            h = skland.get_sign_header(skland.binding_url, "get", None, "tok")
+        self.assertEqual(h["platform"], "1")
+        self.assertEqual(h["vName"], "1.62.0")
+        self.assertEqual(h["dId"], "B123")
+        self.assertTrue(h["sign"])
+
+    def test_signature_reproducible_with_same_fields(self):
+        # dId 稳定时，同一路径与时间戳下签名可复现，字段自洽不引入随机性
+        with (
+            patch("time.time", return_value=LOCAL_EPOCH),
+            patch.object(skland, "_ensure_device_id", return_value="B123"),
+        ):
+            s1, _ = skland.generate_signature("tok", "/api/path", "a=1")
+        with (
+            patch("time.time", return_value=LOCAL_EPOCH),
+            patch.object(skland, "_ensure_device_id", return_value="B123"),
+        ):
+            s2, _ = skland.generate_signature("tok", "/api/path", "a=1")
+        self.assertEqual(s1, s2)
 
 
 if __name__ == "__main__":

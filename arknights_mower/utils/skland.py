@@ -44,7 +44,10 @@ header_login = {
     "Connection": "close",
     "dId": "",
 }
-header_for_sign = {"platform": "", "timestamp": "", "dId": "", "vName": ""}
+# 签名携带的四个参数：platform 固定为 1（Android），vName 与 UA 版本号一致，
+# dId 在 generate_signature 中惰性填充（与登录请求共用 _ensure_device_id 缓存）。
+# 请求头发送的字段与签名输入保持自洽，避免服务器未来对字段做非空校验时被拒
+header_for_sign = {"platform": "1", "timestamp": "", "dId": "", "vName": "1.62.0"}
 
 # 设备指纹惰性取：导入时不联网（fp-it 服务不可达也不会导致导入崩溃），
 # 首次登录前取，失败降级为空串
@@ -109,6 +112,9 @@ def generate_signature(token: str, path, body_or_query):
     token = token.encode("utf-8")
     header_ca = json.loads(json.dumps(header_for_sign))
     header_ca["timestamp"] = t
+    if not header_ca["dId"]:
+        # dId 惰性取：与 header_login 共用 _device_id 缓存，保证登录与签名自洽
+        header_ca["dId"] = _ensure_device_id()
     header_ca_str = json.dumps(header_ca, separators=(",", ":"))
     s = path + body_or_query + t + header_ca_str
     hex_s = hmac.new(token, s.encode("utf-8"), hashlib.sha256).hexdigest()
