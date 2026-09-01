@@ -1,5 +1,58 @@
 # CHANGELOG
 
+## 4.1.6-alpha.1 - 2026-09-01
+
+### New
+
+- 支持正式版与 alpha 的跨平台构建发布 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 创建专精计划后立即开始训练 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增按干员是否空闲筛选专精计划 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增专精推荐显示真实技能名和显式保存专精计划与路线配置 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增协助位设置中的配置，优化专精计划管理，并将手动专精任务改为专精计划创建 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增全自动专精全局开关，专精相关任务由仓库扫描触发 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 专精训练进度改为按训练室画面识别结果更新 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 专精数据新增干员技能名称供界面显示与识别核对 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修改专精计划状态与路线设置为数据库保存 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增数据库管理，并支持按类别删除记录 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 新增领取会客室信息板信用 ([#885](https://github.com/NiceAfternoon/arknights-mower/pull/885) [@NiceAfternoon](https://github.com/NiceAfternoon))
+
+### Bug Fixes
+
+- 修复计划外训练与换人后任务、通知的干员、技能与档位显示 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修复清空超时任务后只剩远期专精任务时基建安排不处理 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修复替换组干员名称含引号时心情曲线查询失败 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修复专精计划页显示无效的三星筛选项 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修复任务接口未校验 Webview Token ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 修复错误的创建专精任务，应该使用MasterySync正确地创建任务 ([#906](https://github.com/NiceAfternoon/arknights-mower/pull/906) [@GodofTheFallen](https://github.com/GodofTheFallen))
+- 修复 Maa 连通性检测误报 ([#901](https://github.com/NiceAfternoon/arknights-mower/pull/901) [@ALEXsun0](https://github.com/ALEXsun0))
+- 最小化修复mower无法停止问题 ([#892](https://github.com/NiceAfternoon/arknights-mower/pull/892) [@ALEXsun0](https://github.com/ALEXsun0))
+- 修复启动前 MAA 连通性检查时序 ([#889](https://github.com/NiceAfternoon/arknights-mower/pull/889) [@ALEXsun0](https://github.com/ALEXsun0))
+- 统一任务间休眠收口，修复休息期间 /status 的 sleeping 状态 ([#884](https://github.com/NiceAfternoon/arknights-mower/pull/884) [@djkcyl](https://github.com/djkcyl))
+
+### Improvements
+
+- 提取基建进驻排序坐标、无人机界面等待与跑单时间读取为共用函数 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 优化前后端体积与启动性能，修复基建报表数据读取 ([#904](https://github.com/NiceAfternoon/arknights-mower/pull/904) [@NiceAfternoon](https://github.com/NiceAfternoon))
+
+### Other
+
+- 修复公招测试因模拟 NumPy 导致模型数据导入失败 ([@NiceAfternoon](https://github.com/NiceAfternoon))
+- 更新 CHANGELOG 至 4.1.5.8 并优化打包体积 ([#903](https://github.com/NiceAfternoon/arknights-mower/pull/903) [@NiceAfternoon](https://github.com/NiceAfternoon))
+- 更新游戏数据，修复专精调度/导航/日志等问题 ([#902](https://github.com/NiceAfternoon/arknights-mower/pull/902) [@Shawnsdaddy](https://github.com/Shawnsdaddy) [@NiceAfternoon](https://github.com/NiceAfternoon))
+- Update master plan ([#895](https://github.com/NiceAfternoon/arknights-mower/pull/895) [@Shawnsdaddy](https://github.com/Shawnsdaddy))
+- 更新游戏数据（新增干员机械师） ([#899](https://github.com/NiceAfternoon/arknights-mower/pull/899) [@WufeiHalf](https://github.com/WufeiHalf))
+- 更新 CHANGELOG 至 4.1.5.7 并更新游戏数据 ([#890](https://github.com/NiceAfternoon/arknights-mower/pull/890) [@NiceAfternoon](https://github.com/NiceAfternoon))
+- Update master plan ([#886](https://github.com/NiceAfternoon/arknights-mower/pull/886) [@Shawnsdaddy](https://github.com/Shawnsdaddy))
+
+## Thanks to
+
+- [@NiceAfternoon](https://github.com/NiceAfternoon)
+- [@GodofTheFallen](https://github.com/GodofTheFallen)
+- [@ALEXsun0](https://github.com/ALEXsun0)
+- [@djkcyl](https://github.com/djkcyl)
+- [@Shawnsdaddy](https://github.com/Shawnsdaddy)
+- [@WufeiHalf](https://github.com/WufeiHalf)
+
 ## v4.1.5.8 - 2026-08-07
 
 ### 修复
