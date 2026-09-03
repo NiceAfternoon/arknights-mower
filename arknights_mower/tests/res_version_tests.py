@@ -163,21 +163,40 @@ class TestPackageFilePaths(unittest.TestCase):
 
 
 class TestDisplayVersion(unittest.TestCase):
-    def test_取较晚开启者加MMDD(self):
-        # 1787342400 = 2026-08-22（北京时区），1785538800 更早
+    def test_名字取较晚开启者_日期取res_version(self):
+        # 名字取较晚开启的 activity（8/22）；日期用 res_version 的打包日 09/03
         info = {
+            "res_version": "v2026.09.03-b452c17",
             "activity": {"name": "墟·复刻", "time": 1787342400, "endTime": 0},
             "gacha": {"name": "车辙与风的归所", "time": 1785538800, "endTime": 0},
         }
-        self.assertEqual(display_version(info), "墟·复刻#0822")
+        self.assertEqual(display_version(info), "墟·复刻#0903")
 
-    def test_卡池更晚则取卡池(self):
+    def test_卡池更晚则取卡池名字(self):
+        # 名字取卡池；日期仍取 res_version 的打包日，不受卡池开启时间影响
         info = {
+            "res_version": "v2026.09.03-b452c17",
             "activity": {"name": "旧活动", "time": 100, "endTime": 0},
             "gacha": {"name": "新卡池", "time": 1787342400, "endTime": 0},
         }
-        self.assertEqual(display_version(info), "新卡池#0822")
+        self.assertEqual(display_version(info), "新卡池#0903")
 
     def test_空表返回空(self):
         self.assertEqual(display_version({}), "")
         self.assertEqual(display_version({"activity": {}, "gacha": {}}), "")
+
+    def test_res_version缺失或非法返回空(self):
+        self.assertEqual(
+            display_version({"activity": {"name": "墟·复刻", "time": 1}, "gacha": {}}),
+            "",
+        )
+        self.assertEqual(
+            display_version(
+                {
+                    "res_version": "not-a-version",
+                    "activity": {"name": "墟·复刻", "time": 1},
+                    "gacha": {},
+                }
+            ),
+            "",
+        )

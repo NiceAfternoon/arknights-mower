@@ -9,7 +9,6 @@ MowerResource 管线发布时从本模块导入 RES_PACKAGE_* 打包（单一来
 
 import hashlib
 import re
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # 资源包文件集（相对仓库根）：生成脚本的产出，内容哈希覆盖的就是这些。
@@ -108,18 +107,24 @@ def pick_latest_gacha(gacha_table: dict) -> dict:
 
 
 def display_version(version_info: dict) -> str:
-    """客户端展示用可读版本号：较晚开启的 activity/gacha 的 name + #MMDD（北京时区）。"""
+    """客户端展示用可读版本号：较晚开启的 activity/gacha 的名字 + res_version 的打包日 MMDD。
+
+    名字标识这份包对应的最新活动/卡池；日期用 ``res_version`` 的打包日（``vYYYY.MM.DD-hash``
+    的 ``MMDD``，不带年份），而不是活动开启日，避免把活动档期当作版本日期。res_version 缺失
+    或非法时返回空字符串。
+    """
     later = max(
         (version_info.get("activity") or {}, version_info.get("gacha") or {}),
         key=lambda e: e.get("time", 0),
     )
     name = later.get("name")
-    if not name or not later.get("time"):
+    if not name:
         return ""
-    mmdd = datetime.fromtimestamp(
-        later["time"], tz=timezone(timedelta(hours=8))
-    ).strftime("%m%d")
-    return f"{name}#{mmdd}"
+    parsed = parse_version(version_info.get("res_version") or "")
+    if parsed is None:
+        return ""
+    _year, month, day, _hash = parsed
+    return f"{name}#{month:02d}{day:02d}"
 
 
 _VERSION_RE = re.compile(r"^v?(\d{4})\.(\d{2})\.(\d{2})-([0-9a-fA-F]{6,40})$")
