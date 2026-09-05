@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from queue import Queue
 
 from arknights_mower.utils import log, path
 
@@ -14,7 +15,16 @@ class LogFileHandlerTest(unittest.TestCase):
         self._tmp = tempfile.mkdtemp()
         path.global_space = self._tmp
 
+    def _reset_mp_handlers(self):
+        if log.mp_listener is not None:
+            log.mp_listener.stop()
+            log.mp_listener = None
+        if log.mp_queue_handler is not None:
+            log.logger.removeHandler(log.mp_queue_handler)
+            log.mp_queue_handler = None
+
     def tearDown(self):
+        self._reset_mp_handlers()
         if log.fhlr is not None:
             log.fhlr.close()
             log.fhlr = None
@@ -33,3 +43,44 @@ class LogFileHandlerTest(unittest.TestCase):
             log.fhlr.baseFilename,
             str(log.get_path("@app/log").joinpath("runtime.log")),
         )
+
+
+class MultiProcessLoggingTest(unittest.TestCase):
+    def setUp(self):
+        if log.fhlr is not None:
+            log.fhlr.close()
+            log.fhlr = None
+        self._orig_space = path.global_space
+        self._tmp = tempfile.mkdtemp()
+        path.global_space = self._tmp
+
+    def tearDown(self):
+        if log.mp_listener is not None:
+            log.mp_listener.stop()
+            log.mp_listener = None
+        if log.mp_queue_handler is not None:
+            log.logger.removeHandler(log.mp_queue_handler)
+            log.mp_queue_handler = None
+        if log.fhlr is not None:
+            log.fhlr.close()
+            log.fhlr = None
+        path.global_space = self._orig_space
+
+    def test_bind_mp_queue_adds_queue_handler_to_logger(self):
+        q = Queue()
+        log.bind_mp_queue(q)
+        self.assertIsNotNone(log.mp_queue_handler)
+        self.assertIn(log.mp_queue_handler, log.logger.handlers)
+
+    def test_start_mp_listener_creates_file_handler(self):
+        log.start_mp_listener(Queue())
+        self.assertIsNotNone(log.mp_listener)
+        self.assertIsNotNone(log.fhlr)
+
+    def test_bind_mp_queue_forwards_record_to_queue(self):
+        # 子进程侧：bind 后 emit 的记录应被 QueueHandler 送进共享队列（不对本进程写文件）
+        q = Queue()
+        log.bind_mp_queue(q)
+        log.logger.info("forwarded-msg")
+        record = q.get(timeout=2)
+        self.assertEqual(record.getMessage(), "forwarded-msg")
