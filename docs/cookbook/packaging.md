@@ -8,6 +8,32 @@ macOS 和 Linux 虽提供独立包，仍建议优先使用 [源码部署](../../
 
 先完成 [README 源码部署](../../README.md#源码部署) 中的源码获取、前端构建和当前平台 Python 依赖安装，确认源码可以启动。以下命令在仓库根目录执行，使用同一个 `.venv` 环境。
 
+<a id="credential-encryption-runtime"></a>
+### 凭据加密运行库
+
+本地凭据的新格式需要 `cryptography==50.0.2` 的 X-Wing、HPKE 和 ML-KEM 原生实现。
+安装或升级当前锁文件中的依赖后，在实际用于运行或打包的 Python 环境执行：
+
+```bash
+python scripts/check_credential_crypto.py
+```
+
+检查会生成临时测试密钥，验证私钥恢复、混合加密读写与篡改拒绝；它不加载 Mower 配置，也不读写用户凭据。
+成功时输出 `Credential crypto check passed: X-Wing / HKDF-SHA256 / AES-256-GCM`。
+仅能导入 `cryptography` 不足以确认后端支持 ML-KEM，检查失败时先修复运行环境，不应降低保存格式。
+
+该版本的[官方 wheel 列表](https://pypi.org/project/cryptography/50.0.2/#files)包含 Windows x64、
+macOS 11 及以上 ARM64、Linux glibc 2.17 及以上的 x64/ARM64，以及 musllinux x64/ARM64。
+这些 wheel 自带所需 OpenSSL；这是加密库的适用范围，Mower 独立包仍有前文所链接的宿主运行要求。
+Android 程序运行于 ARM64 Debian rootfs，使用兼容的 manylinux wheel，不在原生 Termux 中编译。
+
+`cryptography==50.0.2` 没有 macOS Intel wheel，Mower 当前也不发布 macOS x64 独立包。
+Intel Mac 源码部署需要编译加密库，准备 Rust 1.83 及以上、C 编译器、Python 与 libffi 开发头文件，
+并使用提供 ML-KEM 的 OpenSSL 3.5 及以上版本；不能使用 Apple 自带的 LibreSSL。
+依赖准备和 OpenSSL 链接方式见该版本的[官方安装说明](https://cryptography.io/en/50.0.2/installation/)，
+ML-KEM 的后端要求见[版本说明](https://cryptography.io/en/50.0.2/changelog/)。
+其他没有兼容 wheel 的自定义源码部署也需要这些编译条件。
+
 ## 2. Windows
 
 在 PowerShell 中安装打包工具并构建：
