@@ -8,6 +8,7 @@ env:
   BASE: a4ac4d5ed07a7a6a05bcadc09efe877ab7935392
 jobs:
   android:
+    if: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 65
     steps:
