@@ -451,6 +451,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             adb \
+            binutils \
+            gdb \
             patchelf \
             libzbar0 \
             libgl1 \
@@ -480,6 +482,9 @@ jobs:
       - name: Build frontend
         working-directory: ui
         run: npm ci
+
+      - name: Test Linux debug symbol separation
+        run: python -m unittest scripts.tests.linux_debug_symbols_tests
 
       - name: Build with PyInstaller
         run: python -m PyInstaller webui_zip_for_linux.spec
@@ -581,6 +586,14 @@ jobs:
           name: arknights-mower_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}
           compression-level: 0
           path: dist/arknights-mower_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}.tar.gz
+
+      - name: Upload Linux debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debug-symbols_${{ needs.prepare.outputs.version }}_${{ matrix.arch }}
+          path: dist/mower-linux-debug.tar.gz
+          if-no-files-found: error
+          compression-level: 0
 
   build-macos:
     name: Build macOS ${{ matrix.arch }}

@@ -1,0 +1,108 @@
+name: Platform package size and update verification
+on:
+  push:
+    branches: [codex/check-package-size-20261118]
+permissions:
+  contents: read
+env:
+  BASE: a4ac4d5ed07a7a6a05bcadc09efe877ab7935392
+jobs:
+  android:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 30}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: ui/package-lock.json}
+      - run: npm ci && npm run build
+        working-directory: ui
+      - name: Build one ARM64 environment for both archives
+        run: |
+          docker build --platform linux/arm64 -f scripts/android-runtime.Dockerfile -t mower-runtime:audit .
+          container=$(docker create mower-runtime:audit)
+          docker export -o "$RUNNER_TEMP/rootfs.tar" "$container"
+          docker rm "$container"
+          git show "$BASE:scripts/build_android_runtime.py" > scripts/_verify_base_android.py
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts import _verify_base_android as base, build_android_runtime as head
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          for name, module in (("before", base), ("after", head)):
+              module.pack_rootfs(tmp / "rootfs.tar", tmp / name / "python-runtime.zip.xz")
+          PY
+      - name: Measure complete packages with identical versions and frontend
+        run: |
+          python scripts/inject_version.py 0.0.0-alpha.2
+          for side in before after; do
+              python scripts/package_android.py 0.0.0-alpha.2 --output "$RUNNER_TEMP/$side"
+              pkg="$RUNNER_TEMP/$side/arknights-mower_0.0.0-alpha.2_android_arm64.zip"
+              echo "$side Android full bytes $(stat -c %s "$pkg")" | tee -a "$GITHUB_STEP_SUMMARY"
+              python scripts/check_android_package.py "$pkg" --version 0.0.0-alpha.2 --revision "$GITHUB_SHA"
+          done
+      - name: Install previous version and reconstruct the target with the Android OTA installer
+        run: |
+          python scripts/inject_version.py 0.0.0-alpha.1
+          python scripts/package_android.py 0.0.0-alpha.1 --output "$RUNNER_TEMP/before"
+          python -m pip install bsdiff4==1.2.6
+          mkdir -p "$RUNNER_TEMP/smoke"
+          python .github/package-check/android_ota_smoke.py "$RUNNER_TEMP/before/arknights-mower_0.0.0-alpha.1_android_arm64.zip" "$RUNNER_TEMP/after/arknights-mower_0.0.0-alpha.2_android_arm64.zip" "$RUNNER_TEMP/smoke/rebuilt.zip"
+          python scripts/check_android_package.py "$RUNNER_TEMP/smoke/rebuilt.zip" --version 0.0.0-alpha.2 --revision "$GITHUB_SHA"
+      - name: Run OCR in the installed target without network
+        run: |
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$RUNNER_TEMP/smoke:/inputs:ro" -w /src mower-runtime:audit python .github/package-check/android_package_smoke.py /inputs/rebuilt.zip arknights_mower/tests/fixtures/mastery_panel_carnelian.png
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 30}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip, cache-dependency-path: requirements.in}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: ui/package-lock.json}
+      - name: Prepare release tools and the native desktop
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 dbus-x11
+          python -m pip install -r requirements.in pyinstaller==6.22.2
+          python -m pip check
+          echo /usr/lib/python3/dist-packages > "$(python -c 'import site; print(site.getsitepackages()[0])')/system-gi.pth"
+          python -c 'import gi'
+          python scripts/prune_opencv.py
+          python -m unittest scripts.tests.linux_debug_symbols_tests
+          (cd ui && npm ci)
+      - name: Package the same build before and after separating symbols
+        run: |
+          python scripts/inject_version.py 0.0.0-alpha.2 --system linux --arch "$ARCH"
+          cp webui_zip_for_linux.spec "$RUNNER_TEMP/head.spec"
+          git show "$BASE:webui_zip_for_linux.spec" > webui_zip_for_linux.spec
+          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
+          cp -a dist/mower "$RUNNER_TEMP/installed"
+          tar -czf "$RUNNER_TEMP/before.tar.gz" -C dist mower
+          cp "$RUNNER_TEMP/head.spec" webui_zip_for_linux.spec
+          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
+          tar -czf "$RUNNER_TEMP/after.tar.gz" -C dist mower
+          test -s dist/mower-linux-debug.tar.gz
+          for side in before after; do
+              echo "$ARCH $side full bytes $(stat -c %s "$RUNNER_TEMP/$side.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          echo "$ARCH debug bytes $(stat -c %s dist/mower-linux-debug.tar.gz)" | tee -a "$GITHUB_STEP_SUMMARY"
+          dist/mower/_internal/platform-tools/adb version
+      - name: Start installed app and apply target using a copied updater
+        run: dbus-run-session -- xvfb-run -a python .github/package-check/linux_update.py
+      - name: Desktop diagnostic logs
+        if: failure()
+        run: |
+          find "$RUNNER_TEMP/desktop-check" -name 'status.json' -o -name '*log' | while IFS= read -r f; do echo "$f"; tail -c 1800 "$f"; done
