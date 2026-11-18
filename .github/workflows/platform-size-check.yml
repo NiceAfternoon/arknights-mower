@@ -93,22 +93,38 @@ jobs:
       - name: Package the same build before and after separating symbols
         run: |
           python scripts/inject_version.py 0.0.0-alpha.2 --system linux --arch "$ARCH"
+          cp webui_zip_for_linux.spec "$RUNNER_TEMP/head.spec"
+          git show "$BASE:webui_zip_for_linux.spec" > webui_zip_for_linux.spec
+          python -c 'import importlib.util; print("Baseline GI", importlib.util.find_spec("gi"))'
+          python -m PyInstaller --workpath "$RUNNER_TEMP/old-release-work" --noconfirm webui_zip_for_linux.spec
+          tar -czf "$RUNNER_TEMP/original.tar.gz" -C dist mower
+          echo "$ARCH original release bytes $(stat -c %s "$RUNNER_TEMP/original.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Enable GTK exactly as in the reviewed release workflow.
           . .github/package-check/enable-gtk.sh
           python -m PyInstaller --noconfirm webui_zip_for_linux.spec
-          tar -czf dist/diagnostic.tar.gz -C dist mower
-          mkdir -p smoke
-          tar -xzf dist/diagnostic.tar.gz -C smoke
+          cp -a dist/mower "$RUNNER_TEMP/installed"
+          tar -czf "$RUNNER_TEMP/before.tar.gz" -C dist mower
+          cp "$RUNNER_TEMP/head.spec" webui_zip_for_linux.spec
+          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
+          tar -czf "$RUNNER_TEMP/after.tar.gz" -C dist mower
+          test -s dist/mower-linux-debug.tar.gz
+          for side in before after; do
+              echo "$ARCH $side full bytes $(stat -c %s "$RUNNER_TEMP/$side.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          echo "$ARCH debug bytes $(stat -c %s dist/mower-linux-debug.tar.gz)" | tee -a "$GITHUB_STEP_SUMMARY"
+          dist/mower/_internal/platform-tools/adb version
+      - name: Unpack measured archive for startup verification
+        run: mkdir -p smoke && tar -xzf "$RUNNER_TEMP/after.tar.gz" -C smoke
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.arch }}
-          path: dist/diagnostic.tar.gz
-          retention-days: 1
+          path: ${{ runner.temp }}/after.tar.gz
           compression-level: 0
-      - name: Verify released window and diagnose startup
+          retention-days: 1
+      - name: Check shipped Linux GUI readiness
         run: xvfb-run -a dbus-run-session -- python .github/package-check/diagnose_window.py smoke/mower
-      - name: Compare GTK tray and X11 tray selection after failure
-        if: failure()
-        run: xvfb-run -a dbus-run-session -- env PYSTRAY_BACKEND=xorg python .github/package-check/diagnose_window.py smoke/mower
+      - name: Start installed app and apply target using a copied updater
+        run: xvfb-run -a dbus-run-session -- python .github/package-check/linux_update.py
       - name: Desktop diagnostic logs
         if: failure()
         run: |
