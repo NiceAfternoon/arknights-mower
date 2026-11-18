@@ -2,6 +2,7 @@ import json
 import os
 import re
 import subprocess
+import shutil
 import sys
 from pathlib import Path
 from urllib.request import urlopen
@@ -14,7 +15,10 @@ def verified(bundle, process, state, timeout=120):
         return wait(bundle, process, state, timeout)
     except Exception:
         print("Window tree at failure:", flush=True)
-        subprocess.run(["xwininfo","-root","-tree"],timeout=3)
+        if shutil.which("xwininfo"):
+            subprocess.run(["xwininfo","-root","-tree"],timeout=3)
+        else:
+            subprocess.run(["xdotool","search","--onlyvisible","--name",".*","getwindowname","%@"],timeout=3)
         subprocess.run(["ps", "-g",str(process.pid),"-o","pid,ppid,stat,comm,wchan"],timeout=3)
         workspace = Path(os.environ["MOWER_DATA_DIR"])
         print("Workspace:",[x.name for x in workspace.iterdir()], "state:",state,flush=True)

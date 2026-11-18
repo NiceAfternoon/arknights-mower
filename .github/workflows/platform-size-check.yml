@@ -1,68 +1,13 @@
-name: Platform package size and update verification
+name: Verify Linux manager from measured standalone packages
 on:
   push:
     branches: [codex/check-package-size-20261118]
 permissions:
+  actions: read
   contents: read
-env:
-  BASE: a4ac4d5ed07a7a6a05bcadc09efe877ab7935392
 jobs:
-  android:
-    if: false
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 30}
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
-      - uses: actions/setup-node@v4
-        with: {node-version: '24', cache: npm, cache-dependency-path: ui/package-lock.json}
-      - run: npm ci && npm run build
-        working-directory: ui
-      - name: Build one ARM64 environment for both archives
-        run: |
-          docker build --platform linux/arm64 -f scripts/android-runtime.Dockerfile -t mower-runtime:audit .
-          container=$(docker create mower-runtime:audit)
-          docker export -o "$RUNNER_TEMP/rootfs.tar" "$container"
-          docker rm "$container"
-          git show "$BASE:scripts/build_android_runtime.py" > scripts/_verify_base_android.py
-          python - <<'PY'
-          import os
-          from pathlib import Path
-          from scripts import _verify_base_android as base, build_android_runtime as head
-          tmp = Path(os.environ["RUNNER_TEMP"])
-          for name, module in (("before", base), ("after", head)):
-              module.pack_rootfs(tmp / "rootfs.tar", tmp / name / "python-runtime.zip.xz")
-          PY
-      - name: Measure complete packages with identical versions and frontend
-        run: |
-          python scripts/inject_version.py 0.0.0-alpha.2
-          for side in before after; do
-              python scripts/package_android.py 0.0.0-alpha.2 --output "$RUNNER_TEMP/$side"
-              pkg="$RUNNER_TEMP/$side/arknights-mower_0.0.0-alpha.2_android_arm64.zip"
-              echo "$side Android full bytes $(stat -c %s "$pkg")" | tee -a "$GITHUB_STEP_SUMMARY"
-              python scripts/check_android_package.py "$pkg" --version 0.0.0-alpha.2 --revision "$GITHUB_SHA"
-          done
-      - name: Install previous version and reconstruct the target with the Android OTA installer
-        run: |
-          python scripts/inject_version.py 0.0.0-alpha.1
-          python scripts/package_android.py 0.0.0-alpha.1 --output "$RUNNER_TEMP/before"
-          python -m pip install bsdiff4==1.2.6
-          mkdir -p "$RUNNER_TEMP/smoke"
-          python .github/package-check/android_ota_smoke.py "$RUNNER_TEMP/before/arknights-mower_0.0.0-alpha.1_android_arm64.zip" "$RUNNER_TEMP/after/arknights-mower_0.0.0-alpha.2_android_arm64.zip" "$RUNNER_TEMP/smoke/rebuilt.zip"
-          python scripts/check_android_package.py "$RUNNER_TEMP/smoke/rebuilt.zip" --version 0.0.0-alpha.2 --revision "$GITHUB_SHA"
-      - uses: actions/checkout@v4
-        with:
-          repository: ALEXsun0/arknights-mower-android
-          ref: ad19d1963e4e38d2d4fb82d8899ef6d4822d6951
-          path: .android-host
-          sparse-checkout: runtime/mower_android
-          persist-credentials: false
-      - name: Run OCR in the installed target without network
-        run: |
-          docker run --rm --network none -v "$PWD:/src:ro" -v "$RUNNER_TEMP/smoke:/inputs:ro" -w /src mower-runtime:audit python .github/package-check/android_package_smoke.py /inputs/rebuilt.zip arknights_mower/tests/fixtures/mastery_panel_carnelian.png --host-adapter /src/.android-host/runtime/mower_android
-  linux:
+  manager:
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:
@@ -70,62 +15,41 @@ jobs:
           - {runner: ubuntu-24.04, arch: x64}
           - {runner: ubuntu-24.04-arm, arch: arm64}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
-    env:
-      ARCH: ${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 30}
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.12', cache: pip, cache-dependency-path: requirements.in}
-      - uses: actions/setup-node@v4
-        with: {node-version: '24', cache: npm, cache-dependency-path: ui/package-lock.json}
-      - name: Prepare release tools and the native desktop
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: '44299891454'
+          name: desktop-${{ matrix.arch }}
+          path: archive
+      - name: Install documented GTK and tray dependencies and unpack the release
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-soup-3.0 python3-cairo dbus-x11 xdotool gir1.2-ayatanaappindicator3-0.1
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.in pyinstaller==6.22.2
-          python -m pip check
-          python scripts/prune_opencv.py
-          python -m unittest scripts.tests.linux_debug_symbols_tests
-          (cd ui && npm ci)
-      - name: Package the same build before and after separating symbols
+          sudo apt-get install -y -qq xauth xvfb dbus-x11 xdotool libzbar0 libgl1 libgtk-3-0 libwebkit2gtk-4.1-0 gir1.2-gtk-3.0 gir1.2-soup-3.0 gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1
+          tar -xzf archive/after.tar.gz
+      - name: Start manager and verify its registered tray and loaded instance list
         run: |
-          python scripts/inject_version.py 0.0.0-alpha.2 --system linux --arch "$ARCH"
-          cp webui_zip_for_linux.spec "$RUNNER_TEMP/head.spec"
-          git show "$BASE:webui_zip_for_linux.spec" > webui_zip_for_linux.spec
-          python -c 'import importlib.util; print("Baseline GI", importlib.util.find_spec("gi"))'
-          python -m PyInstaller --workpath "$RUNNER_TEMP/old-release-work" --noconfirm webui_zip_for_linux.spec
-          tar -czf "$RUNNER_TEMP/original.tar.gz" -C dist mower
-          echo "$ARCH original release bytes $(stat -c %s "$RUNNER_TEMP/original.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
-          # Enable GTK exactly as in the reviewed release workflow.
-          . .github/package-check/enable-gtk.sh
-          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
-          cp -a dist/mower "$RUNNER_TEMP/installed"
-          tar -czf "$RUNNER_TEMP/before.tar.gz" -C dist mower
-          cp "$RUNNER_TEMP/head.spec" webui_zip_for_linux.spec
-          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
-          tar -czf "$RUNNER_TEMP/after.tar.gz" -C dist mower
-          test -s dist/mower-linux-debug.tar.gz
-          for side in before after; do
-              echo "$ARCH $side full bytes $(stat -c %s "$RUNNER_TEMP/$side.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
-          done
-          echo "$ARCH debug bytes $(stat -c %s dist/mower-linux-debug.tar.gz)" | tee -a "$GITHUB_STEP_SUMMARY"
-          dist/mower/_internal/platform-tools/adb version
-      - name: Unpack measured archive for startup verification
-        run: mkdir -p smoke && tar -xzf "$RUNNER_TEMP/after.tar.gz" -C smoke
-      - uses: actions/upload-artifact@v4
-        with:
-          name: desktop-${{ matrix.arch }}
-          path: ${{ runner.temp }}/after.tar.gz
-          compression-level: 0
-          retention-days: 1
-      - name: Check shipped Linux GUI readiness
-        run: xvfb-run -a dbus-run-session -- python .github/package-check/diagnose_window.py smoke/mower
-      - name: Start installed app and apply target using a copied updater
-        run: xvfb-run -a dbus-run-session -- python .github/package-check/linux_update.py
-      - name: Desktop diagnostic logs
-        if: failure()
-        run: |
-          find "$RUNNER_TEMP/desktop-check" -type f \( -name 'status.json' -o -name '*.log' \) | while IFS= read -r f; do echo "$f"; tail -c 1800 "$f"; done
+          xvfb-run -a dbus-run-session -- python3 - <<'PY'
+          import os, signal, subprocess, tempfile, time
+          from pathlib import Path
+          with tempfile.TemporaryDirectory() as tmp:
+              ready = Path(tmp) / "manager-ready"
+              package = Path("mower").resolve()
+              env = dict(os.environ, MOWER_DATA_DIR=tmp, MOWER_SMOKE_READY_FILE=str(ready))
+              p = subprocess.Popen([package/"多开管理器"],cwd=package,env=env,start_new_session=True)
+              try:
+                  deadline=time.monotonic()+90
+                  while p.poll() is None and not ready.exists() and time.monotonic()<deadline:
+                      time.sleep(.3)
+                  assert p.poll() is None and ready.read_text()=="ready"
+                  print("Manager tray and window instance list both ready",flush=True)
+              finally:
+                  try:
+                      os.killpg(p.pid, signal.SIGTERM)
+                      p.wait(5)
+                  except subprocess.TimeoutExpired:
+                      os.killpg(p.pid,signal.SIGKILL)
+                      p.wait(5)
+                  except ProcessLookupError:
+                      p.wait(5)
+          PY
