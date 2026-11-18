@@ -47,40 +47,65 @@ def check_service(root, adapter, package, version):
     # prepare_files() checks the receipt for an already-installed Android MAA.
     # This UI test does not install or start MaaCore.
     (data / "maa").mkdir()
-    shutil.copyfile(adapter / "maa-component-lock.json", data / "maa/.mower-android.json")
+    shutil.copyfile(
+        adapter / "maa-component-lock.json", data / "maa/.mower-android.json"
+    )
     (root / "dev/shm").mkdir(exist_ok=True)
     (root / "dev/shm").chmod(0o1777)
     token = secrets.token_urlsafe(32)
     env = {
-        "HOME": "/mower-data", "PATH": "/usr/local/bin:/usr/bin:/bin",
-        "LANG": "C.UTF-8", "TZ": "UTC", "OPENBLAS_NUM_THREADS": "2",
-        "OMP_NUM_THREADS": "2", "PYTHONUNBUFFERED": "1",
-        "MOWER_ANDROID": "1", "MOWER_SERVICE_RESTART": "1", "MOWER_SOURCE_SELECTED": "1",
-        "MOWER_ACTIVE_ID": active_id, "MOWER_DATA_DIR": "/mower-data",
-        "MOWER_WEB_BIND": "127.0.0.1", "MOWER_WEB_TOKEN": token, "MOWER_WEB_PORT": "58000",
-        "MOWER_BRIDGE_PORT": "1", "MOWER_BRIDGE_TOKEN": secrets.token_urlsafe(32),
-        "MOWER_APK_GENERATION": "package-smoke", "MOWER_APK_CODE": "42",
+        "HOME": "/mower-data",
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC",
+        "OPENBLAS_NUM_THREADS": "2",
+        "OMP_NUM_THREADS": "2",
+        "PYTHONUNBUFFERED": "1",
+        "MOWER_ANDROID": "1",
+        "MOWER_SERVICE_RESTART": "1",
+        "MOWER_SOURCE_SELECTED": "1",
+        "MOWER_ACTIVE_ID": active_id,
+        "MOWER_DATA_DIR": "/mower-data",
+        "MOWER_WEB_BIND": "127.0.0.1",
+        "MOWER_WEB_TOKEN": token,
+        "MOWER_WEB_PORT": "58000",
+        "MOWER_BRIDGE_PORT": "1",
+        "MOWER_BRIDGE_TOKEN": secrets.token_urlsafe(32),
+        "MOWER_APK_GENERATION": "package-smoke",
+        "MOWER_APK_CODE": "42",
     }
     proc = subprocess.Popen(
-        ["chroot", str(root), "/bin/sh", "-c",
-         "cd /mower && exec /usr/local/bin/python -m mower_android.launcher"],
-        env=env, executable=shutil.which("chroot"),
+        [
+            "chroot",
+            str(root),
+            "/bin/sh",
+            "-c",
+            "cd /mower && exec /usr/local/bin/python -m mower_android.launcher",
+        ],
+        env=env,
+        executable=shutil.which("chroot"),
     )
+
     def fetch(path):
         conn = http.client.HTTPConnection("127.0.0.1", 58000, timeout=10)
         try:
-            conn.request("GET", path, headers={"token": token, "Accept-Encoding": "identity"})
+            conn.request(
+                "GET", path, headers={"token": token, "Accept-Encoding": "identity"}
+            )
             response = conn.getresponse()
             content = response.read()
             assert response.status == 200, (path, response.status, content[:200])
             return content
         finally:
             conn.close()
+
     try:
         deadline = time.monotonic() + 120
         while True:
             if proc.poll() is not None:
-                raise RuntimeError(f"Android launcher exited with status {proc.returncode}")
+                raise RuntimeError(
+                    f"Android launcher exited with status {proc.returncode}"
+                )
             try:
                 index = fetch("/")
                 break
@@ -90,13 +115,25 @@ def check_service(root, adapter, package, version):
                 time.sleep(0.25)
         assert index == (program / "ui/dist/index.html").read_bytes()
         status = json.loads(fetch("/status"))
-        assert status["deployment"] == "release" and status["status"] == "stopped", status
-        assert status["auto_start_handled"] and status["desktop_startup_handled"], status
+        assert status["deployment"] == "release" and status["status"] == "stopped", (
+            status
+        )
+        assert status["auto_start_handled"] and status["desktop_startup_handled"], (
+            status
+        )
         installed = json.loads(fetch("/android/mower-recovery"))["installed"]["version"]
         assert installed.split("+")[0] == version, (installed, version)
         ready_state = json.loads(state.read_text())
-        assert ready_state["id"] == active_id and not ready_state.get("booting") and not ready_state.get("pending")
-        print("Android launcher served the packaged UI and authenticated stopped status:", installed, flush=True)
+        assert (
+            ready_state["id"] == active_id
+            and not ready_state.get("booting")
+            and not ready_state.get("pending")
+        )
+        print(
+            "Android launcher served the packaged UI and authenticated stopped status:",
+            installed,
+            flush=True,
+        )
     finally:
         if proc.poll() is None:
             proc.kill()
