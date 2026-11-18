@@ -51,6 +51,9 @@ class LinuxDebugSymbolsTests(unittest.TestCase):
             self.assertNotIn(b".debug_info", sections)
             self.assertIn(b".gnu_debuglink", sections)
             self.assertFalse(list(bundle.rglob("*.debug")))
+            stripped_bytes = library.read_bytes()
+            split_linux_debug_symbols(bundle)
+            self.assertEqual(library.read_bytes(), stripped_bytes)
             with tarfile.open(root / "mower-linux-debug.tar.gz") as symbols:
                 self.assertEqual(
                     symbols.getnames(),
@@ -62,3 +65,8 @@ class LinuxDebugSymbolsTests(unittest.TestCase):
                 text=True,
             )
             self.assertIn("example.c", source_line)
+            (library.parent / ".debug/libexample.so.1.debug").unlink()
+            library.write_bytes(plain_bytes)
+            split_linux_debug_symbols(bundle)
+            with tarfile.open(root / "mower-linux-debug.tar.gz") as symbols:
+                self.assertEqual(symbols.getnames(), [])

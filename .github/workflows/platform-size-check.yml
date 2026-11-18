@@ -51,9 +51,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/smoke"
           python .github/package-check/android_ota_smoke.py "$RUNNER_TEMP/before/arknights-mower_0.0.0-alpha.1_android_arm64.zip" "$RUNNER_TEMP/after/arknights-mower_0.0.0-alpha.2_android_arm64.zip" "$RUNNER_TEMP/smoke/rebuilt.zip"
           python scripts/check_android_package.py "$RUNNER_TEMP/smoke/rebuilt.zip" --version 0.0.0-alpha.2 --revision "$GITHUB_SHA"
+      - uses: actions/checkout@v4
+        with:
+          repository: ALEXsun0/arknights-mower-android
+          ref: ad19d1963e4e38d2d4fb82d8899ef6d4822d6951
+          path: .android-host
+          sparse-checkout: runtime/mower_android
+          persist-credentials: false
       - name: Run OCR in the installed target without network
         run: |
-          docker run --rm --network none -v "$PWD:/src:ro" -v "$RUNNER_TEMP/smoke:/inputs:ro" -w /src mower-runtime:audit python .github/package-check/android_package_smoke.py /inputs/rebuilt.zip arknights_mower/tests/fixtures/mastery_panel_carnelian.png
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$RUNNER_TEMP/smoke:/inputs:ro" -w /src mower-runtime:audit python .github/package-check/android_package_smoke.py /inputs/rebuilt.zip arknights_mower/tests/fixtures/mastery_panel_carnelian.png --host-adapter /src/.android-host/runtime/mower_android
   linux:
     strategy:
       fail-fast: false
@@ -75,11 +82,9 @@ jobs:
       - name: Prepare release tools and the native desktop
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 dbus-x11
+          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 gir1.2-soup-3.0 python3-cairo dbus-x11
           python -m pip install -r requirements.in pyinstaller==6.22.2
           python -m pip check
-          echo /usr/lib/python3/dist-packages > "$(python -c 'import site; print(site.getsitepackages()[0])')/system-gi.pth"
-          python -c 'import gi'
           python scripts/prune_opencv.py
           python -m unittest scripts.tests.linux_debug_symbols_tests
           (cd ui && npm ci)
@@ -88,6 +93,12 @@ jobs:
           python scripts/inject_version.py 0.0.0-alpha.2 --system linux --arch "$ARCH"
           cp webui_zip_for_linux.spec "$RUNNER_TEMP/head.spec"
           git show "$BASE:webui_zip_for_linux.spec" > webui_zip_for_linux.spec
+          python -c 'import importlib.util; print("Baseline GI", importlib.util.find_spec("gi"))'
+          python -m PyInstaller --workpath "$RUNNER_TEMP/old-release-work" --noconfirm webui_zip_for_linux.spec
+          tar -czf "$RUNNER_TEMP/original.tar.gz" -C dist mower
+          echo "$ARCH original release bytes $(stat -c %s "$RUNNER_TEMP/original.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Enable GTK exactly as in the reviewed release workflow.
+          . .github/package-check/enable-gtk.sh
           python -m PyInstaller --noconfirm webui_zip_for_linux.spec
           cp -a dist/mower "$RUNNER_TEMP/installed"
           tar -czf "$RUNNER_TEMP/before.tar.gz" -C dist mower
@@ -100,9 +111,11 @@ jobs:
           done
           echo "$ARCH debug bytes $(stat -c %s dist/mower-linux-debug.tar.gz)" | tee -a "$GITHUB_STEP_SUMMARY"
           dist/mower/_internal/platform-tools/adb version
+      - name: Check shipped Linux GUI readiness
+        run: dbus-run-session -- xvfb-run -a python scripts/smoke_linux_desktop.py dist/mower
       - name: Start installed app and apply target using a copied updater
         run: dbus-run-session -- xvfb-run -a python .github/package-check/linux_update.py
       - name: Desktop diagnostic logs
         if: failure()
         run: |
-          find "$RUNNER_TEMP/desktop-check" -name 'status.json' -o -name '*log' | while IFS= read -r f; do echo "$f"; tail -c 1800 "$f"; done
+          find "$RUNNER_TEMP/desktop-check" -type f \( -name 'status.json' -o -name '*.log' \) | while IFS= read -r f; do echo "$f"; tail -c 1800 "$f"; done

@@ -31,6 +31,7 @@ try:
 
     PYWEBVIEW_GTK_HIDDENIMPORTS = [
         "webview.platforms.gtk",
+        "cairo",
         "gi",
         "gi.repository",
     ]

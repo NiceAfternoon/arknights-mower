@@ -198,6 +198,7 @@ def run():
 
             def finished():
                 nonlocal observed
+                proc.poll()  # Reap the old child, as a desktop launcher would.
                 status = api("GET", "/software-update/status")
                 if status.get("id") != job:
                     return False

@@ -365,6 +365,27 @@ jobs:
           PYTHONUTF8: "1"
         run: python scripts/check_pe_arch.py dist/mower --arch x64
 
+      - name: Verify shared Windows project modules
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PyInstaller.archive.readers import CArchiveReader
+
+          root = Path("dist/mower")
+          sources = root / "_internal/arknights_mower"
+          for name in ("__init__.py", "utils/manager_instances.py", "utils/software_update_worker.py"):
+              if not (sources / name).is_file():
+                  raise SystemExit(f"Missing shared source: {name}")
+          for name in ("mower.exe", "多开管理器.exe"):
+              modules = CArchiveReader(str(root / name)).open_embedded_archive("PYZ.pyz").toc
+              bundled = sorted(module for module in modules if module.partition(".")[0] == "arknights_mower")
+              if bundled:
+                  raise SystemExit(f"{name} embeds shared project modules: {', '.join(bundled)}")
+          PY
+
       - name: Verify asInvoker manifests
         shell: bash
         env:
@@ -459,6 +480,14 @@ jobs:
             libglib2.0-0 \
             libgtk-3-0 \
             libwebkit2gtk-4.1-0 \
+            python3-gi \
+            python3-gi-cairo \
+            python3-cairo \
+            gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.1 \
+            gir1.2-soup-3.0 \
+            dbus-x11 \
+            xauth \
             xvfb \
             file
 
@@ -482,6 +511,12 @@ jobs:
       - name: Build frontend
         working-directory: ui
         run: npm ci
+
+      - name: Prepare GTK bindings for the build interpreter
+        run: |
+          python_lib="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
+          cp -a /usr/lib/python3/dist-packages/{gi,cairo} "${python_lib}/"
+          xvfb-run -a python -c 'import cairo, gi; gi.require_foreign("cairo"); import webview.platforms.gtk'
 
       - name: Test Linux debug symbol separation
         run: python -m unittest scripts.tests.linux_debug_symbols_tests
@@ -566,19 +601,7 @@ jobs:
           echo "主程序与包内 ELF 共享库的依赖解析正常"
 
       - name: Smoke launch
-        run: |
-          rm -f launch.log
-          set +e
-          timeout 30 xvfb-run -a ./smoke/mower/mower > launch.log 2>&1
-          exit_code=$?
-          set -e
-          cat launch.log
-          if [ "${exit_code}" -eq 124 ]; then
-            echo "GUI 进程成功拉起并存活至 timeout（exit ${exit_code}）"
-          else
-            echo "::error::GUI 进程在 timeout 前以 ${exit_code} 退出，见上方日志"
-            exit 1
-          fi
+        run: dbus-run-session -- xvfb-run -a python scripts/smoke_linux_desktop.py smoke/mower
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
