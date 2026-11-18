@@ -83,7 +83,7 @@ jobs:
       - name: Prepare release tools and the native desktop
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-soup-3.0 python3-cairo dbus-x11 xdotool
+          sudo apt-get install -y -qq adb patchelf gdb binutils libzbar0 libgl1 libglib2.0-0 libgtk-3-0 libwebkit2gtk-4.1-0 xvfb xauth python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-soup-3.0 python3-cairo dbus-x11 xdotool gir1.2-ayatanaappindicator3-0.1
           python -m pip install --upgrade pip
           python -m pip install -r requirements.in pyinstaller==6.22.2
           python -m pip check
@@ -93,20 +93,32 @@ jobs:
       - name: Package the same build before and after separating symbols
         run: |
           python scripts/inject_version.py 0.0.0-alpha.2 --system linux --arch "$ARCH"
+          cp webui_zip_for_linux.spec "$RUNNER_TEMP/head.spec"
+          git show "$BASE:webui_zip_for_linux.spec" > webui_zip_for_linux.spec
+          python -c 'import importlib.util; print("Baseline GI", importlib.util.find_spec("gi"))'
+          python -m PyInstaller --workpath "$RUNNER_TEMP/old-release-work" --noconfirm webui_zip_for_linux.spec
+          tar -czf "$RUNNER_TEMP/original.tar.gz" -C dist mower
+          echo "$ARCH original release bytes $(stat -c %s "$RUNNER_TEMP/original.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Enable GTK exactly as in the reviewed release workflow.
           . .github/package-check/enable-gtk.sh
           python -m PyInstaller --noconfirm webui_zip_for_linux.spec
+          cp -a dist/mower "$RUNNER_TEMP/installed"
+          tar -czf "$RUNNER_TEMP/before.tar.gz" -C dist mower
+          cp "$RUNNER_TEMP/head.spec" webui_zip_for_linux.spec
+          python -m PyInstaller --noconfirm webui_zip_for_linux.spec
           tar -czf "$RUNNER_TEMP/after.tar.gz" -C dist mower
-          mkdir -p smoke
-          tar -xzf "$RUNNER_TEMP/after.tar.gz" -C smoke
           test -s dist/mower-linux-debug.tar.gz
-          smoke/mower/_internal/platform-tools/adb version
-      - name: Check unpacked GTK desktop in Xvfb
-        run: |
-          xvfb-run -a dbus-run-session -- bash -c '
-            (for n in {1..12}; do sleep 10; xwininfo -root -tree >> "$RUNNER_TEMP/window-tree.log"; done) & observer=$!
-            trap "kill $observer 2>/dev/null || true" EXIT
-            python scripts/smoke_linux_desktop.py smoke/mower || { tail -n 100 "$RUNNER_TEMP/window-tree.log"; exit 1; }
-          '
+          for side in before after; do
+              echo "$ARCH $side full bytes $(stat -c %s "$RUNNER_TEMP/$side.tar.gz")" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          echo "$ARCH debug bytes $(stat -c %s dist/mower-linux-debug.tar.gz)" | tee -a "$GITHUB_STEP_SUMMARY"
+          dist/mower/_internal/platform-tools/adb version
+      - name: Unpack measured archive for startup verification
+        run: mkdir -p smoke && tar -xzf "$RUNNER_TEMP/after.tar.gz" -C smoke
+      - name: Check shipped Linux GUI readiness
+        run: xvfb-run -a dbus-run-session -- python scripts/smoke_linux_desktop.py smoke/mower
+      - name: Start installed app and apply target using a copied updater
+        run: xvfb-run -a dbus-run-session -- python .github/package-check/linux_update.py
       - name: Desktop diagnostic logs
         if: failure()
         run: |
